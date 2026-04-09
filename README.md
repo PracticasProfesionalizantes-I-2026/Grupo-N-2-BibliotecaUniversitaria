@@ -1,4 +1,4 @@
-# Grupo-N-2-GestionBibliotecaUniversitaria
+# Grupo-N-2-BibliotecaUniversitaria
 
 Integrantes: Lautaro Navarro y Elías Korell
 
