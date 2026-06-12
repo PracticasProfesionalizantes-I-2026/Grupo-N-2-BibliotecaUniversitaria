@@ -10,7 +10,7 @@ LINK:
 
 
 
-https://docs.google.com/document/d/1f4idud-PCBsQK_48ZCf5ibF_MNzNLKdxSAvWgO32Wt4/edit?tab=t.0#heading=h.frnk5y8ou0gl
+https://docs.google.com/document/d/1l-hgM-n6PiBafRuCns1cQy5qqAaQTxlvS21iAa8c9ww/edit?tab=t.0
 
 
 
