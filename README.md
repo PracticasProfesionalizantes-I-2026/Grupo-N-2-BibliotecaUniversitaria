@@ -20,6 +20,10 @@ PRESENTACIÓN de app BiblioGest:
 
 https://1drv.ms/p/c/f7646867687d1003/IQCJK54DJMozRJ3uwkxZlD3hAWH1imrQJQQrl5GPhNG3fgY?e=jVX4eW
 
+PRESENTACION DE CASOS DE USO
+
+https://docs.google.com/document/d/1cPGvxmILelmMMogMiCeEFB1LkpB8VdPgWXqcZl9IrxY/edit?usp=sharing
+
 
 
 MOCAP:
