@@ -1,0 +1,21 @@
+meta {
+  name: Crear libro con datos invalidos (400)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "titulo": "",
+    "autor": "Autor",
+    "isbn": "123",
+    "ubicacion": "A1",
+    "stock": -1
+  }
+}

@@ -1,0 +1,11 @@
+meta {
+  name: Eliminar libro inexistente (404)
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/libros/00000000-0000-0000-0000-000000000000
+  body: none
+  auth: none
+}

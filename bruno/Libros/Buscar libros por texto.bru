@@ -1,0 +1,15 @@
+meta {
+  name: Buscar libros por texto
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/libros?busqueda=Rayuela
+  body: none
+  auth: none
+}
+
+params:query {
+  busqueda: Rayuela
+}

@@ -1,0 +1,26 @@
+meta {
+  name: Crear lector (201)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Facundo",
+    "apellido": "López",
+    "email": "facundo.lopez@example.com",
+    "identificador": "35555111"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("lectorId", res.body.id);
+  }
+}

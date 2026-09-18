@@ -1,0 +1,17 @@
+meta {
+  name: Eliminar libro con prestamos activos (409)
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/api/libros/{{libroId}}
+  body: none
+  auth: none
+}
+
+docs {
+  Ejecutar después de "Crear préstamo (201)" en la carpeta Prestamos usando
+  este mismo libroId, para que la eliminación choque contra RN de préstamos
+  activos y devuelva 409 Conflict.
+}

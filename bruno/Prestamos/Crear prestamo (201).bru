@@ -1,0 +1,29 @@
+meta {
+  name: Crear prestamo (201)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/prestamos
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "lectorId": "{{lectorId}}",
+    "libroId": "{{libroId}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("prestamoId", res.body.id);
+  }
+}
+
+docs {
+  Requiere haber corrido antes "Crear lector (201)" y "Crear libro (201)"
+  (con stock > 0) para tener lectorId y libroId cargados en el entorno.
+}

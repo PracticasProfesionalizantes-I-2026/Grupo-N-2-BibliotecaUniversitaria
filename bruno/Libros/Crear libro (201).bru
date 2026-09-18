@@ -1,0 +1,27 @@
+meta {
+  name: Crear libro (201)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "titulo": "El Aleph",
+    "autor": "Jorge Luis Borges",
+    "isbn": "978-8420633109",
+    "ubicacion": "Estante A4",
+    "stock": 4
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("libroId", res.body.id);
+  }
+}

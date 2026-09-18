@@ -1,0 +1,18 @@
+meta {
+  name: Crear prestamo con lector o libro inexistente (404)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/prestamos
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "lectorId": "00000000-0000-0000-0000-000000000000",
+    "libroId": "00000000-0000-0000-0000-000000000000"
+  }
+}

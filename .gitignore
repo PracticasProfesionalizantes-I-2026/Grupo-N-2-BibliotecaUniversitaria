@@ -1,0 +1,17 @@
+## .NET
+bin/
+obj/
+*.db
+*.db-shm
+*.db-wal
+
+## Rider / VS
+.vs/
+.idea/
+*.user
+
+## Bruno (evita subir credenciales locales de entorno)
+bruno/**/.env
+
+# documento para nosotros 
+Documentos/Resumen-Sesion-Arquitectura-BiblioGest.txt

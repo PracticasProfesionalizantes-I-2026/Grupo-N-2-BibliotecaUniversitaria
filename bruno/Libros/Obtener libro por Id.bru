@@ -1,0 +1,11 @@
+meta {
+  name: Obtener libro por Id
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/libros/{{libroId}}
+  body: none
+  auth: none
+}

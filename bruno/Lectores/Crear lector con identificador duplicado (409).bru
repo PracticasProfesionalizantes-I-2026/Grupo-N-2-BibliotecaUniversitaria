@@ -1,0 +1,25 @@
+meta {
+  name: Crear lector con identificador duplicado (409)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Otro",
+    "apellido": "Lector",
+    "email": "otro.lector@example.com",
+    "identificador": "35555111"
+  }
+}
+
+docs {
+  Ejecutar después de "Crear lector (201)" para reusar el mismo
+  identificador y provocar el 409 Conflict de RN-08.
+}

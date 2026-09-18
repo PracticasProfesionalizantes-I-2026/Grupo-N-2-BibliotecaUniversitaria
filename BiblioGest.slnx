@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/API/">
+    <Project Path="API/BiblioGest.Api.csproj" />
+  </Folder>
+  <Folder Name="/BusinessLogic/">
+    <Project Path="BusinessLogic/BiblioGest.BusinessLogic.csproj" />
+  </Folder>
+  <Folder Name="/DataAccess/">
+    <Project Path="DataAccess/BiblioGest.DataAccess.csproj" />
+  </Folder>
+  <Folder Name="/Shared/">
+    <Project Path="Shared/BiblioGest.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BiblioGest.IntegrationTests/BiblioGest.IntegrationTests.csproj" />
+    <Project Path="tests/BiblioGest.UnitTests/BiblioGest.UnitTests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,20 @@
+meta {
+  name: Modificar lector (200)
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/lectores/{{lectorId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Facundo",
+    "apellido": "López",
+    "email": "facundo.lopez@example.com",
+    "identificador": "35555112"
+  }
+}
