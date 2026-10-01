@@ -4,9 +4,11 @@
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso.pdf`.
 > Reglas de negocio RN-08 (unicidad de DNI/legajo) y RN-09 (no eliminar lector con
-> préstamos activos) **pendientes de implementación**; el proyecto se encuentra en
-> etapa de análisis, por lo que los tests listados en la matriz de trazabilidad son
-> **propuestos**, no implementados aún.
+> préstamos activos) **implementadas** en `LectorService`. La matriz de trazabilidad
+> de más abajo refleja los tests que existen realmente en
+> `tests/BiblioGest.UnitTests/LectorServiceTests.cs` y
+> `tests/BiblioGest.IntegrationTests/LectoresControllerTests.cs`; las filas sin test
+> dedicado quedan marcadas como pendientes.
 
 | Campo | Valor |
 | --- | --- |
@@ -111,18 +113,17 @@ flujo principal y alternativo._
 | `400` | Bad Request | Datos obligatorios faltantes en el alta o modificación del lector. |
 | `409` | Conflict | DNI/legajo duplicado (RN-08) o intento de eliminar un lector con préstamos activos (RN-09). |
 
-### Matriz de trazabilidad CU-04 → Test (propuesta)
+### Matriz de trazabilidad CU-04 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Excepción / Código | Test unitario | Test integración |
 | --- | --- | --- | --- |
 | 3a. Registrar lector | `201 Created` | `CreateLectorAsync_WithValidData_SavesAndReturnsCreatedLector` | `CreateLector_ReturnsSuccessAndCreatedLector` |
-| 3b. Modificar lector | `200 OK` | `UpdateLectorAsync_WithValidData_UpdatesLector` | `UpdateLector_ReturnsSuccessAndUpdatedLector` |
-| 3c. Eliminar lector | `200 OK` | `DeleteLectorAsync_WithoutActiveLoans_DeletesLector` | `DeleteLector_WithoutActiveLoans_Returns200OK` |
-| 3c-1. Lector con préstamos activos | `409 Conflict` | `DeleteLectorAsync_WhenLectorHasActiveLoans_ThrowsConflictException` | `DeleteLector_WithActiveLoans_Returns409Conflict` |
-| 4a. Datos obligatorios incompletos | `400 Bad Request` | — (validación de esquema en Presentación) | `CreateLector_WithMissingRequiredField_Returns400BadRequest` |
-| 6a. DNI o legajo repetido | `409 Conflict` | `CreateLectorAsync_WhenDniOrLegajoAlreadyExists_ThrowsDuplicateException` | `CreateLector_WhenDuplicateDniOrLegajo_Returns409Conflict` |
+| 3b. Modificar lector | `200 OK` | — (pendiente) | — (pendiente) |
+| 3c. Eliminar lector | `200 OK` | `DeleteLectorAsync_WithoutActiveLoans_DeletesLector` | — (pendiente) |
+| 3c-1. Lector con préstamos activos | `409 Conflict` | `DeleteLectorAsync_WhenLectorHasActiveLoans_ThrowsConflictException` | — (pendiente) |
+| 4a. Datos obligatorios incompletos | `400 Bad Request` | `CreateLectorAsync_WithMissingRequiredField_ThrowsValidationException` | `CreateLector_WithMissingRequiredField_Returns400BadRequest`, `CreateLector_WithInvalidEmail_Returns400BadRequest` |
+| 6a. DNI o legajo repetido | `409 Conflict` | `CreateLectorAsync_WhenIdentificadorAlreadyExists_ThrowsConflictException` | `CreateLector_WhenDuplicateIdentificador_Returns409Conflict` |
 
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Las filas
+> marcadas como "pendiente" todavía no tienen test dedicado; quedan para una
+> iteración futura.

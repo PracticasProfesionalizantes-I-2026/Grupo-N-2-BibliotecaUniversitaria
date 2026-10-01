@@ -4,10 +4,12 @@
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso.pdf`.
 > Reglas de negocio RN-03 (datos obligatorios del libro), RN-04 (stock no
-> negativo) y RN-05 (búsqueda por título/autor/ISBN) **pendientes de
-> implementación**; el proyecto se encuentra en etapa de análisis, por lo que
-> los tests listados en la matriz de trazabilidad son **propuestos**, no
-> implementados aún.
+> negativo) y RN-05 (búsqueda por título/autor/ISBN) **implementadas** en
+> `LibroService` / `LibroRepository`. La matriz de trazabilidad de más abajo
+> refleja los tests que existen realmente en
+> `tests/BiblioGest.UnitTests/LibroServiceTests.cs` y
+> `tests/BiblioGest.IntegrationTests/LibrosControllerTests.cs`; las filas sin
+> test de integración dedicado quedan marcadas como pendientes.
 
 | Campo | Valor |
 | --- | --- |
@@ -112,18 +114,18 @@ actualizada la información del catálogo y del stock.
 | `400` | Bad Request | Datos obligatorios faltantes o stock negativo (RN-04). |
 | `409` | Conflict | Intento de eliminar un libro con préstamos activos. |
 
-### Matriz de trazabilidad CU-02 → Test (propuesta)
+### Matriz de trazabilidad CU-02 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Excepción / Código | Test unitario | Test integración |
 | --- | --- | --- | --- |
 | 3a. Registrar libro | `201 Created` | `CreateLibroAsync_WithValidData_SavesAndReturnsCreatedLibro` | `CreateLibro_ReturnsSuccessAndCreatedLibro` |
-| 3b. Modificar libro | `200 OK` | `UpdateLibroAsync_WithValidData_UpdatesLibro` | `UpdateLibro_ReturnsSuccessAndUpdatedLibro` |
-| 3c. Eliminar libro | `200 OK` | `DeleteLibroAsync_WithoutActiveLoans_DeletesLibro` | `DeleteLibro_WithoutActiveLoans_Returns200OK` |
+| 3b. Modificar libro | `200 OK` | `UpdateLibroAsync_WithValidData_UpdatesLibro` | — (pendiente) |
+| 3c. Eliminar libro | `200 OK` | `DeleteLibroAsync_WithoutActiveLoans_DeletesLibro` | — (pendiente) |
 | 3c-1. Libro con préstamos activos | `409 Conflict` | `DeleteLibroAsync_WhenLibroHasActiveLoans_ThrowsConflictException` | `DeleteLibro_WithActiveLoans_Returns409Conflict` |
-| 4a. Datos obligatorios incompletos | `400 Bad Request` | — (validación de esquema en Presentación) | `CreateLibro_WithMissingRequiredField_Returns400BadRequest` |
-| 6a. Stock negativo | `400 Bad Request` | `CreateLibroAsync_WithNegativeStock_ThrowsValidationException` | `CreateLibro_WithNegativeStock_Returns400BadRequest` |
+| 4a. Datos obligatorios incompletos | `400 Bad Request` | — (validación de esquema vía DataAnnotations en los DTOs) | `CreateLibro_WithMissingRequiredField_Returns400BadRequest`, `CreateLibro_WithTituloTooLong_Returns400BadRequest` |
+| 6a. Stock negativo | `400 Bad Request` | `CreateLibroAsync_WithNegativeStock_ThrowsValidationException` | — (pendiente) |
 
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Las filas
+> marcadas como "pendiente" todavía no tienen test de integración dedicado (la regla
+> sí está probada a nivel unitario o cubierta indirectamente); quedan para una
+> iteración futura.

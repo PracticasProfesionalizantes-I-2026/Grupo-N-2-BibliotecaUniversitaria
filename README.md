@@ -126,13 +126,13 @@ la API, con datos de prueba (3 libros, 2 lectores, 1 préstamo vencido) vía
 
 | Método | Ruta | Descripción | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| GET | `/api/libros?busqueda=` | Listar/buscar por título, autor o ISBN | 200 | — |
-| GET | `/api/libros/{id}` | Obtener un libro | 200 | 404 |
-| POST | `/api/libros` | Crear libro | 201 | 400 |
-| PUT | `/api/libros/{id}` | Modificar libro | 200 | 400, 404 |
-| DELETE | `/api/libros/{id}` | Eliminar libro | 200 | 404, 409 |
+| GET | `/api/v1/libros?busqueda=` | Listar/buscar por título, autor o ISBN | 200 | — |
+| GET | `/api/v1/libros/{id}` | Obtener un libro | 200 | 404 |
+| POST | `/api/v1/libros` | Crear libro | 201 | 400 |
+| PUT | `/api/v1/libros/{id}` | Modificar libro | 200 | 400, 404 |
+| DELETE | `/api/v1/libros/{id}` | Eliminar libro | 200 | 404, 409 |
 
-Ejemplo `POST /api/libros`:
+Ejemplo `POST /api/v1/libros`:
 
 ```json
 // Request
@@ -160,13 +160,13 @@ Ejemplo `POST /api/libros`:
 
 | Método | Ruta | Descripción | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| GET | `/api/lectores` | Listar lectores | 200 | — |
-| GET | `/api/lectores/{id}` | Obtener un lector | 200 | 404 |
-| POST | `/api/lectores` | Crear lector | 201 | 400, 409 |
-| PUT | `/api/lectores/{id}` | Modificar lector | 200 | 400, 404, 409 |
-| DELETE | `/api/lectores/{id}` | Eliminar lector | 200 | 404, 409 |
+| GET | `/api/v1/lectores` | Listar lectores | 200 | — |
+| GET | `/api/v1/lectores/{id}` | Obtener un lector | 200 | 404 |
+| POST | `/api/v1/lectores` | Crear lector | 201 | 400, 409 |
+| PUT | `/api/v1/lectores/{id}` | Modificar lector | 200 | 400, 404, 409 |
+| DELETE | `/api/v1/lectores/{id}` | Eliminar lector | 200 | 404, 409 |
 
-Ejemplo `POST /api/lectores`:
+Ejemplo `POST /api/v1/lectores`:
 
 ```json
 // Request
@@ -191,32 +191,53 @@ Ejemplo `POST /api/lectores`:
 
 | Método | Ruta | Descripción | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| POST | `/api/prestamos` | Crear préstamo | 201 | 404, 409 |
-| GET | `/api/prestamos/{id}` | Obtener un préstamo | 200 | 404 |
-| PUT | `/api/prestamos/{id}/devolucion` | Registrar devolución | 200 | 404 |
-| GET | `/api/prestamos/mora` | Listar préstamos vencidos | 200 | — |
+| POST | `/api/v1/prestamos` | Crear préstamo | 201 | 404, 409 |
+| GET | `/api/v1/prestamos/{id}` | Obtener un préstamo | 200 | 404 |
+| PUT | `/api/v1/prestamos/{id}/devolucion` | Registrar devolución | 200 | 404 |
+| GET | `/api/v1/prestamos/mora` | Listar préstamos vencidos | 200 | — |
 
-Ejemplo `POST /api/prestamos`:
+Ejemplo `POST /api/v1/prestamos`:
 
 ```json
 // Request
 {
-  "lectorId": "b1a2c3d4-e5f6-7890-abcd-ef1234567890",
-  "libroId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  "lector_id": "b1a2c3d4-e5f6-7890-abcd-ef1234567890",
+  "libro_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 }
 
 // Response 201 Created
 {
   "id": "c9d8e7f6-a5b4-3210-9876-543210fedcba",
-  "lectorId": "b1a2c3d4-e5f6-7890-abcd-ef1234567890",
-  "lectorNombreCompleto": "Facundo López",
-  "libroId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "libroTitulo": "El Aleph",
-  "fechaPrestamo": "2026-09-18T01:00:00Z",
-  "fechaVencimiento": "2026-10-02T01:00:00Z",
-  "fechaDevolucion": null,
+  "lector_id": "b1a2c3d4-e5f6-7890-abcd-ef1234567890",
+  "lector_nombre_completo": "Facundo López",
+  "libro_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "libro_titulo": "El Aleph",
+  "fecha_prestamo": "2026-09-18T01:00:00Z",
+  "fecha_vencimiento": "2026-10-02T01:00:00Z",
+  "fecha_devolucion": null,
   "estado": "Activo",
-  "enMora": false
+  "en_mora": false
+}
+```
+
+### Formato de errores
+
+Los endpoints devuelven los errores como [`ProblemDetails`](https://datatracker.ietf.org/doc/html/rfc7807)
+(`application/problem+json`) para los códigos 400, 404 y 409, generados por un
+manejador global de excepciones (`API/ExceptionHandling/GlobalExceptionHandler.cs`)
+que traduce las excepciones tipadas de `Shared/Exceptions/` sin necesidad de
+`try/catch` en los controllers. Los errores de validación de esquema (campos
+obligatorios, formato de email, longitud máxima) se devuelven como
+`ValidationProblemDetails` 400 generado automáticamente a partir de las
+`DataAnnotations` de los DTOs de `Shared/DTOs/`.
+
+Ejemplo de error 404:
+
+```json
+{
+  "status": 404,
+  "title": "Recurso no encontrado",
+  "detail": "No se encontró el libro con Id '3fa85f64-5717-4562-b3fc-2c963f66afa6'."
 }
 ```
 
@@ -232,4 +253,4 @@ requests de creación completan automáticamente `libroId`/`lectorId`/
 - `tests/BiblioGest.UnitTests`: xUnit + Moq sobre los 3 services, sin tocar
   la base real (20 tests).
 - `tests/BiblioGest.IntegrationTests`: `WebApplicationFactory` levantando la
-  API completa contra una SQLite en memoria aislada por instancia (12 tests).
+  API completa contra una SQLite en memoria aislada por instancia (15 tests).

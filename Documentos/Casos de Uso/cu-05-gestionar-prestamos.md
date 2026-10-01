@@ -5,9 +5,11 @@
 > `BiblioGest_CasosDeUso.pdf`.
 > Reglas de negocio RN-10 (máximo 3 préstamos activos por lector), RN-11 (no prestar
 > sin stock), RN-12 (14 días de préstamo) y RN-13 (consistencia, sin préstamos
-> duplicados) **pendientes de implementación**; el proyecto se encuentra en etapa de
-> análisis, por lo que los tests listados en la matriz de trazabilidad son
-> **propuestos**, no implementados aún.
+> duplicados) **implementadas** en `PrestamoService`. La matriz de trazabilidad de
+> más abajo refleja los tests que existen realmente en
+> `tests/BiblioGest.UnitTests/PrestamoServiceTests.cs` y
+> `tests/BiblioGest.IntegrationTests/PrestamosControllerTests.cs`; las filas sin test
+> de integración dedicado quedan marcadas como pendientes.
 
 | Campo | Valor |
 | --- | --- |
@@ -107,18 +109,17 @@ flujo principal y alternativo._
 | `404` | Not Found | El lector o el libro indicado no existen en el sistema. |
 | `409` | Conflict | Lector con 3 préstamos activos (RN-10), lector en mora, o libro sin stock disponible (RN-11). |
 
-### Matriz de trazabilidad CU-05 → Test (propuesta)
+### Matriz de trazabilidad CU-05 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Excepción / Código | Test unitario | Test integración |
 | --- | --- | --- | --- |
 | Flujo principal | `201 Created` | `CreatePrestamoAsync_WithValidData_SavesAndReturnsCreatedPrestamo` | `CreatePrestamo_ReturnsSuccessAndCreatedPrestamo` |
 | 1a. Lector o libro inexistente | `404 Not Found` | `CreatePrestamoAsync_WhenLectorOrLibroNotFound_ThrowsNotFoundException` | `CreatePrestamo_WithUnknownLectorOrLibro_Returns404NotFound` |
-| 3a. Lector con 3 préstamos activos | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasThreeActiveLoans_ThrowsConflictException` | `CreatePrestamo_WhenLectorHasThreeActiveLoans_Returns409Conflict` |
-| 3b. Lector con mora | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsConflictException` | `CreatePrestamo_WhenLectorInMora_Returns409Conflict` |
+| 3a. Lector con 3 préstamos activos | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasThreeActiveLoans_ThrowsConflictException` | — (pendiente) |
+| 3b. Lector con mora | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsConflictException` | — (pendiente) |
 | 5a. Libro sin stock | `409 Conflict` | `CreatePrestamoAsync_WhenLibroHasNoStock_ThrowsConflictException` | `CreatePrestamo_WithoutStock_Returns409Conflict` |
 | 6a. Registrar devolución | `200 OK` | `RegisterDevolucionAsync_WithValidData_UpdatesStockAndPrestamoState` | `RegisterDevolucion_ReturnsSuccessAndUpdatedPrestamo` |
 
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Las filas
+> marcadas como "pendiente" ya están probadas a nivel unitario pero todavía no
+> tienen test de integración dedicado; quedan para una iteración futura.
