@@ -9,10 +9,12 @@ namespace BiblioGest.IntegrationTests;
 
 public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
 {
+    private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     public LibrosControllerTests(CustomWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -26,9 +28,19 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     };
 
     [Fact]
+    public async Task GetLibros_WithoutToken_Returns401Unauthorized()
+    {
+        var response = await _client.GetAsync("/api/v1/libros");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateLibro_ReturnsSuccessAndCreatedLibro()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(), CustomWebApplicationFactory.JsonOptions);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var response = await client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(), CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var creado = await response.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
@@ -39,10 +51,11 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task CreateLibro_WithMissingRequiredField_Returns400BadRequest()
     {
+        var client = await _factory.CreateAuthenticatedClientAsync();
         var dto = NuevoLibroDto();
         dto.Titulo = "";
 
-        var response = await _client.PostAsJsonAsync("/api/v1/libros", dto, CustomWebApplicationFactory.JsonOptions);
+        var response = await client.PostAsJsonAsync("/api/v1/libros", dto, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -50,7 +63,8 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task UpdateLibro_ReturnsSuccessAndUpdatedLibro()
     {
-        var creado = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(), CustomWebApplicationFactory.JsonOptions);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var creado = await client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(), CustomWebApplicationFactory.JsonOptions);
         var libro = await creado.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
         var dto = new LibroUpdateDTO
@@ -62,7 +76,7 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
             Stock = libro.Stock + 1
         };
 
-        var response = await _client.PutAsJsonAsync($"/api/v1/libros/{libro.Id}", dto, CustomWebApplicationFactory.JsonOptions);
+        var response = await client.PutAsJsonAsync($"/api/v1/libros/{libro.Id}", dto, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var actualizado = await response.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
@@ -73,10 +87,11 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task DeleteLibro_WithoutActiveLoans_Returns200OK()
     {
-        var creado = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(), CustomWebApplicationFactory.JsonOptions);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var creado = await client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(), CustomWebApplicationFactory.JsonOptions);
         var libro = await creado.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
-        var response = await _client.DeleteAsync($"/api/v1/libros/{libro!.Id}");
+        var response = await client.DeleteAsync($"/api/v1/libros/{libro!.Id}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -84,9 +99,10 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task CreateLibro_WithNegativeStock_Returns400BadRequest()
     {
+        var client = await _factory.CreateAuthenticatedClientAsync();
         var dto = NuevoLibroDto(stock: -1);
 
-        var response = await _client.PostAsJsonAsync("/api/v1/libros", dto, CustomWebApplicationFactory.JsonOptions);
+        var response = await client.PostAsJsonAsync("/api/v1/libros", dto, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -94,10 +110,11 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task CreateLibro_WithTituloTooLong_Returns400BadRequest()
     {
+        var client = await _factory.CreateAuthenticatedClientAsync();
         var dto = NuevoLibroDto();
         dto.Titulo = new string('a', 201);
 
-        var response = await _client.PostAsJsonAsync("/api/v1/libros", dto, CustomWebApplicationFactory.JsonOptions);
+        var response = await client.PostAsJsonAsync("/api/v1/libros", dto, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -105,7 +122,9 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task GetLibro_WithUnknownId_Returns404NotFound()
     {
-        var response = await _client.GetAsync($"/api/v1/libros/{Guid.NewGuid()}");
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync($"/api/v1/libros/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -113,7 +132,9 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task DeleteLibro_WithActiveLoans_Returns409Conflict()
     {
-        var libroResponse = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(stock: 1), CustomWebApplicationFactory.JsonOptions);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var libroResponse = await client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(stock: 1), CustomWebApplicationFactory.JsonOptions);
         var libro = await libroResponse.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
         var lectorDto = new LectorCreateDTO
@@ -123,16 +144,16 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
             Email = "carla.ruiz@example.com",
             Identificador = Guid.NewGuid().ToString("N")[..8]
         };
-        var lectorResponse = await _client.PostAsJsonAsync("/api/v1/lectores", lectorDto, CustomWebApplicationFactory.JsonOptions);
+        var lectorResponse = await client.PostAsJsonAsync("/api/v1/lectores", lectorDto, CustomWebApplicationFactory.JsonOptions);
         var lector = await lectorResponse.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
-        await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
+        await client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector!.Id,
             LibroId = libro!.Id
         }, CustomWebApplicationFactory.JsonOptions);
 
-        var deleteResponse = await _client.DeleteAsync($"/api/v1/libros/{libro.Id}");
+        var deleteResponse = await client.DeleteAsync($"/api/v1/libros/{libro.Id}");
 
         Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
     }

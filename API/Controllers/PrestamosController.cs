@@ -1,11 +1,13 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.Shared.DTOs.Prestamos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BiblioGest.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/prestamos")]
+[Authorize]
 public class PrestamosController : ControllerBase
 {
     private readonly IPrestamoService _prestamoService;

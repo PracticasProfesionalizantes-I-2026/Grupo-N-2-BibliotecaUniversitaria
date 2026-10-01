@@ -9,10 +9,12 @@ namespace BiblioGest.IntegrationTests;
 
 public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory>
 {
+    private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     public LectoresControllerTests(CustomWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -25,9 +27,19 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     };
 
     [Fact]
+    public async Task GetLectores_WithoutToken_Returns401Unauthorized()
+    {
+        var response = await _client.GetAsync("/api/v1/lectores");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateLector_ReturnsSuccessAndCreatedLector()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var response = await client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var creado = await response.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
@@ -38,13 +50,14 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task CreateLector_WhenDuplicateIdentificador_Returns409Conflict()
     {
+        var client = await _factory.CreateAuthenticatedClientAsync();
         var dto = NuevoLectorDto();
-        await _client.PostAsJsonAsync("/api/v1/lectores", dto, CustomWebApplicationFactory.JsonOptions);
+        await client.PostAsJsonAsync("/api/v1/lectores", dto, CustomWebApplicationFactory.JsonOptions);
 
         var dtoDuplicado = NuevoLectorDto();
         dtoDuplicado.Identificador = dto.Identificador;
 
-        var response = await _client.PostAsJsonAsync("/api/v1/lectores", dtoDuplicado, CustomWebApplicationFactory.JsonOptions);
+        var response = await client.PostAsJsonAsync("/api/v1/lectores", dtoDuplicado, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -52,7 +65,9 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task GetLector_WithUnknownId_Returns404NotFound()
     {
-        var response = await _client.GetAsync($"/api/v1/lectores/{Guid.NewGuid()}");
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync($"/api/v1/lectores/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -60,7 +75,8 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task UpdateLector_ReturnsSuccessAndUpdatedLector()
     {
-        var creado = await _client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var creado = await client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
         var lector = await creado.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
         var dto = new LectorUpdateDTO
@@ -71,7 +87,7 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
             Identificador = lector.Identificador
         };
 
-        var response = await _client.PutAsJsonAsync($"/api/v1/lectores/{lector.Id}", dto, CustomWebApplicationFactory.JsonOptions);
+        var response = await client.PutAsJsonAsync($"/api/v1/lectores/{lector.Id}", dto, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var actualizado = await response.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
@@ -81,10 +97,11 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task DeleteLector_WithoutActiveLoans_Returns200OK()
     {
-        var creado = await _client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var creado = await client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
         var lector = await creado.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
-        var response = await _client.DeleteAsync($"/api/v1/lectores/{lector!.Id}");
+        var response = await client.DeleteAsync($"/api/v1/lectores/{lector!.Id}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -92,7 +109,9 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task DeleteLector_WithActiveLoans_Returns409Conflict()
     {
-        var lectorResponse = await _client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var lectorResponse = await client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
         var lector = await lectorResponse.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
         var libroDto = new LibroCreateDTO
@@ -103,16 +122,16 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
             Ubicacion = "Estante Z",
             Stock = 1
         };
-        var libroResponse = await _client.PostAsJsonAsync("/api/v1/libros", libroDto, CustomWebApplicationFactory.JsonOptions);
+        var libroResponse = await client.PostAsJsonAsync("/api/v1/libros", libroDto, CustomWebApplicationFactory.JsonOptions);
         var libro = await libroResponse.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
-        await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
+        await client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector!.Id,
             LibroId = libro!.Id
         }, CustomWebApplicationFactory.JsonOptions);
 
-        var deleteResponse = await _client.DeleteAsync($"/api/v1/lectores/{lector.Id}");
+        var deleteResponse = await client.DeleteAsync($"/api/v1/lectores/{lector.Id}");
 
         Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
     }
@@ -120,10 +139,11 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task CreateLector_WithMissingRequiredField_Returns400BadRequest()
     {
+        var client = await _factory.CreateAuthenticatedClientAsync();
         var dto = NuevoLectorDto();
         dto.Nombre = "";
 
-        var response = await _client.PostAsJsonAsync("/api/v1/lectores", dto, CustomWebApplicationFactory.JsonOptions);
+        var response = await client.PostAsJsonAsync("/api/v1/lectores", dto, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -131,10 +151,11 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task CreateLector_WithInvalidEmail_Returns400BadRequest()
     {
+        var client = await _factory.CreateAuthenticatedClientAsync();
         var dto = NuevoLectorDto();
         dto.Email = "no-es-un-email";
 
-        var response = await _client.PostAsJsonAsync("/api/v1/lectores", dto, CustomWebApplicationFactory.JsonOptions);
+        var response = await client.PostAsJsonAsync("/api/v1/lectores", dto, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

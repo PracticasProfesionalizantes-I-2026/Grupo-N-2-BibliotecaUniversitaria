@@ -1,11 +1,13 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.Shared.DTOs.Lectores;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BiblioGest.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/lectores")]
+[Authorize]
 public class LectoresController : ControllerBase
 {
     private readonly ILectorService _lectorService;

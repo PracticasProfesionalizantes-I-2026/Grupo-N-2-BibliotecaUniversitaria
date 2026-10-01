@@ -1,11 +1,13 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.Shared.DTOs.Usuarios;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BiblioGest.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/usuarios")]
+[Authorize(Roles = "Administrador")]
 public class UsuariosController : ControllerBase
 {
     private readonly IUsuarioService _usuarioService;

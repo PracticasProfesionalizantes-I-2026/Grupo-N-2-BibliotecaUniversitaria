@@ -1,11 +1,13 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.Shared.DTOs.Libros;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BiblioGest.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/libros")]
+[Authorize]
 public class LibrosController : ControllerBase
 {
     private readonly ILibroService _libroService;
