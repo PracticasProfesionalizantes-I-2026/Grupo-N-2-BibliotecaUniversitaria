@@ -4,9 +4,13 @@
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso_Limpio.docx`.
 > Reglas de negocio RN-01 (usuarios registrados y activos) y RN-02 (contraseñas de
-> mínimo 6 caracteres, almacenadas de forma segura) **pendientes de implementación**;
-> el proyecto se encuentra en etapa de análisis, por lo que los tests listados en la
-> matriz de trazabilidad son **propuestos**, no implementados aún.
+> mínimo 6 caracteres, almacenadas de forma segura) **implementadas** en
+> `AuthService` (login) y `UsuarioService` (alta/hash). El login genera un JWT con
+> el rol como claim; `[Authorize]` protege Libros, Lectores, Préstamos y Usuarios
+> (este último solo para rol Administrador). La matriz de trazabilidad de más abajo
+> refleja los tests que existen realmente en
+> `tests/BiblioGest.UnitTests/AuthServiceTests.cs` y
+> `tests/BiblioGest.IntegrationTests/AuthControllerTests.cs`.
 
 | Campo | Valor |
 | --- | --- |
@@ -32,7 +36,7 @@ funcionalidades según su rol.
 
 ### 3. FLUJO PRINCIPAL (Camino Feliz - HTTP 200)
 1. El usuario accede al inicio de sesión: el Actor envía una petición
-   `POST /api/auth/login` a la **Capa de Presentación** con usuario/email y
+   `POST /api/v1/auth/login` a la **Capa de Presentación** con usuario/email y
    contraseña.
 2. La **Capa de Presentación** valida que el formato de los datos (esquema) sea
    correcto.
@@ -58,6 +62,14 @@ funcionalidades según su rol.
   3. El Sistema devuelve un código **401 Unauthorized** y regresa al inicio de sesión.
      Fin del caso de uso.
 
+* **2a. Formato de datos inválido (HTTP 400 Bad Request):**
+  1. Si en el Paso 2 el email o la contraseña no cumplen el formato esperado
+     (por ejemplo, un email mal formado o un campo vacío).
+  2. La Capa de Presentación rechaza la petición por error de validación
+     (`DataAnnotations` del DTO), sin llegar a consultar la Capa de Negocio.
+  3. El Sistema devuelve un código **400 Bad Request** informando los campos
+     inválidos. Fin del caso de uso.
+
 ### 5. SUB-VARIACIONES (opcional)
 _No se identifican variaciones de datos o mecanismo adicionales a las descriptas en el
 flujo principal y alternativo._
@@ -75,17 +87,19 @@ flujo principal y alternativo._
 | Código HTTP | Nombre Técnico | Contexto de Aplicación en el Caso de Uso |
 | --- | --- | --- |
 | `200` | OK | Autenticación exitosa; devuelve el token de sesión. |
+| `400` | Bad Request | Formato de email o contraseña inválido (validación de esquema). |
 | `401` | Unauthorized | Credenciales incorrectas (RN-02) o usuario inexistente/inactivo (RN-01). |
 
-### Matriz de trazabilidad CU-01 → Test (propuesta)
+### Matriz de trazabilidad CU-01 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Excepción / Código | Test unitario | Test integración |
 | --- | --- | --- | --- |
 | Flujo principal | `200 OK` | `LoginAsync_WithValidCredentials_ReturnsTokenAndRole` | `Login_ReturnsSuccessAndToken` |
 | 3a. Credenciales incorrectas | `401 Unauthorized` | `LoginAsync_WithWrongPassword_ThrowsUnauthorizedException` | `Login_WithWrongPassword_Returns401Unauthorized` |
 | 3b. Usuario inexistente | `401 Unauthorized` | `LoginAsync_WithUnknownUser_ThrowsUnauthorizedException` | `Login_WithUnknownUser_Returns401Unauthorized` |
+| 3b. Usuario inactivo | `401 Unauthorized` | `LoginAsync_WithInactiveUser_ThrowsUnauthorizedException` | — (cubierto a nivel unitario) |
+| — | Mismo mensaje en 3a/3b | — | `Login_WithWrongPasswordAndUnknownUser_ReturnSameErrorMessage` |
+| 2a. Formato de datos inválido | `400 Bad Request` | — (validación de esquema vía DataAnnotations) | `Login_WithInvalidEmailFormat_Returns400BadRequest` |
 
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+> Regla de oro: cada flujo del caso de uso tiene al menos un test unitario y uno de
+> integración.

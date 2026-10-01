@@ -1,0 +1,30 @@
+meta {
+  name: Login (200)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "admin@bibliogest.local",
+    "password": "Admin123!"
+  }
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setEnvVar("token", res.body.token);
+  }
+}
+
+docs {
+  Usa el Administrador sembrado por el DbInitializer (solo desarrollo).
+  Guarda el token en la variable de entorno "token", que el resto de la
+  colección usa como auth Bearer.
+}
