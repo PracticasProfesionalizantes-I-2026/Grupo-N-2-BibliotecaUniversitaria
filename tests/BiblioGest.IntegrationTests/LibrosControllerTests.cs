@@ -28,10 +28,10 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task CreateLibro_ReturnsSuccessAndCreatedLibro()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto());
+        var response = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(), CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var creado = await response.Content.ReadFromJsonAsync<LibroResponseDTO>();
+        var creado = await response.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
         Assert.NotNull(creado);
         Assert.NotEqual(Guid.Empty, creado!.Id);
     }
@@ -42,7 +42,7 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
         var dto = NuevoLibroDto();
         dto.Titulo = "";
 
-        var response = await _client.PostAsJsonAsync("/api/v1/libros", dto);
+        var response = await _client.PostAsJsonAsync("/api/v1/libros", dto, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -58,8 +58,8 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task DeleteLibro_WithActiveLoans_Returns409Conflict()
     {
-        var libroResponse = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(stock: 1));
-        var libro = await libroResponse.Content.ReadFromJsonAsync<LibroResponseDTO>();
+        var libroResponse = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(stock: 1), CustomWebApplicationFactory.JsonOptions);
+        var libro = await libroResponse.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
         var lectorDto = new LectorCreateDTO
         {
@@ -68,14 +68,14 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
             Email = "carla.ruiz@example.com",
             Identificador = Guid.NewGuid().ToString("N")[..8]
         };
-        var lectorResponse = await _client.PostAsJsonAsync("/api/v1/lectores", lectorDto);
-        var lector = await lectorResponse.Content.ReadFromJsonAsync<LectorResponseDTO>();
+        var lectorResponse = await _client.PostAsJsonAsync("/api/v1/lectores", lectorDto, CustomWebApplicationFactory.JsonOptions);
+        var lector = await lectorResponse.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
         await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector!.Id,
             LibroId = libro!.Id
-        });
+        }, CustomWebApplicationFactory.JsonOptions);
 
         var deleteResponse = await _client.DeleteAsync($"/api/v1/libros/{libro.Id}");
 

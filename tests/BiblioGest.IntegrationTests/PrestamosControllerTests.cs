@@ -30,8 +30,8 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
             Isbn = Guid.NewGuid().ToString("N")[..10],
             Ubicacion = "Estante Z",
             Stock = stock
-        });
-        return (await response.Content.ReadFromJsonAsync<LibroResponseDTO>())!;
+        }, CustomWebApplicationFactory.JsonOptions);
+        return (await response.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions))!;
     }
 
     private async Task<LectorResponseDTO> CrearLectorAsync()
@@ -42,8 +42,8 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
             Apellido = "Suárez",
             Email = $"{Guid.NewGuid()}@example.com",
             Identificador = Guid.NewGuid().ToString("N")[..8]
-        });
-        return (await response.Content.ReadFromJsonAsync<LectorResponseDTO>())!;
+        }, CustomWebApplicationFactory.JsonOptions);
+        return (await response.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions))!;
     }
 
     [Fact]
@@ -56,10 +56,10 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         {
             LectorId = lector.Id,
             LibroId = libro.Id
-        });
+        }, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var creado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        var creado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>(CustomWebApplicationFactory.JsonOptions);
         Assert.NotNull(creado);
         Assert.Equal("Activo", creado!.Estado);
     }
@@ -71,7 +71,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         {
             LectorId = Guid.NewGuid(),
             LibroId = Guid.NewGuid()
-        });
+        }, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -86,7 +86,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         {
             LectorId = lector.Id,
             LibroId = libro.Id
-        });
+        }, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -100,13 +100,13 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         {
             LectorId = lector.Id,
             LibroId = libro.Id
-        });
-        var creado = await creadoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        }, CustomWebApplicationFactory.JsonOptions);
+        var creado = await creadoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
         var response = await _client.PutAsync($"/api/v1/prestamos/{creado!.Id}/devolucion", content: null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var actualizado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        var actualizado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>(CustomWebApplicationFactory.JsonOptions);
         Assert.Equal("Devuelto", actualizado!.Estado);
         Assert.NotNull(actualizado.FechaDevolucion);
     }
@@ -135,7 +135,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         var response = await _client.GetAsync("/api/v1/prestamos/mora");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var vencidos = await response.Content.ReadFromJsonAsync<List<PrestamoResponseDTO>>();
+        var vencidos = await response.Content.ReadFromJsonAsync<List<PrestamoResponseDTO>>(CustomWebApplicationFactory.JsonOptions);
         Assert.NotNull(vencidos);
         Assert.Contains(vencidos!, p => p.LibroId == libro.Id && p.EnMora);
     }

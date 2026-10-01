@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.BusinessLogic.Services;
 using BiblioGest.DataAccess;
@@ -8,7 +9,11 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+    });
 builder.Services.AddOpenApi();
 
 var connectionString = builder.Configuration.GetConnectionString("BiblioGest") ?? "Data Source=bibliogest.db";
