@@ -12,6 +12,7 @@ public class BiblioGestDbContext : DbContext
     public DbSet<Libro> Libros => Set<Libro>();
     public DbSet<Lector> Lectores => Set<Lector>();
     public DbSet<Prestamo> Prestamos => Set<Prestamo>();
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +51,16 @@ public class BiblioGestDbContext : DbContext
 
             entity.Property(p => p.Estado)
                 .HasConversion<string>();
+        });
+
+        modelBuilder.Entity<Usuario>(entity =>
+        {
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Nombre).IsRequired();
+            entity.Property(u => u.Email).IsRequired();
+            entity.Property(u => u.PasswordHash).IsRequired();
+            entity.Property(u => u.Rol).HasConversion<string>();
+            entity.HasIndex(u => u.Email).IsUnique();
         });
 
         base.OnModelCreating(modelBuilder);

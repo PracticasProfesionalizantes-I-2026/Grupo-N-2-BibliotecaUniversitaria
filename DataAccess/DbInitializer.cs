@@ -1,4 +1,5 @@
 using BiblioGest.DataAccess.Entities;
+using Microsoft.AspNetCore.Identity;
 
 namespace BiblioGest.DataAccess;
 
@@ -79,6 +80,21 @@ public static class DbInitializer
         };
 
         context.Prestamos.Add(prestamo);
+        context.SaveChanges();
+
+        // Usuario de prueba para poder operar el sistema desde el primer arranque;
+        // contraseña solo para desarrollo, no usar en producción.
+        var administrador = new Usuario
+        {
+            Id = Guid.NewGuid(),
+            Nombre = "Administrador BiblioGest",
+            Email = "admin@bibliogest.local",
+            Rol = RolUsuario.Administrador,
+            Activo = true
+        };
+        administrador.PasswordHash = new PasswordHasher<Usuario>().HashPassword(administrador, "Admin123!");
+
+        context.Usuarios.Add(administrador);
         context.SaveChanges();
     }
 }
