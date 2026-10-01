@@ -54,4 +54,26 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Fact]
+    public async Task CreateLector_WithMissingRequiredField_Returns400BadRequest()
+    {
+        var dto = NuevoLectorDto();
+        dto.Nombre = "";
+
+        var response = await _client.PostAsJsonAsync("/api/v1/lectores", dto, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateLector_WithInvalidEmail_Returns400BadRequest()
+    {
+        var dto = NuevoLectorDto();
+        dto.Email = "no-es-un-email";
+
+        var response = await _client.PostAsJsonAsync("/api/v1/lectores", dto, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

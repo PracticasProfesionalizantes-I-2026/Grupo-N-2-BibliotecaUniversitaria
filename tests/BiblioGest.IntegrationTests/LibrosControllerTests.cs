@@ -48,6 +48,17 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task CreateLibro_WithTituloTooLong_Returns400BadRequest()
+    {
+        var dto = NuevoLibroDto();
+        dto.Titulo = new string('a', 201);
+
+        var response = await _client.PostAsJsonAsync("/api/v1/libros", dto, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetLibro_WithUnknownId_Returns404NotFound()
     {
         var response = await _client.GetAsync($"/api/v1/libros/{Guid.NewGuid()}");
