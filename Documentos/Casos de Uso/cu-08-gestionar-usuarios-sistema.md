@@ -3,11 +3,14 @@
 > Especificación elaborada siguiendo la guía
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso_Limpio.docx`.
-> Reglas de negocio RN-19 (solo el administrador gestiona usuarios), RN-20 (email,
-> contraseña y rol obligatorios) y RN-21 (contraseñas de mínimo 6 caracteres,
-> almacenadas de forma segura) **pendientes de implementación**; el proyecto se
-> encuentra en etapa de análisis, por lo que los tests listados en la matriz de
-> trazabilidad son **propuestos**, no implementados aún.
+> Reglas de negocio RN-20 (email, contraseña y rol obligatorios) y RN-21
+> (contraseñas de mínimo 6 caracteres, almacenadas con hash vía
+> `PasswordHasher<Usuario>`) **implementadas** en `UsuarioService`. RN-19 (solo el
+> administrador gestiona usuarios) queda **pendiente**: depende de autenticación
+> JWT y `[Authorize]` por rol, fuera de alcance de esta rama (ver CU-01, Rama 3).
+> La matriz de trazabilidad de más abajo refleja los tests que existen realmente
+> en `tests/BiblioGest.UnitTests/UsuarioServiceTests.cs` y
+> `tests/BiblioGest.IntegrationTests/UsuariosControllerTests.cs`.
 
 | Campo | Valor |
 | --- | --- |
@@ -35,43 +38,44 @@ sistema, como bibliotecarios o personal autorizado.
 
 ### 3. FLUJO PRINCIPAL (Camino Feliz - HTTP 200/201)
 1. El administrador ingresa a la gestión de usuarios del sistema: el Actor envía una
-   petición `GET /api/usuarios` a la **Capa de Presentación**.
+   petición `GET /api/v1/usuarios` a la **Capa de Presentación**.
 2. El Sistema consulta la **Capa de Persistencia** y muestra los usuarios registrados
    con código **HTTP 200**.
-3. El administrador selecciona una acción: registrar (`POST /api/usuarios`), modificar
-   (`PUT /api/usuarios/{id}`), eliminar (`DELETE /api/usuarios/{id}`) o consultar un
-   usuario puntual (`GET /api/usuarios/{id}`).
+3. El administrador selecciona una acción: registrar (`POST /api/v1/usuarios`), modificar
+   (`PUT /api/v1/usuarios/{id}`), eliminar (`DELETE /api/v1/usuarios/{id}`) o consultar un
+   usuario puntual (`GET /api/v1/usuarios/{id}`).
 4. La **Capa de Presentación** solicita o muestra los datos correspondientes a la
    acción elegida y valida que el formato de los datos (esquema) sea correcto.
 5. El administrador confirma la operación.
 6. La **Capa de Negocio** valida la información ingresada y verifica las reglas de
    negocio aplicables (RN-20, RN-21).
 7. El Sistema persiste los cambios en la **Capa de Persistencia** (tabla `Usuarios`) y
-   devuelve un código **HTTP 201** (alta) o **200** (modificación/baja) con la
-   información resultante.
+   devuelve un código **HTTP 201** (alta), **200** (modificación) o **204**
+   (baja lógica) con la información resultante.
 
 ### 4. FLUJOS ALTERNATIVOS (Caminos Tristes / Excepciones)
 
 * **3a. Registrar usuario (HTTP 201 Created):**
   1. El administrador selecciona la opción de registrar usuario del sistema y envía
-     `POST /api/usuarios` con email, contraseña y rol.
+     `POST /api/v1/usuarios` con email, contraseña y rol.
   2. La Capa de Negocio valida la información conforme a **RN-20** y **RN-21**.
   3. El Sistema registra el usuario y devuelve **HTTP 201 Created** con los datos del
      nuevo usuario.
 
 * **3b. Modificar usuario (HTTP 200 OK):**
-  1. El administrador selecciona un usuario existente y envía `PUT /api/usuarios/{id}`
+  1. El administrador selecciona un usuario existente y envía `PUT /api/v1/usuarios/{id}`
      con el email, la contraseña o el rol a modificar.
   2. La Capa de Negocio valida los cambios conforme a **RN-20** y **RN-21**.
   3. El Sistema actualiza el registro y devuelve **HTTP 200 OK** con los datos
      actualizados.
 
-* **3c. Eliminar usuario (HTTP 200 OK):**
+* **3c. Eliminar usuario (HTTP 204 No Content):**
   1. El administrador selecciona un usuario existente y envía
-     `DELETE /api/usuarios/{id}`.
+     `DELETE /api/v1/usuarios/{id}`.
   2. El Sistema solicita confirmación.
   3. El administrador confirma la eliminación.
-  4. El Sistema elimina o desactiva el usuario y devuelve **HTTP 200 OK**.
+  4. El Sistema desactiva el usuario (baja lógica, `Activo = false`) y devuelve
+     **HTTP 204 No Content**.
 
 * **4a. Datos obligatorios incompletos (HTTP 400 Bad Request):**
   1. Si en el Paso 4 el Sistema detecta que faltan datos obligatorios (email,
@@ -103,22 +107,25 @@ flujo principal y alternativo._
 
 | Código HTTP | Nombre Técnico | Contexto de Aplicación en el Caso de Uso |
 | --- | --- | --- |
-| `200` | OK | Consulta del listado/detalle, modificación o baja exitosa de un usuario. |
+| `200` | OK | Consulta del listado/detalle o modificación exitosa de un usuario. |
 | `201` | Created | Confirmación de alta de un nuevo usuario del sistema. |
-| `400` | Bad Request | Datos obligatorios faltantes (email, contraseña o rol). |
+| `204` | No Content | Baja lógica exitosa de un usuario (`Activo = false`). |
+| `400` | Bad Request | Datos obligatorios faltantes o inválidos (nombre, email, rol o contraseña con RN-21). |
+| `404` | Not Found | El usuario indicado no existe. |
 | `409` | Conflict | Email duplicado (RN-20). |
 
-### Matriz de trazabilidad CU-08 → Test (propuesta)
+### Matriz de trazabilidad CU-08 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Excepción / Código | Test unitario | Test integración |
 | --- | --- | --- | --- |
-| 3a. Registrar usuario | `201 Created` | `CreateUsuarioAsync_WithValidData_SavesAndReturnsCreatedUsuario` | `CreateUsuario_ReturnsSuccessAndCreatedUsuario` |
+| 3a. Registrar usuario | `201 Created` | `CreateUsuarioAsync_WithValidData_SavesAndReturnsCreatedUsuario` | `CreateUsuario_ReturnsSuccessAndCreatedUsuario`, `CreateUsuario_DoesNotExposePassword` |
 | 3b. Modificar usuario | `200 OK` | `UpdateUsuarioAsync_WithValidData_UpdatesUsuario` | `UpdateUsuario_ReturnsSuccessAndUpdatedUsuario` |
-| 3c. Eliminar usuario | `200 OK` | `DeleteUsuarioAsync_WithConfirmation_DeletesUsuario` | `DeleteUsuario_ReturnsSuccessAndDeletesUsuario` |
-| 4a. Datos obligatorios incompletos | `400 Bad Request` | — (validación de esquema en Presentación) | `CreateUsuario_WithMissingRequiredField_Returns400BadRequest` |
+| 3c. Eliminar usuario | `204 No Content` (baja lógica) | `DeleteUsuarioAsync_WithConfirmation_DeletesUsuario` | `DeleteUsuario_ReturnsSuccessAndDeactivatesUsuario` |
+| 4a. Datos obligatorios incompletos | `400 Bad Request` | `CreateUsuarioAsync_WithMissingRequiredField_ThrowsValidationException` | `CreateUsuario_WithMissingRequiredField_Returns400BadRequest`, `CreateUsuario_WithInvalidRol_Returns400BadRequest` |
 | 6a. Email repetido | `409 Conflict` | `CreateUsuarioAsync_WhenEmailAlreadyExists_ThrowsConflictException` | `CreateUsuario_WhenDuplicateEmail_Returns409Conflict` |
+| RN-21. Contraseña corta | `400 Bad Request` | `CreateUsuarioAsync_WithShortPassword_ThrowsValidationException` | `CreateUsuario_WithShortPassword_Returns400BadRequest` |
+| Usuario inexistente | `404 Not Found` | `GetUsuarioByIdAsync_WhenUsuarioDoesNotExist_ThrowsNotFoundException` | `GetUsuario_WithUnknownId_Returns404NotFound` |
 
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+> Regla de oro: cada flujo del caso de uso tiene al menos un test unitario y uno de
+> integración. RN-19 (restricción por rol Administrador) queda fuera de esta matriz
+> hasta que se implemente la autenticación (CU-01, Rama 3).

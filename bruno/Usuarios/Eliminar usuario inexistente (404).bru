@@ -1,0 +1,11 @@
+meta {
+  name: Eliminar usuario inexistente (404)
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/usuarios/00000000-0000-0000-0000-000000000000
+  body: none
+  auth: none
+}

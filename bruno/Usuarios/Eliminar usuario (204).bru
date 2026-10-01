@@ -1,0 +1,16 @@
+meta {
+  name: Eliminar usuario (204)
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/usuarios/{{usuarioId}}
+  body: none
+  auth: none
+}
+
+docs {
+  Baja lógica: el usuario deja de estar activo (Activo = false) pero el
+  registro no se borra físicamente.
+}

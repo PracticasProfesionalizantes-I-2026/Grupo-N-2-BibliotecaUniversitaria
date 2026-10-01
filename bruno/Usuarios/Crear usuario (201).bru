@@ -1,0 +1,26 @@
+meta {
+  name: Crear usuario (201)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/usuarios
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Carla Pérez",
+    "email": "carla.perez@example.com",
+    "password": "secreta1",
+    "rol": "Bibliotecario"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("usuarioId", res.body.id);
+  }
+}

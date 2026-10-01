@@ -1,0 +1,25 @@
+meta {
+  name: Crear usuario con email duplicado (409)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/usuarios
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Otro Usuario",
+    "email": "carla.perez@example.com",
+    "password": "secreta1",
+    "rol": "Bibliotecario"
+  }
+}
+
+docs {
+  Ejecutar después de "Crear usuario (201)" para reusar el mismo email y
+  provocar el 409 Conflict de RN-20.
+}

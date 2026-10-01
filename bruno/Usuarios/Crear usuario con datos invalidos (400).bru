@@ -1,0 +1,26 @@
+meta {
+  name: Crear usuario con datos invalidos (400)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/usuarios
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "",
+    "email": "no-es-un-email",
+    "password": "123",
+    "rol": "SuperAdmin"
+  }
+}
+
+docs {
+  Dispara varios errores de validación a la vez: nombre vacío, email con
+  formato inválido, password menor a 6 caracteres (RN-21) y rol fuera del
+  conjunto permitido (Bibliotecario/Administrador).
+}

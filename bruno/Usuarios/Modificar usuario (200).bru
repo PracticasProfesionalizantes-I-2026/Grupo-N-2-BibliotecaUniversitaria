@@ -1,0 +1,24 @@
+meta {
+  name: Modificar usuario (200)
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/v1/usuarios/{{usuarioId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Carla Pérez Gómez",
+    "email": "carla.perez@example.com",
+    "rol": "Administrador"
+  }
+}
+
+docs {
+  El campo "password" es opcional: si se omite o se envía vacío, no se
+  modifica la contraseña actual.
+}
