@@ -26,10 +26,12 @@ builder.Services.AddDbContext<BiblioGestDbContext>(options => options.UseSqlite(
 builder.Services.AddScoped<ILibroRepository, LibroRepository>();
 builder.Services.AddScoped<ILectorRepository, LectorRepository>();
 builder.Services.AddScoped<IPrestamoRepository, PrestamoRepository>();
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 
 builder.Services.AddScoped<ILibroService, LibroService>();
 builder.Services.AddScoped<ILectorService, LectorService>();
 builder.Services.AddScoped<IPrestamoService, PrestamoService>();
+builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 
 var app = builder.Build();
 
