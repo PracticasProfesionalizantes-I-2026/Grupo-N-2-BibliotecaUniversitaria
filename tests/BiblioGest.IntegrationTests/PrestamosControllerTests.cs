@@ -23,7 +23,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
 
     private async Task<LibroResponseDTO> CrearLibroAsync(int stock)
     {
-        var response = await _client.PostAsJsonAsync("/api/libros", new LibroCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/libros", new LibroCreateDTO
         {
             Titulo = $"Libro {Guid.NewGuid()}",
             Autor = "Autor",
@@ -36,7 +36,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
 
     private async Task<LectorResponseDTO> CrearLectorAsync()
     {
-        var response = await _client.PostAsJsonAsync("/api/lectores", new LectorCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/lectores", new LectorCreateDTO
         {
             Nombre = "Elena",
             Apellido = "Suárez",
@@ -52,7 +52,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         var libro = await CrearLibroAsync(stock: 2);
         var lector = await CrearLectorAsync();
 
-        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector.Id,
             LibroId = libro.Id
@@ -67,7 +67,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     [Fact]
     public async Task CreatePrestamo_WithUnknownLectorOrLibro_Returns404NotFound()
     {
-        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = Guid.NewGuid(),
             LibroId = Guid.NewGuid()
@@ -82,7 +82,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         var libro = await CrearLibroAsync(stock: 0);
         var lector = await CrearLectorAsync();
 
-        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector.Id,
             LibroId = libro.Id
@@ -96,14 +96,14 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     {
         var libro = await CrearLibroAsync(stock: 1);
         var lector = await CrearLectorAsync();
-        var creadoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        var creadoResponse = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector.Id,
             LibroId = libro.Id
         });
         var creado = await creadoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
 
-        var response = await _client.PutAsync($"/api/prestamos/{creado!.Id}/devolucion", content: null);
+        var response = await _client.PutAsync($"/api/v1/prestamos/{creado!.Id}/devolucion", content: null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var actualizado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
@@ -132,7 +132,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
             await context.SaveChangesAsync();
         }
 
-        var response = await _client.GetAsync("/api/prestamos/mora");
+        var response = await _client.GetAsync("/api/v1/prestamos/mora");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var vencidos = await response.Content.ReadFromJsonAsync<List<PrestamoResponseDTO>>();

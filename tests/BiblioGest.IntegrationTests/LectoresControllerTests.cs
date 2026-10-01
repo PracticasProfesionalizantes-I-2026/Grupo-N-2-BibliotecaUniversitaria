@@ -25,7 +25,7 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task CreateLector_ReturnsSuccessAndCreatedLector()
     {
-        var response = await _client.PostAsJsonAsync("/api/lectores", NuevoLectorDto());
+        var response = await _client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto());
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var creado = await response.Content.ReadFromJsonAsync<LectorResponseDTO>();
@@ -37,12 +37,12 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     public async Task CreateLector_WhenDuplicateIdentificador_Returns409Conflict()
     {
         var dto = NuevoLectorDto();
-        await _client.PostAsJsonAsync("/api/lectores", dto);
+        await _client.PostAsJsonAsync("/api/v1/lectores", dto);
 
         var dtoDuplicado = NuevoLectorDto();
         dtoDuplicado.Identificador = dto.Identificador;
 
-        var response = await _client.PostAsJsonAsync("/api/lectores", dtoDuplicado);
+        var response = await _client.PostAsJsonAsync("/api/v1/lectores", dtoDuplicado);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -50,7 +50,7 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task GetLector_WithUnknownId_Returns404NotFound()
     {
-        var response = await _client.GetAsync($"/api/lectores/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/v1/lectores/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

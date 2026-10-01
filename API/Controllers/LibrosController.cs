@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace BiblioGest.Api.Controllers;
 
 [ApiController]
-[Route("api/libros")]
+[Route("api/v1/libros")]
 public class LibrosController : ControllerBase
 {
     private readonly ILibroService _libroService;
@@ -16,7 +16,7 @@ public class LibrosController : ControllerBase
         _libroService = libroService;
     }
 
-    // GET /api/libros?busqueda=
+    // GET /api/v1/libros?busqueda=
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] string? busqueda, CancellationToken ct)
     {
@@ -24,7 +24,7 @@ public class LibrosController : ControllerBase
         return Ok(libros);
     }
 
-    // GET /api/libros/{id}
+    // GET /api/v1/libros/{id}
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
@@ -39,7 +39,7 @@ public class LibrosController : ControllerBase
         }
     }
 
-    // POST /api/libros
+    // POST /api/v1/libros
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] LibroCreateDTO dto, CancellationToken ct)
     {
@@ -54,7 +54,7 @@ public class LibrosController : ControllerBase
         }
     }
 
-    // PUT /api/libros/{id}
+    // PUT /api/v1/libros/{id}
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] LibroUpdateDTO dto, CancellationToken ct)
     {
@@ -73,7 +73,7 @@ public class LibrosController : ControllerBase
         }
     }
 
-    // DELETE /api/libros/{id}
+    // DELETE /api/v1/libros/{id}
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {

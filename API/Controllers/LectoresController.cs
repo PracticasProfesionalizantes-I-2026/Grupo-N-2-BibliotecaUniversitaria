@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace BiblioGest.Api.Controllers;
 
 [ApiController]
-[Route("api/lectores")]
+[Route("api/v1/lectores")]
 public class LectoresController : ControllerBase
 {
     private readonly ILectorService _lectorService;
@@ -16,7 +16,7 @@ public class LectoresController : ControllerBase
         _lectorService = lectorService;
     }
 
-    // GET /api/lectores
+    // GET /api/v1/lectores
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
@@ -24,7 +24,7 @@ public class LectoresController : ControllerBase
         return Ok(lectores);
     }
 
-    // GET /api/lectores/{id}
+    // GET /api/v1/lectores/{id}
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
@@ -39,7 +39,7 @@ public class LectoresController : ControllerBase
         }
     }
 
-    // POST /api/lectores
+    // POST /api/v1/lectores
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] LectorCreateDTO dto, CancellationToken ct)
     {
@@ -58,7 +58,7 @@ public class LectoresController : ControllerBase
         }
     }
 
-    // PUT /api/lectores/{id}
+    // PUT /api/v1/lectores/{id}
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] LectorUpdateDTO dto, CancellationToken ct)
     {
@@ -81,7 +81,7 @@ public class LectoresController : ControllerBase
         }
     }
 
-    // DELETE /api/lectores/{id}
+    // DELETE /api/v1/lectores/{id}
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {

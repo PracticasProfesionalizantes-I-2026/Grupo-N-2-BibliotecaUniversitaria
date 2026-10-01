@@ -28,7 +28,7 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task CreateLibro_ReturnsSuccessAndCreatedLibro()
     {
-        var response = await _client.PostAsJsonAsync("/api/libros", NuevoLibroDto());
+        var response = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto());
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var creado = await response.Content.ReadFromJsonAsync<LibroResponseDTO>();
@@ -42,7 +42,7 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
         var dto = NuevoLibroDto();
         dto.Titulo = "";
 
-        var response = await _client.PostAsJsonAsync("/api/libros", dto);
+        var response = await _client.PostAsJsonAsync("/api/v1/libros", dto);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -50,7 +50,7 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task GetLibro_WithUnknownId_Returns404NotFound()
     {
-        var response = await _client.GetAsync($"/api/libros/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/v1/libros/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -58,7 +58,7 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task DeleteLibro_WithActiveLoans_Returns409Conflict()
     {
-        var libroResponse = await _client.PostAsJsonAsync("/api/libros", NuevoLibroDto(stock: 1));
+        var libroResponse = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(stock: 1));
         var libro = await libroResponse.Content.ReadFromJsonAsync<LibroResponseDTO>();
 
         var lectorDto = new LectorCreateDTO
@@ -68,16 +68,16 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
             Email = "carla.ruiz@example.com",
             Identificador = Guid.NewGuid().ToString("N")[..8]
         };
-        var lectorResponse = await _client.PostAsJsonAsync("/api/lectores", lectorDto);
+        var lectorResponse = await _client.PostAsJsonAsync("/api/v1/lectores", lectorDto);
         var lector = await lectorResponse.Content.ReadFromJsonAsync<LectorResponseDTO>();
 
-        await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector!.Id,
             LibroId = libro!.Id
         });
 
-        var deleteResponse = await _client.DeleteAsync($"/api/libros/{libro.Id}");
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/libros/{libro.Id}");
 
         Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
     }
