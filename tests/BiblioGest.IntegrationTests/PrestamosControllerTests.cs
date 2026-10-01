@@ -77,6 +77,63 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
+    public async Task CreatePrestamo_WhenLectorHasThreeActiveLoans_Returns409Conflict()
+    {
+        var lector = await CrearLectorAsync();
+
+        for (var i = 0; i < 3; i++)
+        {
+            var libro = await CrearLibroAsync(stock: 1);
+            var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
+            {
+                LectorId = lector.Id,
+                LibroId = libro.Id
+            }, CustomWebApplicationFactory.JsonOptions);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        }
+
+        var libroExtra = await CrearLibroAsync(stock: 1);
+        var responseExtra = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libroExtra.Id
+        }, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Conflict, responseExtra.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreatePrestamo_WhenLectorInMora_Returns409Conflict()
+    {
+        var lector = await CrearLectorAsync();
+        var libroVencido = await CrearLibroAsync(stock: 1);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
+            context.Prestamos.Add(new Prestamo
+            {
+                Id = Guid.NewGuid(),
+                LectorId = lector.Id,
+                LibroId = libroVencido.Id,
+                FechaPrestamo = DateTime.UtcNow.AddDays(-20),
+                FechaVencimiento = DateTime.UtcNow.AddDays(-6),
+                Estado = EstadoPrestamo.Activo
+            });
+            await context.SaveChangesAsync();
+        }
+
+        var libroNuevo = await CrearLibroAsync(stock: 1);
+        var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libroNuevo.Id
+        }, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreatePrestamo_WithoutStock_Returns409Conflict()
     {
         var libro = await CrearLibroAsync(stock: 0);
@@ -138,5 +195,30 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         var vencidos = await response.Content.ReadFromJsonAsync<List<PrestamoResponseDTO>>(CustomWebApplicationFactory.JsonOptions);
         Assert.NotNull(vencidos);
         Assert.Contains(vencidos!, p => p.LibroId == libro.Id && p.EnMora);
+    }
+
+    [Fact]
+    public async Task GetPrestamosVencidos_WithNoOverdueLoans_Returns200OKWithEmptyList()
+    {
+        // Usa una factory propia (base en memoria completamente nueva) en vez de la
+        // compartida por la clase, para garantizar que no haya vencidos cargados por
+        // otros tests. El DbInitializer siembra un préstamo vencido de prueba, así
+        // que primero se registra su devolución para dejar el sistema sin mora.
+        using var factory = new CustomWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var vencidosIniciales = await client.GetFromJsonAsync<List<PrestamoResponseDTO>>(
+            "/api/v1/prestamos/mora", CustomWebApplicationFactory.JsonOptions);
+        foreach (var vencido in vencidosIniciales!)
+        {
+            await client.PutAsync($"/api/v1/prestamos/{vencido.Id}/devolucion", content: null);
+        }
+
+        var response = await client.GetAsync("/api/v1/prestamos/mora");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var vencidos = await response.Content.ReadFromJsonAsync<List<PrestamoResponseDTO>>(CustomWebApplicationFactory.JsonOptions);
+        Assert.NotNull(vencidos);
+        Assert.Empty(vencidos!);
     }
 }

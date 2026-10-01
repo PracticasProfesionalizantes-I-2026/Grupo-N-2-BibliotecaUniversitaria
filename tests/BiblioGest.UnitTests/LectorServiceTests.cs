@@ -76,6 +76,24 @@ public class LectorServiceTests
     }
 
     [Fact]
+    public async Task UpdateLectorAsync_WithValidData_UpdatesLector()
+    {
+        var id = Guid.NewGuid();
+        var lectorExistente = new Lector { Id = id, Nombre = "Viejo", Apellido = "Apellido", Email = "viejo@a.com", Identificador = "1" };
+        _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lectorExistente);
+        _lectorRepository.Setup(r => r.GetByIdentificadorAsync("2", It.IsAny<CancellationToken>())).ReturnsAsync((Lector?)null);
+
+        var dto = new LectorUpdateDTO { Nombre = "Nuevo", Apellido = "Apellido2", Email = "nuevo@a.com", Identificador = "2" };
+        var service = CrearService();
+
+        var resultado = await service.UpdateAsync(id, dto);
+
+        Assert.Equal("Nuevo", resultado.Nombre);
+        Assert.Equal("2", resultado.Identificador);
+        _lectorRepository.Verify(r => r.UpdateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task GetLectorByIdAsync_WhenLectorDoesNotExist_ThrowsNotFoundException()
     {
         var id = Guid.NewGuid();

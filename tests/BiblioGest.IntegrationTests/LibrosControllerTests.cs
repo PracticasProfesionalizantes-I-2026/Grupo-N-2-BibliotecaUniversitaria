@@ -48,6 +48,50 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task UpdateLibro_ReturnsSuccessAndUpdatedLibro()
+    {
+        var creado = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(), CustomWebApplicationFactory.JsonOptions);
+        var libro = await creado.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
+
+        var dto = new LibroUpdateDTO
+        {
+            Titulo = "Título actualizado",
+            Autor = libro!.Autor,
+            Isbn = libro.Isbn,
+            Ubicacion = libro.Ubicacion,
+            Stock = libro.Stock + 1
+        };
+
+        var response = await _client.PutAsJsonAsync($"/api/v1/libros/{libro.Id}", dto, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var actualizado = await response.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
+        Assert.Equal("Título actualizado", actualizado!.Titulo);
+        Assert.Equal(libro.Stock + 1, actualizado.Stock);
+    }
+
+    [Fact]
+    public async Task DeleteLibro_WithoutActiveLoans_Returns200OK()
+    {
+        var creado = await _client.PostAsJsonAsync("/api/v1/libros", NuevoLibroDto(), CustomWebApplicationFactory.JsonOptions);
+        var libro = await creado.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
+
+        var response = await _client.DeleteAsync($"/api/v1/libros/{libro!.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateLibro_WithNegativeStock_Returns400BadRequest()
+    {
+        var dto = NuevoLibroDto(stock: -1);
+
+        var response = await _client.PostAsJsonAsync("/api/v1/libros", dto, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateLibro_WithTituloTooLong_Returns400BadRequest()
     {
         var dto = NuevoLibroDto();

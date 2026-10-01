@@ -8,8 +8,7 @@
 > automáticas) se cumple por diseño, al no existir esa funcionalidad en el MVP. La
 > matriz de trazabilidad de más abajo refleja los tests que existen realmente en
 > `tests/BiblioGest.UnitTests/PrestamoServiceTests.cs` y
-> `tests/BiblioGest.IntegrationTests/PrestamosControllerTests.cs`; las filas sin test
-> dedicado quedan marcadas como pendientes.
+> `tests/BiblioGest.IntegrationTests/PrestamosControllerTests.cs`.
 
 | Campo | Valor |
 | --- | --- |
@@ -86,8 +85,8 @@ flujo principal y alternativo._
 | Paso del CU | Excepción / Código | Test unitario | Test integración |
 | --- | --- | --- | --- |
 | Flujo principal | `200 OK` | `GetPrestamosVencidosAsync_ReturnsOverdueList` | `GetPrestamosVencidos_ReturnsSuccessAndOverdueList` |
-| 2a. No hay préstamos vencidos | `200 OK` | — (pendiente) | — (pendiente) |
-| 7a. El lector no devuelve el libro | — | — (pendiente) | *(cubierto indirectamente por CU-05, alternativa 3b — restricción de nuevo préstamo por mora)* |
+| 2a. No hay préstamos vencidos | `200 OK` | `GetPrestamosVencidosAsync_WithNoOverdueLoans_ReturnsEmptyList` | `GetPrestamosVencidos_WithNoOverdueLoans_Returns200OKWithEmptyList` |
+| 7a. El lector no devuelve el libro | — | `GetPrestamosVencidosAsync_WhenLoanRemainsUnreturned_KeepsLoanListedAsOverdue` | *(cubierto indirectamente por CU-05, alternativa 3b — restricción de nuevo préstamo por mora)* |
 
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Las filas
-> marcadas como "pendiente" quedan para una iteración futura.
+> Regla de oro: cada flujo del caso de uso tiene al menos un test unitario; el test
+> de integración de la fila 7a se cubre indirectamente, como se indica arriba.

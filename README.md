@@ -251,6 +251,6 @@ requests de creación completan automáticamente `libroId`/`lectorId`/
 ## Testing
 
 - `tests/BiblioGest.UnitTests`: xUnit + Moq sobre los 3 services, sin tocar
-  la base real (20 tests).
+  la base real (23 tests).
 - `tests/BiblioGest.IntegrationTests`: `WebApplicationFactory` levantando la
-  API completa contra una SQLite en memoria aislada por instancia (15 tests).
+  API completa contra una SQLite en memoria aislada por instancia (24 tests).

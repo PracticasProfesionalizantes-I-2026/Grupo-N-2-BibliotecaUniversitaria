@@ -8,8 +8,7 @@
 > duplicados) **implementadas** en `PrestamoService`. La matriz de trazabilidad de
 > más abajo refleja los tests que existen realmente en
 > `tests/BiblioGest.UnitTests/PrestamoServiceTests.cs` y
-> `tests/BiblioGest.IntegrationTests/PrestamosControllerTests.cs`; las filas sin test
-> de integración dedicado quedan marcadas como pendientes.
+> `tests/BiblioGest.IntegrationTests/PrestamosControllerTests.cs`.
 
 | Campo | Valor |
 | --- | --- |
@@ -115,11 +114,10 @@ flujo principal y alternativo._
 | --- | --- | --- | --- |
 | Flujo principal | `201 Created` | `CreatePrestamoAsync_WithValidData_SavesAndReturnsCreatedPrestamo` | `CreatePrestamo_ReturnsSuccessAndCreatedPrestamo` |
 | 1a. Lector o libro inexistente | `404 Not Found` | `CreatePrestamoAsync_WhenLectorOrLibroNotFound_ThrowsNotFoundException` | `CreatePrestamo_WithUnknownLectorOrLibro_Returns404NotFound` |
-| 3a. Lector con 3 préstamos activos | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasThreeActiveLoans_ThrowsConflictException` | — (pendiente) |
-| 3b. Lector con mora | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsConflictException` | — (pendiente) |
+| 3a. Lector con 3 préstamos activos | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasThreeActiveLoans_ThrowsConflictException` | `CreatePrestamo_WhenLectorHasThreeActiveLoans_Returns409Conflict` |
+| 3b. Lector con mora | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsConflictException` | `CreatePrestamo_WhenLectorInMora_Returns409Conflict` |
 | 5a. Libro sin stock | `409 Conflict` | `CreatePrestamoAsync_WhenLibroHasNoStock_ThrowsConflictException` | `CreatePrestamo_WithoutStock_Returns409Conflict` |
 | 6a. Registrar devolución | `200 OK` | `RegisterDevolucionAsync_WithValidData_UpdatesStockAndPrestamoState` | `RegisterDevolucion_ReturnsSuccessAndUpdatedPrestamo` |
 
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Las filas
-> marcadas como "pendiente" ya están probadas a nivel unitario pero todavía no
-> tienen test de integración dedicado; quedan para una iteración futura.
+> Regla de oro: cada flujo del caso de uso tiene al menos un test unitario y uno de
+> integración.

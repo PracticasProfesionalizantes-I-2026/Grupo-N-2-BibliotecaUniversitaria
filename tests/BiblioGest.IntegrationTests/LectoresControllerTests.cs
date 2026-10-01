@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using BiblioGest.Shared.DTOs.Lectores;
+using BiblioGest.Shared.DTOs.Libros;
+using BiblioGest.Shared.DTOs.Prestamos;
 using Xunit;
 
 namespace BiblioGest.IntegrationTests;
@@ -53,6 +55,66 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
         var response = await _client.GetAsync($"/api/v1/lectores/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateLector_ReturnsSuccessAndUpdatedLector()
+    {
+        var creado = await _client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
+        var lector = await creado.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
+
+        var dto = new LectorUpdateDTO
+        {
+            Nombre = "Nombre actualizado",
+            Apellido = lector!.Apellido,
+            Email = lector.Email,
+            Identificador = lector.Identificador
+        };
+
+        var response = await _client.PutAsJsonAsync($"/api/v1/lectores/{lector.Id}", dto, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var actualizado = await response.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
+        Assert.Equal("Nombre actualizado", actualizado!.Nombre);
+    }
+
+    [Fact]
+    public async Task DeleteLector_WithoutActiveLoans_Returns200OK()
+    {
+        var creado = await _client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
+        var lector = await creado.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
+
+        var response = await _client.DeleteAsync($"/api/v1/lectores/{lector!.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteLector_WithActiveLoans_Returns409Conflict()
+    {
+        var lectorResponse = await _client.PostAsJsonAsync("/api/v1/lectores", NuevoLectorDto(), CustomWebApplicationFactory.JsonOptions);
+        var lector = await lectorResponse.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions);
+
+        var libroDto = new LibroCreateDTO
+        {
+            Titulo = $"Libro {Guid.NewGuid()}",
+            Autor = "Autor",
+            Isbn = Guid.NewGuid().ToString("N")[..10],
+            Ubicacion = "Estante Z",
+            Stock = 1
+        };
+        var libroResponse = await _client.PostAsJsonAsync("/api/v1/libros", libroDto, CustomWebApplicationFactory.JsonOptions);
+        var libro = await libroResponse.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions);
+
+        await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector!.Id,
+            LibroId = libro!.Id
+        }, CustomWebApplicationFactory.JsonOptions);
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/lectores/{lector.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
     }
 
     [Fact]

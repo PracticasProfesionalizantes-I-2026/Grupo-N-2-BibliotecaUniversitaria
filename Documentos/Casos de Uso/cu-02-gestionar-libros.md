@@ -8,8 +8,7 @@
 > `LibroService` / `LibroRepository`. La matriz de trazabilidad de más abajo
 > refleja los tests que existen realmente en
 > `tests/BiblioGest.UnitTests/LibroServiceTests.cs` y
-> `tests/BiblioGest.IntegrationTests/LibrosControllerTests.cs`; las filas sin
-> test de integración dedicado quedan marcadas como pendientes.
+> `tests/BiblioGest.IntegrationTests/LibrosControllerTests.cs`.
 
 | Campo | Valor |
 | --- | --- |
@@ -119,13 +118,11 @@ actualizada la información del catálogo y del stock.
 | Paso del CU | Excepción / Código | Test unitario | Test integración |
 | --- | --- | --- | --- |
 | 3a. Registrar libro | `201 Created` | `CreateLibroAsync_WithValidData_SavesAndReturnsCreatedLibro` | `CreateLibro_ReturnsSuccessAndCreatedLibro` |
-| 3b. Modificar libro | `200 OK` | `UpdateLibroAsync_WithValidData_UpdatesLibro` | — (pendiente) |
-| 3c. Eliminar libro | `200 OK` | `DeleteLibroAsync_WithoutActiveLoans_DeletesLibro` | — (pendiente) |
+| 3b. Modificar libro | `200 OK` | `UpdateLibroAsync_WithValidData_UpdatesLibro` | `UpdateLibro_ReturnsSuccessAndUpdatedLibro` |
+| 3c. Eliminar libro | `200 OK` | `DeleteLibroAsync_WithoutActiveLoans_DeletesLibro` | `DeleteLibro_WithoutActiveLoans_Returns200OK` |
 | 3c-1. Libro con préstamos activos | `409 Conflict` | `DeleteLibroAsync_WhenLibroHasActiveLoans_ThrowsConflictException` | `DeleteLibro_WithActiveLoans_Returns409Conflict` |
 | 4a. Datos obligatorios incompletos | `400 Bad Request` | — (validación de esquema vía DataAnnotations en los DTOs) | `CreateLibro_WithMissingRequiredField_Returns400BadRequest`, `CreateLibro_WithTituloTooLong_Returns400BadRequest` |
-| 6a. Stock negativo | `400 Bad Request` | `CreateLibroAsync_WithNegativeStock_ThrowsValidationException` | — (pendiente) |
+| 6a. Stock negativo | `400 Bad Request` | `CreateLibroAsync_WithNegativeStock_ThrowsValidationException` | `CreateLibro_WithNegativeStock_Returns400BadRequest` |
 
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Las filas
-> marcadas como "pendiente" todavía no tienen test de integración dedicado (la regla
-> sí está probada a nivel unitario o cubierta indirectamente); quedan para una
-> iteración futura.
+> Regla de oro: cada flujo del caso de uso tiene al menos un test unitario y uno de
+> integración.
