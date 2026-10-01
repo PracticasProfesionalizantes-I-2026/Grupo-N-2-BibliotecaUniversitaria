@@ -3,9 +3,12 @@
 > Especificación elaborada siguiendo la guía
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso.pdf`.
-> Reglas de negocio RN-14, RN-15 y RN-16 **pendientes de implementación**; el proyecto
-> se encuentra en etapa de análisis, por lo que los tests listados en la matriz de
-> trazabilidad son **propuestos**, no implementados aún.
+> Regla de negocio RN-14 (identificación de préstamos vencidos) **implementada** en
+> `PrestamoRepository.GetVencidosAsync` / `LectorTieneMoraAsync`; RN-16 (sin multas
+> automáticas) se cumple por diseño, al no existir esa funcionalidad en el MVP. La
+> matriz de trazabilidad de más abajo refleja los tests que existen realmente en
+> `tests/BiblioGest.UnitTests/PrestamoServiceTests.cs` y
+> `tests/BiblioGest.IntegrationTests/PrestamosControllerTests.cs`.
 
 | Campo | Valor |
 | --- | --- |
@@ -77,15 +80,13 @@ flujo principal y alternativo._
 | --- | --- | --- |
 | `200` | OK | Consulta exitosa del listado de préstamos vencidos (incluyendo el caso de listado vacío) o confirmación de una devolución tardía registrada. |
 
-### Matriz de trazabilidad CU-06 → Test (propuesta)
+### Matriz de trazabilidad CU-06 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Excepción / Código | Test unitario | Test integración |
 | --- | --- | --- | --- |
-| Flujo principal | `200 OK` | `GetPrestamosVencidosAsync_WithOverdueLoans_ReturnsOverdueList` | `GetPrestamosVencidos_ReturnsSuccessAndOverdueList` |
+| Flujo principal | `200 OK` | `GetPrestamosVencidosAsync_ReturnsOverdueList` | `GetPrestamosVencidos_ReturnsSuccessAndOverdueList` |
 | 2a. No hay préstamos vencidos | `200 OK` | `GetPrestamosVencidosAsync_WithNoOverdueLoans_ReturnsEmptyList` | `GetPrestamosVencidos_WithNoOverdueLoans_Returns200OKWithEmptyList` |
 | 7a. El lector no devuelve el libro | — | `GetPrestamosVencidosAsync_WhenLoanRemainsUnreturned_KeepsLoanListedAsOverdue` | *(cubierto indirectamente por CU-05, alternativa 3b — restricción de nuevo préstamo por mora)* |
 
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+> Regla de oro: cada flujo del caso de uso tiene al menos un test unitario; el test
+> de integración de la fila 7a se cubre indirectamente, como se indica arriba.

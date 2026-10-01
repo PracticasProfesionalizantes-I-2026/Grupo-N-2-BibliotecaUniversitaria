@@ -163,4 +163,42 @@ public class PrestamoServiceTests
         Assert.Single(resultado);
         Assert.True(resultado[0].EnMora);
     }
+
+    [Fact]
+    public async Task GetPrestamosVencidosAsync_WithNoOverdueLoans_ReturnsEmptyList()
+    {
+        _prestamoRepository.Setup(r => r.GetVencidosAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Prestamo>());
+
+        var service = CrearService();
+        var resultado = await service.GetVencidosAsync();
+
+        Assert.Empty(resultado);
+    }
+
+    [Fact]
+    public async Task GetPrestamosVencidosAsync_WhenLoanRemainsUnreturned_KeepsLoanListedAsOverdue()
+    {
+        var vencido = new Prestamo
+        {
+            Id = Guid.NewGuid(),
+            LectorId = Guid.NewGuid(),
+            LibroId = Guid.NewGuid(),
+            Lector = CrearLector(Guid.NewGuid()),
+            Libro = CrearLibro(Guid.NewGuid(), stock: 0),
+            FechaPrestamo = DateTime.UtcNow.AddDays(-20),
+            FechaVencimiento = DateTime.UtcNow.AddDays(-6),
+            Estado = EstadoPrestamo.Activo
+        };
+        _prestamoRepository.Setup(r => r.GetVencidosAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Prestamo> { vencido });
+
+        var service = CrearService();
+        var resultado = await service.GetVencidosAsync();
+
+        // El estado persistido sigue "Activo": "vencido" se calcula en la consulta,
+        // no se persiste (ver RN-14 / postcondiciones de CU-06).
+        Assert.Equal("Activo", resultado[0].Estado);
+        Assert.True(resultado[0].EnMora);
+    }
 }

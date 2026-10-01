@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BiblioGest.DataAccess;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -12,6 +13,13 @@ namespace BiblioGest.IntegrationTests;
 // aisladas entre sí.
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
+    // La API serializa en snake_case (Program.cs); los tests usan estas
+    // mismas opciones al armar y leer JSON para no desalinearse.
+    public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+    };
+
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

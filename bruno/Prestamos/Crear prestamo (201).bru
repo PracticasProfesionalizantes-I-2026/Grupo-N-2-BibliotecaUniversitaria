@@ -5,15 +5,15 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/api/prestamos
+  url: {{baseUrl}}/api/v1/prestamos
   body: json
   auth: none
 }
 
 body:json {
   {
-    "lectorId": "{{lectorId}}",
-    "libroId": "{{libroId}}"
+    "lector_id": "{{lectorId}}",
+    "libro_id": "{{libroId}}"
   }
 }
 

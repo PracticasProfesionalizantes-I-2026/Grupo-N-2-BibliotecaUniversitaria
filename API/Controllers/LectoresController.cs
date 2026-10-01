@@ -1,12 +1,11 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.Shared.DTOs.Lectores;
-using BiblioGest.Shared.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BiblioGest.Api.Controllers;
 
 [ApiController]
-[Route("api/lectores")]
+[Route("api/v1/lectores")]
 public class LectoresController : ControllerBase
 {
     private readonly ILectorService _lectorService;
@@ -16,7 +15,7 @@ public class LectoresController : ControllerBase
         _lectorService = lectorService;
     }
 
-    // GET /api/lectores
+    // GET /api/v1/lectores
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
@@ -24,79 +23,35 @@ public class LectoresController : ControllerBase
         return Ok(lectores);
     }
 
-    // GET /api/lectores/{id}
+    // GET /api/v1/lectores/{id}
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
-        try
-        {
-            var lector = await _lectorService.GetByIdAsync(id, ct);
-            return Ok(lector);
-        }
-        catch (NotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
+        var lector = await _lectorService.GetByIdAsync(id, ct);
+        return Ok(lector);
     }
 
-    // POST /api/lectores
+    // POST /api/v1/lectores
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] LectorCreateDTO dto, CancellationToken ct)
     {
-        try
-        {
-            var creado = await _lectorService.CreateAsync(dto, ct);
-            return CreatedAtAction(nameof(GetById), new { id = creado.Id }, creado);
-        }
-        catch (ValidationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (ConflictException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
+        var creado = await _lectorService.CreateAsync(dto, ct);
+        return CreatedAtAction(nameof(GetById), new { id = creado.Id }, creado);
     }
 
-    // PUT /api/lectores/{id}
+    // PUT /api/v1/lectores/{id}
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] LectorUpdateDTO dto, CancellationToken ct)
     {
-        try
-        {
-            var actualizado = await _lectorService.UpdateAsync(id, dto, ct);
-            return Ok(actualizado);
-        }
-        catch (NotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (ValidationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (ConflictException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
+        var actualizado = await _lectorService.UpdateAsync(id, dto, ct);
+        return Ok(actualizado);
     }
 
-    // DELETE /api/lectores/{id}
+    // DELETE /api/v1/lectores/{id}
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        try
-        {
-            await _lectorService.DeleteAsync(id, ct);
-            return Ok(new { message = "Lector eliminado correctamente." });
-        }
-        catch (NotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (ConflictException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
+        await _lectorService.DeleteAsync(id, ct);
+        return Ok(new { message = "Lector eliminado correctamente." });
     }
 }

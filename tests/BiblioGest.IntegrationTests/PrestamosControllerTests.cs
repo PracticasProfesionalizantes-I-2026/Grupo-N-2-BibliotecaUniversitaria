@@ -23,27 +23,27 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
 
     private async Task<LibroResponseDTO> CrearLibroAsync(int stock)
     {
-        var response = await _client.PostAsJsonAsync("/api/libros", new LibroCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/libros", new LibroCreateDTO
         {
             Titulo = $"Libro {Guid.NewGuid()}",
             Autor = "Autor",
             Isbn = Guid.NewGuid().ToString("N")[..10],
             Ubicacion = "Estante Z",
             Stock = stock
-        });
-        return (await response.Content.ReadFromJsonAsync<LibroResponseDTO>())!;
+        }, CustomWebApplicationFactory.JsonOptions);
+        return (await response.Content.ReadFromJsonAsync<LibroResponseDTO>(CustomWebApplicationFactory.JsonOptions))!;
     }
 
     private async Task<LectorResponseDTO> CrearLectorAsync()
     {
-        var response = await _client.PostAsJsonAsync("/api/lectores", new LectorCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/lectores", new LectorCreateDTO
         {
             Nombre = "Elena",
             Apellido = "Suárez",
             Email = $"{Guid.NewGuid()}@example.com",
             Identificador = Guid.NewGuid().ToString("N")[..8]
-        });
-        return (await response.Content.ReadFromJsonAsync<LectorResponseDTO>())!;
+        }, CustomWebApplicationFactory.JsonOptions);
+        return (await response.Content.ReadFromJsonAsync<LectorResponseDTO>(CustomWebApplicationFactory.JsonOptions))!;
     }
 
     [Fact]
@@ -52,14 +52,14 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         var libro = await CrearLibroAsync(stock: 2);
         var lector = await CrearLectorAsync();
 
-        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector.Id,
             LibroId = libro.Id
-        });
+        }, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var creado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        var creado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>(CustomWebApplicationFactory.JsonOptions);
         Assert.NotNull(creado);
         Assert.Equal("Activo", creado!.Estado);
     }
@@ -67,13 +67,70 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     [Fact]
     public async Task CreatePrestamo_WithUnknownLectorOrLibro_Returns404NotFound()
     {
-        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = Guid.NewGuid(),
             LibroId = Guid.NewGuid()
-        });
+        }, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreatePrestamo_WhenLectorHasThreeActiveLoans_Returns409Conflict()
+    {
+        var lector = await CrearLectorAsync();
+
+        for (var i = 0; i < 3; i++)
+        {
+            var libro = await CrearLibroAsync(stock: 1);
+            var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
+            {
+                LectorId = lector.Id,
+                LibroId = libro.Id
+            }, CustomWebApplicationFactory.JsonOptions);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        }
+
+        var libroExtra = await CrearLibroAsync(stock: 1);
+        var responseExtra = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libroExtra.Id
+        }, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Conflict, responseExtra.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreatePrestamo_WhenLectorInMora_Returns409Conflict()
+    {
+        var lector = await CrearLectorAsync();
+        var libroVencido = await CrearLibroAsync(stock: 1);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
+            context.Prestamos.Add(new Prestamo
+            {
+                Id = Guid.NewGuid(),
+                LectorId = lector.Id,
+                LibroId = libroVencido.Id,
+                FechaPrestamo = DateTime.UtcNow.AddDays(-20),
+                FechaVencimiento = DateTime.UtcNow.AddDays(-6),
+                Estado = EstadoPrestamo.Activo
+            });
+            await context.SaveChangesAsync();
+        }
+
+        var libroNuevo = await CrearLibroAsync(stock: 1);
+        var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libroNuevo.Id
+        }, CustomWebApplicationFactory.JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
@@ -82,11 +139,11 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         var libro = await CrearLibroAsync(stock: 0);
         var lector = await CrearLectorAsync();
 
-        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        var response = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector.Id,
             LibroId = libro.Id
-        });
+        }, CustomWebApplicationFactory.JsonOptions);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -96,17 +153,17 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     {
         var libro = await CrearLibroAsync(stock: 1);
         var lector = await CrearLectorAsync();
-        var creadoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        var creadoResponse = await _client.PostAsJsonAsync("/api/v1/prestamos", new PrestamoCreateDTO
         {
             LectorId = lector.Id,
             LibroId = libro.Id
-        });
-        var creado = await creadoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        }, CustomWebApplicationFactory.JsonOptions);
+        var creado = await creadoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>(CustomWebApplicationFactory.JsonOptions);
 
-        var response = await _client.PutAsync($"/api/prestamos/{creado!.Id}/devolucion", content: null);
+        var response = await _client.PutAsync($"/api/v1/prestamos/{creado!.Id}/devolucion", content: null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var actualizado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        var actualizado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>(CustomWebApplicationFactory.JsonOptions);
         Assert.Equal("Devuelto", actualizado!.Estado);
         Assert.NotNull(actualizado.FechaDevolucion);
     }
@@ -132,11 +189,36 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
             await context.SaveChangesAsync();
         }
 
-        var response = await _client.GetAsync("/api/prestamos/mora");
+        var response = await _client.GetAsync("/api/v1/prestamos/mora");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var vencidos = await response.Content.ReadFromJsonAsync<List<PrestamoResponseDTO>>();
+        var vencidos = await response.Content.ReadFromJsonAsync<List<PrestamoResponseDTO>>(CustomWebApplicationFactory.JsonOptions);
         Assert.NotNull(vencidos);
         Assert.Contains(vencidos!, p => p.LibroId == libro.Id && p.EnMora);
+    }
+
+    [Fact]
+    public async Task GetPrestamosVencidos_WithNoOverdueLoans_Returns200OKWithEmptyList()
+    {
+        // Usa una factory propia (base en memoria completamente nueva) en vez de la
+        // compartida por la clase, para garantizar que no haya vencidos cargados por
+        // otros tests. El DbInitializer siembra un préstamo vencido de prueba, así
+        // que primero se registra su devolución para dejar el sistema sin mora.
+        using var factory = new CustomWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var vencidosIniciales = await client.GetFromJsonAsync<List<PrestamoResponseDTO>>(
+            "/api/v1/prestamos/mora", CustomWebApplicationFactory.JsonOptions);
+        foreach (var vencido in vencidosIniciales!)
+        {
+            await client.PutAsync($"/api/v1/prestamos/{vencido.Id}/devolucion", content: null);
+        }
+
+        var response = await client.GetAsync("/api/v1/prestamos/mora");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var vencidos = await response.Content.ReadFromJsonAsync<List<PrestamoResponseDTO>>(CustomWebApplicationFactory.JsonOptions);
+        Assert.NotNull(vencidos);
+        Assert.Empty(vencidos!);
     }
 }
