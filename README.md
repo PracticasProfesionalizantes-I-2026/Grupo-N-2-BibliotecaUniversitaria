@@ -14,9 +14,8 @@ Integrantes: Lautaro Navarro y Elías Korell
 
 BiblioGest es un sistema de gestión de biblioteca universitaria. Esta API
 cubre exclusivamente los 3 casos de uso principales del sistema —
-**Gestionar Libros**, **Gestionar Lectores** y **Gestionar Préstamos**
-(incluyendo el control de mora, que es parte de la misma regla de negocio
-de Préstamos) — según lo acordado con la cátedra.
+**Gestionar Libros**, **Gestionar Lectores** y **Gestionar Préstamos** —
+según lo acordado con la cátedra.
 
 **Fuera de esta entrega** (a implementar por el equipo): Login/Autenticación
 (CU-01), Generar Reportes (CU-07) y Gestionar Usuarios del Sistema (CU-08).
@@ -92,9 +91,6 @@ de datos, además de la validación explícita en el service (409 Conflict).
 | Eliminar libro con préstamos activos | `LibroConPrestamosActivosException` | 409 |
 | Eliminar lector con préstamos activos | `LectorConPrestamosActivosException` | 409 |
 | Identificador (DNI/legajo) duplicado | `IdentificadorDuplicadoException` | 409 |
-| Lector con 3 préstamos activos | `LimitePrestamosActivosException` | 409 |
-| Libro sin stock disponible | `StockInsuficienteException` | 409 |
-| Lector con préstamos vencidos (mora) | `LectorEnMoraException` | 409 |
 
 Todas heredan de una categoría base (`NotFoundException`,
 `ValidationException`, `ConflictException`), y cada controller las mapea
@@ -191,10 +187,10 @@ Ejemplo `POST /api/lectores`:
 
 | Método | Ruta | Descripción | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| POST | `/api/prestamos` | Crear préstamo | 201 | 404, 409 |
+| GET | `/api/prestamos` | Listar préstamos | 200 | — |
 | GET | `/api/prestamos/{id}` | Obtener un préstamo | 200 | 404 |
+| POST | `/api/prestamos` | Crear préstamo | 201 | 404 |
 | PUT | `/api/prestamos/{id}/devolucion` | Registrar devolución | 200 | 404 |
-| GET | `/api/prestamos/mora` | Listar préstamos vencidos | 200 | — |
 
 Ejemplo `POST /api/prestamos`:
 
@@ -215,8 +211,7 @@ Ejemplo `POST /api/prestamos`:
   "fechaPrestamo": "2026-09-18T01:00:00Z",
   "fechaVencimiento": "2026-10-02T01:00:00Z",
   "fechaDevolucion": null,
-  "estado": "Activo",
-  "enMora": false
+  "estado": "Activo"
 }
 ```
 
