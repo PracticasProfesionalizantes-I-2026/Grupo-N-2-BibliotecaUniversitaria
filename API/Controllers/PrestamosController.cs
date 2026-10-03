@@ -16,13 +16,12 @@ public class PrestamosController : ControllerBase
         _prestamoService = prestamoService;
     }
 
-    // GET /api/prestamos/mora
-    // Nota: se declara antes de "{id}" para que la ruta literal tenga prioridad.
-    [HttpGet("mora")]
-    public async Task<IActionResult> GetVencidos(CancellationToken ct)
+    // GET /api/prestamos
+    [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var vencidos = await _prestamoService.GetVencidosAsync(ct);
-        return Ok(vencidos);
+        var prestamos = await _prestamoService.GetAllAsync(ct);
+        return Ok(prestamos);
     }
 
     // GET /api/prestamos/{id}
