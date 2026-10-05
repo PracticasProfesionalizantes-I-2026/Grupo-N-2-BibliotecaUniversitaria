@@ -8,5 +8,5 @@ public class LibroResponseDTO
     public string Isbn { get; set; } = string.Empty;
     public string Ubicacion { get; set; } = string.Empty;
     public int Stock { get; set; }
-    public bool Disponible => Stock > 0;
+    public bool Disponible { get; set; }
 }

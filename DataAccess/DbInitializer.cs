@@ -1,4 +1,5 @@
 using BiblioGest.DataAccess.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace BiblioGest.DataAccess;
 
@@ -6,7 +7,7 @@ public static class DbInitializer
 {
     public static void Initialize(BiblioGestDbContext context)
     {
-        context.Database.EnsureCreated();
+        context.Database.Migrate();
 
         if (context.Libros.Any() || context.Lectores.Any())
         {

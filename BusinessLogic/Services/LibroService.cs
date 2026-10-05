@@ -98,6 +98,7 @@ public class LibroService : ILibroService
         Autor = libro.Autor,
         Isbn = libro.Isbn,
         Ubicacion = libro.Ubicacion,
-        Stock = libro.Stock
+        Stock = libro.Stock,
+        Disponible = libro.Stock > 0
     };
 }
