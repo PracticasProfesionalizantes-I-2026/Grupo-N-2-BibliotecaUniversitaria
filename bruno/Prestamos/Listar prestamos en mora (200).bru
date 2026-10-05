@@ -1,0 +1,16 @@
+meta {
+  name: Listar prestamos en mora (200)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/prestamos/mora
+  body: none
+  auth: none
+}
+
+docs {
+  Con los datos de prueba del DbInitializer ya debería devolver al menos
+  el préstamo vencido de "Rayuela".
+}

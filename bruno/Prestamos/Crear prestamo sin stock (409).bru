@@ -1,0 +1,23 @@
+meta {
+  name: Crear prestamo sin stock (409)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/prestamos
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "lectorId": "{{lectorId}}",
+    "libroId": "{{libroId}}"
+  }
+}
+
+docs {
+  Para forzar el 409 de RN-11, usar un libroId cuyo stock ya esté en 0
+  (por ejemplo, el libro "Rayuela" cargado por el DbInitializer).
+}

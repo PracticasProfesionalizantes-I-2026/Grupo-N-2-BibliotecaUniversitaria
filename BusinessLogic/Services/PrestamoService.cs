@@ -8,6 +8,7 @@ namespace BiblioGest.BusinessLogic.Services;
 
 public class PrestamoService : IPrestamoService
 {
+    private const int MaximoPrestamosActivosPorLector = 3;
     private const int DiasDePrestamo = 14;
 
     private readonly IPrestamoRepository _prestamoRepository;
@@ -24,12 +25,6 @@ public class PrestamoService : IPrestamoService
         _lectorRepository = lectorRepository;
     }
 
-    public async Task<IReadOnlyList<PrestamoResponseDTO>> GetAllAsync(CancellationToken ct = default)
-    {
-        var prestamos = await _prestamoRepository.GetAllAsync(ct);
-        return prestamos.Select(MapToResponseDTO).ToList();
-    }
-
     public async Task<PrestamoResponseDTO> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var prestamo = await _prestamoRepository.GetByIdAsync(id, ct) ?? throw new PrestamoNotFoundException(id);
@@ -43,6 +38,22 @@ public class PrestamoService : IPrestamoService
         var libro = await _libroRepository.GetByIdAsync(dto.LibroId, ct)
             ?? throw new LibroNotFoundException(dto.LibroId);
 
+        var prestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(dto.LectorId, ct);
+        if (prestamosActivos >= MaximoPrestamosActivosPorLector)
+        {
+            throw new LimitePrestamosActivosException(dto.LectorId);
+        }
+
+        if (await _prestamoRepository.LectorTieneMoraAsync(dto.LectorId, ct))
+        {
+            throw new LectorEnMoraException(dto.LectorId);
+        }
+
+        if (libro.Stock <= 0)
+        {
+            throw new StockInsuficienteException(dto.LibroId);
+        }
+
         var fechaPrestamo = DateTime.UtcNow;
         var prestamo = new Prestamo
         {
@@ -54,6 +65,9 @@ public class PrestamoService : IPrestamoService
         };
 
         var creado = await _prestamoRepository.CreateAsync(prestamo, ct);
+
+        libro.Stock -= 1;
+        await _libroRepository.UpdateAsync(libro, ct);
 
         creado.Lector = lector;
         creado.Libro = libro;
@@ -68,10 +82,22 @@ public class PrestamoService : IPrestamoService
         prestamo.FechaDevolucion = DateTime.UtcNow;
         await _prestamoRepository.UpdateAsync(prestamo, ct);
 
+        if (prestamo.Libro is not null)
+        {
+            prestamo.Libro.Stock += 1;
+            await _libroRepository.UpdateAsync(prestamo.Libro, ct);
+        }
+
         return MapToResponseDTO(prestamo);
     }
 
-    private static PrestamoResponseDTO MapToResponseDTO(Prestamo prestamo) => new()
+    public async Task<IReadOnlyList<PrestamoResponseDTO>> GetVencidosAsync(CancellationToken ct = default)
+    {
+        var vencidos = await _prestamoRepository.GetVencidosAsync(ct);
+        return vencidos.Select(p => MapToResponseDTO(p, enMora: true)).ToList();
+    }
+
+    private static PrestamoResponseDTO MapToResponseDTO(Prestamo prestamo, bool? enMora = null) => new()
     {
         Id = prestamo.Id,
         LectorId = prestamo.LectorId,
@@ -83,6 +109,7 @@ public class PrestamoService : IPrestamoService
         FechaPrestamo = prestamo.FechaPrestamo,
         FechaVencimiento = prestamo.FechaVencimiento,
         FechaDevolucion = prestamo.FechaDevolucion,
-        Estado = prestamo.Estado.ToString()
+        Estado = prestamo.Estado.ToString(),
+        EnMora = enMora ?? (prestamo.Estado == EstadoPrestamo.Activo && prestamo.FechaVencimiento < DateTime.UtcNow)
     };
 }

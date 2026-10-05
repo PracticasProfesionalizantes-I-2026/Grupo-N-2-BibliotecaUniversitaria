@@ -11,7 +11,8 @@ biblioteca universitaria (Práctica Profesionalizante I, Grupo N°2).
 
 **Alcance actual (importante):** esta API implementa únicamente los 3
 casos de uso principales — Gestionar Libros, Gestionar Lectores y
-Gestionar Préstamos. Login/Autenticación,
+Gestionar Préstamos (incluye el control de mora, que es una regla de
+negocio de Préstamos, no una entidad aparte). Login/Autenticación,
 Gestionar Usuarios del Sistema y Generar Reportes están **fuera de
 alcance a propósito** (los implementa el equipo a mano, por indicación de
 la cátedra) — no agregues código para esas funcionalidades salvo que se
@@ -67,7 +68,11 @@ dotnet ef database update
 | Lector: nombre/apellido/email/identificador obligatorios | `LectorService.CreateAsync/UpdateAsync` |
 | Lector: identificador (DNI/legajo) único | `LectorService.CreateAsync/UpdateAsync` |
 | Lector: no se elimina con préstamos activos | `LectorService.DeleteAsync` |
+| Préstamo: máximo 3 activos por lector | `PrestamoService.CreateAsync` |
+| Préstamo: no se presta un libro sin stock | `PrestamoService.CreateAsync` |
+| Préstamo: lector en mora no puede pedir otro | `PrestamoService.CreateAsync` |
 | Préstamo: vencimiento a 14 días | `PrestamoService.CreateAsync` |
+| Préstamo: "vencido" se calcula en la consulta, no se persiste | `PrestamoRepository.GetVencidosAsync` / `LectorTieneMoraAsync` |
 
 ## Testing
 
