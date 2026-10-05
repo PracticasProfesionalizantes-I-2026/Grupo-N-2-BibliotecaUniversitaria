@@ -54,7 +54,6 @@ tests/
   BiblioGest.IntegrationTests/ WebApplicationFactory (API completa, SQLite en memoria)
 ```
 
-<<<<<<< Updated upstream
 **Responsabilidades por capa:**
 
 | Capa | Responsabilidad |
@@ -234,8 +233,5 @@ requests de creación completan automáticamente `libroId`/`lectorId`/
   la base real (20 tests).
 - `tests/BiblioGest.IntegrationTests`: `WebApplicationFactory` levantando la
   API completa contra una SQLite en memoria aislada por instancia (12 tests).
-=======
-=======
+
 Link: https://docs.google.com/document/d/1f4idud-PCBsQK\_48ZCf5ibF\_MNzNLKdxSAvWgO32Wt4/edit?tab=t.0#heading=h.frnk5y8ou0gl
->>>>>>> parent of 0709d15 (Update README.md)
->>>>>>> Stashed changes
