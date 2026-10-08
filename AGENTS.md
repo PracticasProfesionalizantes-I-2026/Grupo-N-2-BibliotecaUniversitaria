@@ -9,14 +9,14 @@ API RESTful en .NET 10 con arquitectura N-Tier (`Controller → Service →
 Repository → DbContext`) para BiblioGest, un sistema de gestión de
 biblioteca universitaria (Práctica Profesionalizante I, Grupo N°2).
 
-**Alcance actual (importante):** esta API implementa únicamente los 3
-casos de uso principales — Gestionar Libros, Gestionar Lectores y
-Gestionar Préstamos (incluye el control de mora, que es una regla de
-negocio de Préstamos, no una entidad aparte). Login/Autenticación,
-Gestionar Usuarios del Sistema y Generar Reportes están **fuera de
-alcance a propósito** (los implementa el equipo a mano, por indicación de
-la cátedra) — no agregues código para esas funcionalidades salvo que se
-pida explícitamente.
+**Alcance actual (importante):** esta API implementa los 3 casos de uso
+principales — Gestionar Libros, Gestionar Lectores y Gestionar Préstamos
+(incluye el control de mora, que es una regla de negocio de Préstamos, no
+una entidad aparte) — y Login/Autenticación (CU-01). Gestionar Usuarios
+del Sistema y Generar Reportes están **fuera de alcance a propósito**
+(los implementa el equipo a mano, por indicación de la cátedra) — no
+agregues código para esas funcionalidades salvo que se pida
+explícitamente.
 
 Los casos de uso completos y las reglas de negocio (RN-01 a RN-21) están
 documentados en `Documentos/Casos de Uso/`.
@@ -88,8 +88,10 @@ dotnet ef database update
 
 ## Otras convenciones
 
-- No agregar autenticación/`[Authorize]`/JWT a menos que se pida
-  explícitamente (ver "Alcance actual").
+- Login/Autenticación (CU-01) ya está implementado: Libros, Lectores y
+  Préstamos llevan `[Authorize]` (JWT); `AuthController` queda anónimo.
+  No agregar autenticación a Gestionar Usuarios del Sistema (CU-08) ni a
+  Generar Reportes (CU-07) salvo que se pida explícitamente.
 - `bruno/` debe tener un request por endpoint nuevo que se agregue,
   cubriendo al menos un caso de éxito y los de error relevantes.
 - No commitear `bin/`, `obj/` ni archivos `.db` (ver `.gitignore`).

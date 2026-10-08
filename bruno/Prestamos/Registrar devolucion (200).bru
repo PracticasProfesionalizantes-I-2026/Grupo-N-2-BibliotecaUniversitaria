@@ -7,5 +7,9 @@ meta {
 put {
   url: {{baseUrl}}/api/prestamos/{{prestamoId}}/devolucion
   body: none
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
 }

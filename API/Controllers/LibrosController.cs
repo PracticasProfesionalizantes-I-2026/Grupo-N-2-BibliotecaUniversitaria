@@ -1,11 +1,13 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.Shared.DTOs.Libros;
 using BiblioGest.Shared.Exceptions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BiblioGest.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/libros")]
 public class LibrosController : ControllerBase
 {

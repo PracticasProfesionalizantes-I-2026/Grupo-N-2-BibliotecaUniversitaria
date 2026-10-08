@@ -48,6 +48,7 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -55,7 +56,8 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
-    DbInitializer.Initialize(context);
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+    DbInitializer.Initialize(context, passwordHasher.Hash);
 }
 
 // Configure the HTTP request pipeline.
