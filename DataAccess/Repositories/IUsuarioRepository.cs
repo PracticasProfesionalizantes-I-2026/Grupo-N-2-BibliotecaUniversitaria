@@ -8,6 +8,5 @@ namespace BiblioGest.DataAccess.Repositories
         Task<Usuario?> GetByEmailAsync(string email, CancellationToken ct = default);
         Task<Usuario> CreateAsync(Usuario usuario, CancellationToken ct = default);
         Task UpdateAsync(Usuario usuario, CancellationToken ct = default);
-        Task DeleteAsync(Usuario usuario, CancellationToken ct = default);
     }
 }
