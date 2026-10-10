@@ -18,9 +18,11 @@ cubre exclusivamente los 3 casos de uso principales del sistema —
 (incluyendo el control de mora, que es parte de la misma regla de negocio
 de Préstamos) — según lo acordado con la cátedra.
 
-**Fuera de esta entrega** (a implementar por el equipo): Login/Autenticación
-(CU-01), Generar Reportes (CU-07) y Gestionar Usuarios del Sistema (CU-08).
-Por eso los endpoints actuales no requieren token ni llevan `[Authorize]`.
+**Fuera de esta entrega** (a implementar por el equipo): Generar Reportes
+(CU-07) y Gestionar Usuarios del Sistema (CU-08). Login/Autenticación
+(CU-01) ya está implementado: los endpoints de Libros, Lectores y
+Préstamos requieren un token JWT (`Authorization: Bearer <token>`,
+obtenido via `POST /api/auth/login`) y llevan `[Authorize]`.
 
 ## Arquitectura
 
