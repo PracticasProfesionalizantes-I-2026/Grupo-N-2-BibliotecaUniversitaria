@@ -35,12 +35,6 @@ namespace BiblioGest.DataAccess.Repositories
             _context.Usuarios.Update(usuario);
             await _context.SaveChangesAsync(ct);
         }
-
-        public async Task DeleteAsync(Usuario usuario, CancellationToken ct = default)
-        {
-            _context.Usuarios.Remove(usuario);
-            await _context.SaveChangesAsync(ct);
-        }
     }
 
 }
