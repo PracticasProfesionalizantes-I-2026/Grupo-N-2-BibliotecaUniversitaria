@@ -5,14 +5,22 @@ using Xunit;
 
 namespace BiblioGest.IntegrationTests;
 
-public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory>
+public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
-    private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
+    private HttpClient _client = null!;
 
     public LectoresControllerTests(CustomWebApplicationFactory factory)
     {
-        _client = factory.CreateClient();
+        _factory = factory;
     }
+
+    public async Task InitializeAsync()
+    {
+        _client = await _factory.CreateAuthenticatedClientAsync();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     private static LectorCreateDTO NuevoLectorDto() => new()
     {

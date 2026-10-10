@@ -7,7 +7,11 @@ meta {
 put {
   url: {{baseUrl}}/api/lectores/{{lectorId}}
   body: json
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
 }
 
 body:json {

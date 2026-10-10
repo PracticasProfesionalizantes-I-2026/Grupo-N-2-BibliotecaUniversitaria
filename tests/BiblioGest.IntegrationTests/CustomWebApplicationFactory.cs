@@ -1,4 +1,7 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using BiblioGest.DataAccess;
+using BiblioGest.Shared.DTOs.Auth;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -29,6 +32,25 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
             services.AddDbContext<BiblioGestDbContext>(options => options.UseSqlite(_connection));
         });
+    }
+
+    // Los endpoints de Libros/Lectores/Prestamos llevan [Authorize]: las pruebas
+    // de integración necesitan loguearse primero para obtener un token válido.
+    public async Task<HttpClient> CreateAuthenticatedClientAsync(
+        string email = "admin@bibliogest.com",
+        string password = "Admin123!")
+    {
+        var client = CreateClient();
+
+        var loginResponse = await client.PostAsJsonAsync("/api/auth/login", new LoginRequestDTO
+        {
+            Email = email,
+            Password = password
+        });
+        var login = await loginResponse.Content.ReadFromJsonAsync<LoginResponseDTO>();
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login!.Token);
+        return client;
     }
 
     protected override void Dispose(bool disposing)
