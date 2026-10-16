@@ -1,0 +1,26 @@
+meta {
+  name: Modificar usuario (200)
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/usuarios/{{usuarioId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "email": "nuevo.bibliotecario@bibliogest.com",
+    "rolUsuario": "Administrador"
+  }
+}
+
+docs {
+  La contraseña es opcional en la modificación: si no se envía, se mantiene la actual.
+}
