@@ -1,0 +1,29 @@
+meta {
+  name: Crear usuario (201)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/usuarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "email": "nuevo.bibliotecario@bibliogest.com",
+    "password": "Clave123",
+    "rolUsuario": "Bibliotecario"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("usuarioId", res.body.id);
+  }
+}

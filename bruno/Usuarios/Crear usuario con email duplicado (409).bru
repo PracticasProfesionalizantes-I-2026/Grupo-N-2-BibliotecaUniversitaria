@@ -1,0 +1,23 @@
+meta {
+  name: Crear usuario con email duplicado (409)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/usuarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "email": "admin@bibliogest.com",
+    "password": "Clave123",
+    "rolUsuario": "Bibliotecario"
+  }
+}

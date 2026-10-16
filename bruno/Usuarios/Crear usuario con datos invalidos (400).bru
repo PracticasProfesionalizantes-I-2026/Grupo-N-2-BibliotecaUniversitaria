@@ -1,0 +1,28 @@
+meta {
+  name: Crear usuario con datos invalidos (400)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/usuarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "email": "corta@bibliogest.com",
+    "password": "123",
+    "rolUsuario": "Director"
+  }
+}
+
+docs {
+  RN-21: la contraseña debe tener al menos 6 caracteres. También falla si el rol
+  no es Administrador ni Bibliotecario.
+}
