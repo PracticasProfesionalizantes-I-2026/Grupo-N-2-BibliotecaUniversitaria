@@ -64,4 +64,25 @@ public class PrestamoRepository : IPrestamoRepository
             .Where(p => p.Estado == EstadoPrestamo.Activo && p.FechaVencimiento < DateTime.UtcNow)
             .OrderBy(p => p.FechaVencimiento)
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Prestamo>> GetPorRangoAsync(DateTime? desde, DateTime? hastaExclusivo, CancellationToken ct = default)
+    {
+        var query = _context.Prestamos
+            .AsNoTracking()
+            .Include(p => p.Libro)
+            .Include(p => p.Lector)
+            .AsQueryable();
+
+        if (desde.HasValue)
+        {
+            query = query.Where(p => p.FechaPrestamo >= desde.Value);
+        }
+
+        if (hastaExclusivo.HasValue)
+        {
+            query = query.Where(p => p.FechaPrestamo < hastaExclusivo.Value);
+        }
+
+        return await query.OrderBy(p => p.FechaPrestamo).ToListAsync(ct);
+    }
 }

@@ -1,3 +1,4 @@
+using BiblioGest.Api.Middleware;
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.BusinessLogic.Services;
 using BiblioGest.DataAccess;
@@ -27,6 +28,7 @@ builder.Services.AddScoped<ILectorService, LectorService>();
 builder.Services.AddScoped<IPrestamoService, PrestamoService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<IReporteService, ReporteService>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"]!;
@@ -67,6 +69,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 

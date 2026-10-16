@@ -1,0 +1,15 @@
+meta {
+  name: Reporte de tipo inexistente (400)
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/reportes/ventas
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

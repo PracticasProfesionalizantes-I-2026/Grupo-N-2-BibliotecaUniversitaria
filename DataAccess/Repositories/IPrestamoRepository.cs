@@ -12,4 +12,5 @@ public interface IPrestamoRepository
     Task<bool> TieneActivosPorLectorAsync(Guid lectorId, CancellationToken ct = default);
     Task<bool> LectorTieneMoraAsync(Guid lectorId, CancellationToken ct = default);
     Task<IReadOnlyList<Prestamo>> GetVencidosAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Prestamo>> GetPorRangoAsync(DateTime? desde, DateTime? hastaExclusivo, CancellationToken ct = default);
 }
