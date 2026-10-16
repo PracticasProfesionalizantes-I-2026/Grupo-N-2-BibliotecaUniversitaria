@@ -3,10 +3,10 @@
 > Especificación elaborada siguiendo la guía
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso_Limpio.docx`.
-> Reglas de negocio RN-01 (usuarios registrados y activos) y RN-02 (contraseñas de
-> mínimo 6 caracteres, almacenadas de forma segura) **pendientes de implementación**;
-> el proyecto se encuentra en etapa de análisis, por lo que los tests listados en la
-> matriz de trazabilidad son **propuestos**, no implementados aún.
+> Este caso de uso está implementado: `AuthController` (API), `AuthService`
+> (BusinessLogic) y `UsuarioRepository` (DataAccess). La regla RN-01 (usuarios
+> registrados y activos) se valida en el login. La validación del largo mínimo de
+> contraseña de RN-02 se aplica al crear/modificar usuarios (CU-08), no en el login.
 
 | Campo | Valor |
 | --- | --- |
@@ -58,6 +58,14 @@ funcionalidades según su rol.
   3. El Sistema devuelve un código **401 Unauthorized** y regresa al inicio de sesión.
      Fin del caso de uso.
 
+* **3c. Usuario inactivo (HTTP 401 Unauthorized):**
+  1. Si en el Paso 3 la Capa de Negocio detecta que el usuario/email existe y la
+     contraseña coincide, pero la cuenta está inactiva (conforme a **RN-01**).
+  2. El Sistema informa que las credenciales son inválidas (mismo código que 3a y 3b,
+     para no revelar el estado de la cuenta).
+  3. El Sistema devuelve un código **401 Unauthorized** y regresa al inicio de sesión.
+     Fin del caso de uso.
+
 ### 5. SUB-VARIACIONES (opcional)
 _No se identifican variaciones de datos o mecanismo adicionales a las descriptas en el
 flujo principal y alternativo._
@@ -75,17 +83,15 @@ flujo principal y alternativo._
 | Código HTTP | Nombre Técnico | Contexto de Aplicación en el Caso de Uso |
 | --- | --- | --- |
 | `200` | OK | Autenticación exitosa; devuelve el token de sesión. |
-| `401` | Unauthorized | Credenciales incorrectas (RN-02) o usuario inexistente/inactivo (RN-01). |
+| `400` | Bad Request | Formato de datos inválido (Paso 2): email vacío, email con formato incorrecto o contraseña vacía. |
+| `401` | Unauthorized | Credenciales incorrectas (contraseña incorrecta) o usuario inexistente/inactivo (RN-01). |
 
-### Matriz de trazabilidad CU-01 → Test (propuesta)
+### Matriz de trazabilidad CU-01 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Código HTTP | Test unitario | Test de integración |
 | --- | --- | --- | --- |
-| Flujo principal | `200 OK` | `LoginAsync_WithValidCredentials_ReturnsTokenAndRole` | `Login_ReturnsSuccessAndToken` |
-| 3a. Credenciales incorrectas | `401 Unauthorized` | `LoginAsync_WithWrongPassword_ThrowsUnauthorizedException` | `Login_WithWrongPassword_Returns401Unauthorized` |
-| 3b. Usuario inexistente | `401 Unauthorized` | `LoginAsync_WithUnknownUser_ThrowsUnauthorizedException` | `Login_WithUnknownUser_Returns401Unauthorized` |
-
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+| Flujo principal | `200 OK` | `LoginAsync_ConCredencialesValidas_DevuelveTokenYDatosDeUsuario` | `Login_WithValidAdminCredentials_ReturnsOkAndToken`, `Login_WithValidBibliotecarioCredentials_ReturnsOkAndToken` |
+| 3a. Contraseña incorrecta | `401 Unauthorized` | `LoginAsync_ConPasswordIncorrecta_LanzaCredencialesInvalidasException` | `Login_WithWrongPassword_Returns401Unauthorized` |
+| 3b. Usuario inexistente | `401 Unauthorized` | `LoginAsync_ConEmailInexistente_LanzaCredencialesInvalidasException` | `Login_WithUnknownEmail_Returns401Unauthorized` |
+| 3c. Usuario inactivo | `401 Unauthorized` | `LoginAsync_ConUsuarioInactivo_LanzaCredencialesInvalidasException` | — |
+| Validación de formato (Paso 2) | `400 Bad Request` | — | `Login_WithEmptyEmail_Returns400BadRequest`, `Login_WithInvalidEmailFormat_Returns400BadRequest`, `Login_WithEmptyPassword_Returns400BadRequest` |

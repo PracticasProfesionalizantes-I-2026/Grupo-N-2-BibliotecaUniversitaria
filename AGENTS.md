@@ -9,14 +9,11 @@ API RESTful en .NET 10 con arquitectura N-Tier (`Controller → Service →
 Repository → DbContext`) para BiblioGest, un sistema de gestión de
 biblioteca universitaria (Práctica Profesionalizante I, Grupo N°2).
 
-**Alcance actual (importante):** esta API implementa únicamente los 3
-casos de uso principales — Gestionar Libros, Gestionar Lectores y
-Gestionar Préstamos (incluye el control de mora, que es una regla de
-negocio de Préstamos, no una entidad aparte). Login/Autenticación,
-Gestionar Usuarios del Sistema y Generar Reportes están **fuera de
-alcance a propósito** (los implementa el equipo a mano, por indicación de
-la cátedra) — no agregues código para esas funcionalidades salvo que se
-pida explícitamente.
+**Alcance actual (importante):** esta API implementa los 3 casos de uso
+principales — Gestionar Libros, Gestionar Lectores y Gestionar Préstamos
+(incluye el control de mora, que es una regla de negocio de Préstamos, no
+una entidad aparte) —, Login/Autenticación (CU-01), Generar Reportes
+(CU-07) y Gestionar Usuarios del Sistema (CU-08).
 
 Los casos de uso completos y las reglas de negocio (RN-01 a RN-21) están
 documentados en `Documentos/Casos de Uso/`.
@@ -73,6 +70,15 @@ dotnet ef database update
 | Préstamo: lector en mora no puede pedir otro | `PrestamoService.CreateAsync` |
 | Préstamo: vencimiento a 14 días | `PrestamoService.CreateAsync` |
 | Préstamo: "vencido" se calcula en la consulta, no se persiste | `PrestamoRepository.GetVencidosAsync` / `LectorTieneMoraAsync` |
+| Login: credenciales inválidas o usuario inactivo → 401 | `AuthService.LoginAsync` |
+| Usuario: solo el Administrador gestiona usuarios (RN-19) | `[Authorize(Roles = "Administrador")]` en `UsuariosController` |
+| Usuario: email/contraseña/rol obligatorios, rol válido (RN-20) | `UsuarioService.CreateAsync/UpdateAsync` |
+| Usuario: contraseña ≥ 6 caracteres, guardada con hash PBKDF2 (RN-21) | `UsuarioService` + `IPasswordHasher` |
+| Usuario: email único | `UsuarioService.CreateAsync/UpdateAsync` |
+| Usuario: baja lógica (`Activo = false`) | `UsuarioService.DeleteAsync` |
+| Reportes: solo básicos — resumen, préstamos por fechas, mora (RN-17/RN-18) | `ReporteService.GetReporteAsync` |
+| Reportes: tipo inexistente o `desde` > `hasta` → 400 | `ReporteService.GetReporteAsync` |
+| Reportes: sin datos → 200 con lista vacía y mensaje | `ReporteService` |
 
 ## Testing
 
@@ -88,8 +94,9 @@ dotnet ef database update
 
 ## Otras convenciones
 
-- No agregar autenticación/`[Authorize]`/JWT a menos que se pida
-  explícitamente (ver "Alcance actual").
+- Login/Autenticación (CU-01) ya está implementado: Libros, Lectores y
+  Préstamos y Reportes llevan `[Authorize]` (JWT); `UsuariosController` lleva
+  `[Authorize(Roles = "Administrador")]`; `AuthController` queda anónimo.
 - `bruno/` debe tener un request por endpoint nuevo que se agregue,
   cubriendo al menos un caso de éxito y los de error relevantes.
 - No commitear `bin/`, `obj/` ni archivos `.db` (ver `.gitignore`).

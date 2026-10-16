@@ -111,6 +111,35 @@ namespace BiblioGest.DataAccess.Migrations
                     b.ToTable("Prestamos");
                 });
 
+            modelBuilder.Entity("BiblioGest.DataAccess.Entities.Usuario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RolUsuario")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("Usuarios");
+                });
+
             modelBuilder.Entity("BiblioGest.DataAccess.Entities.Prestamo", b =>
                 {
                     b.HasOne("BiblioGest.DataAccess.Entities.Lector", "Lector")

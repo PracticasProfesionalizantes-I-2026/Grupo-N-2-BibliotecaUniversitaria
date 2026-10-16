@@ -10,16 +10,22 @@ using Xunit;
 
 namespace BiblioGest.IntegrationTests;
 
-public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactory>
+public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private readonly CustomWebApplicationFactory _factory;
-    private readonly HttpClient _client;
+    private HttpClient _client = null!;
 
     public PrestamosControllerTests(CustomWebApplicationFactory factory)
     {
         _factory = factory;
-        _client = factory.CreateClient();
     }
+
+    public async Task InitializeAsync()
+    {
+        _client = await _factory.CreateAuthenticatedClientAsync();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     private async Task<LibroResponseDTO> CrearLibroAsync(int stock)
     {

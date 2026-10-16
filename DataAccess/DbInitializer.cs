@@ -5,9 +5,35 @@ namespace BiblioGest.DataAccess;
 
 public static class DbInitializer
 {
-    public static void Initialize(BiblioGestDbContext context)
+    public static void Initialize(BiblioGestDbContext context, Func<string, string> hashPassword)
     {
         context.Database.Migrate();
+
+        if (!context.Usuarios.Any())
+        {
+            var usuarios = new List<Usuario>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Email = "admin@bibliogest.com",
+                    PasswordHash = hashPassword("Admin123!"),
+                    RolUsuario = RolUsuario.Administrador,
+                    Activo = true
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Email = "bibliotecario@bibliogest.com",
+                    PasswordHash = hashPassword("Bibliotecario123!"),
+                    RolUsuario = RolUsuario.Bibliotecario,
+                    Activo = true
+                }
+            };
+
+            context.Usuarios.AddRange(usuarios);
+            context.SaveChanges();
+        }
 
         if (context.Libros.Any() || context.Lectores.Any())
         {

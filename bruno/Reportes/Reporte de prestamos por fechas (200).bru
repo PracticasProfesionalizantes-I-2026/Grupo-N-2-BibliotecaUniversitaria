@@ -1,0 +1,15 @@
+meta {
+  name: Reporte de prestamos por fechas (200)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/reportes/prestamos?desde=2026-01-01&hasta=2026-12-31
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

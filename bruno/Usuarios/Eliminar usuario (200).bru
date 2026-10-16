@@ -1,0 +1,19 @@
+meta {
+  name: Eliminar usuario (200)
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/usuarios/{{usuarioId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+docs {
+  Baja lógica: el usuario queda con activo = false y ya no puede iniciar sesión.
+}

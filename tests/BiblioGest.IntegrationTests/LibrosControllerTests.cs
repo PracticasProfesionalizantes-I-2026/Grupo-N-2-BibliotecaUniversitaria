@@ -7,14 +7,22 @@ using Xunit;
 
 namespace BiblioGest.IntegrationTests;
 
-public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>
+public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
-    private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
+    private HttpClient _client = null!;
 
     public LibrosControllerTests(CustomWebApplicationFactory factory)
     {
-        _client = factory.CreateClient();
+        _factory = factory;
     }
+
+    public async Task InitializeAsync()
+    {
+        _client = await _factory.CreateAuthenticatedClientAsync();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     private static LibroCreateDTO NuevoLibroDto(int stock = 3) => new()
     {

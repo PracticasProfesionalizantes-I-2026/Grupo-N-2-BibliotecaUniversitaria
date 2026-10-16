@@ -5,9 +5,10 @@
 > `BiblioGest_CasosDeUso_Limpio.docx`.
 > Reglas de negocio RN-19 (solo el administrador gestiona usuarios), RN-20 (email,
 > contraseña y rol obligatorios) y RN-21 (contraseñas de mínimo 6 caracteres,
-> almacenadas de forma segura) **pendientes de implementación**; el proyecto se
-> encuentra en etapa de análisis, por lo que los tests listados en la matriz de
-> trazabilidad son **propuestos**, no implementados aún.
+> almacenadas de forma segura) **implementadas**: RN-19 con
+> `[Authorize(Roles = "Administrador")]` en `UsuariosController`, RN-20 y RN-21 en
+> `UsuarioService` (hash PBKDF2 vía `IPasswordHasher`). La baja es lógica
+> (`Activo = false`). La matriz de trazabilidad lista los tests reales.
 
 | Campo | Valor |
 | --- | --- |
@@ -71,12 +72,13 @@ sistema, como bibliotecarios o personal autorizado.
      `DELETE /api/usuarios/{id}`.
   2. El Sistema solicita confirmación.
   3. El administrador confirma la eliminación.
-  4. El Sistema elimina o desactiva el usuario y devuelve **HTTP 200 OK**.
+  4. El Sistema desactiva el usuario (`Activo = false`, baja lógica: ya no puede
+     iniciar sesión) y devuelve **HTTP 200 OK**.
 
-* **4a. Datos obligatorios incompletos (HTTP 400 Bad Request):**
-  1. Si en el Paso 4 el Sistema detecta que faltan datos obligatorios (email,
-     contraseña o rol).
-  2. La Capa de Presentación rechaza la petición por error de validación.
+* **4a. Datos obligatorios incompletos o inválidos (HTTP 400 Bad Request):**
+  1. Si el Sistema detecta que faltan datos obligatorios (email, contraseña o rol),
+     que la contraseña tiene menos de 6 caracteres o que el rol no existe.
+  2. La Capa de Negocio rechaza la petición (`UsuarioInvalidoException`).
   3. El Sistema devuelve un código **400 Bad Request** informando los campos
      requeridos. Fin del caso de uso.
 
@@ -86,6 +88,14 @@ sistema, como bibliotecarios o personal autorizado.
   2. La Capa de Negocio rechaza la operación.
   3. El Sistema devuelve un código **409 Conflict** indicando que el email debe ser
      único, permitiendo corregir el dato. Fin del caso de uso.
+
+* **Id inexistente (HTTP 404 Not Found):**
+  1. Si al consultar, modificar o eliminar no existe un usuario con ese Id.
+  2. El Sistema devuelve **404 Not Found**. Fin del caso de uso.
+
+* **Sin permisos (HTTP 401 / 403):**
+  1. Sin token válido el Sistema devuelve **401 Unauthorized**.
+  2. Con token de Bibliotecario devuelve **403 Forbidden** (RN-19). Fin del caso de uso.
 
 ### 5. SUB-VARIACIONES (opcional)
 _No se identifican variaciones de datos o mecanismo adicionales a las descriptas en el
@@ -105,20 +115,20 @@ flujo principal y alternativo._
 | --- | --- | --- |
 | `200` | OK | Consulta del listado/detalle, modificación o baja exitosa de un usuario. |
 | `201` | Created | Confirmación de alta de un nuevo usuario del sistema. |
-| `400` | Bad Request | Datos obligatorios faltantes (email, contraseña o rol). |
+| `400` | Bad Request | Datos obligatorios faltantes, contraseña de menos de 6 caracteres o rol inexistente (RN-20, RN-21). |
+| `401` | Unauthorized | Petición sin token válido. |
+| `403` | Forbidden | Usuario autenticado que no es Administrador (RN-19). |
+| `404` | Not Found | No existe un usuario con el Id indicado. |
 | `409` | Conflict | Email duplicado (RN-20). |
 
-### Matriz de trazabilidad CU-08 → Test (propuesta)
+### Matriz de trazabilidad CU-08 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Código HTTP | Test unitario | Test de integración |
 | --- | --- | --- | --- |
 | 3a. Registrar usuario | `201 Created` | `CreateUsuarioAsync_WithValidData_SavesAndReturnsCreatedUsuario` | `CreateUsuario_ReturnsSuccessAndCreatedUsuario` |
-| 3b. Modificar usuario | `200 OK` | `UpdateUsuarioAsync_WithValidData_UpdatesUsuario` | `UpdateUsuario_ReturnsSuccessAndUpdatedUsuario` |
+| 3b. Modificar usuario | `200 OK` | `UpdateUsuarioAsync_WithValidData_UpdatesUsuario`, `UpdateUsuarioAsync_WithNewPassword_HashesPassword` | `UpdateUsuario_ReturnsSuccessAndUpdatedUsuario` |
 | 3c. Eliminar usuario | `200 OK` | `DeleteUsuarioAsync_WithConfirmation_DeletesUsuario` | `DeleteUsuario_ReturnsSuccessAndDeletesUsuario` |
-| 4a. Datos obligatorios incompletos | `400 Bad Request` | — (validación de esquema en Presentación) | `CreateUsuario_WithMissingRequiredField_Returns400BadRequest` |
-| 6a. Email repetido | `409 Conflict` | `CreateUsuarioAsync_WhenEmailAlreadyExists_ThrowsConflictException` | `CreateUsuario_WhenDuplicateEmail_Returns409Conflict` |
-
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+| 4a. Datos obligatorios incompletos o inválidos | `400 Bad Request` | `CreateUsuarioAsync_WithMissingEmail_ThrowsValidationException`, `CreateUsuarioAsync_WithShortPassword_ThrowsValidationException`, `CreateUsuarioAsync_WithInvalidRol_ThrowsValidationException` | `CreateUsuario_WithMissingRequiredField_Returns400BadRequest` |
+| 6a. Email repetido | `409 Conflict` | `CreateUsuarioAsync_WhenEmailAlreadyExists_ThrowsConflictException`, `UpdateUsuarioAsync_WhenEmailBelongsToOtherUsuario_ThrowsConflictException` | `CreateUsuario_WhenDuplicateEmail_Returns409Conflict` |
+| Id inexistente | `404 Not Found` | `GetUsuarioByIdAsync_WithUnknownId_ThrowsNotFoundException`, `UpdateUsuarioAsync_WithUnknownId_ThrowsNotFoundException`, `DeleteUsuarioAsync_WithUnknownId_ThrowsNotFoundException` | `GetUsuario_WithUnknownId_Returns404NotFound` |
+| RN-19 sin permisos | `401` / `403` | — (lo resuelve `[Authorize(Roles)]` en Presentación) | `GetUsuarios_WithoutToken_Returns401Unauthorized`, `GetUsuarios_AsBibliotecario_Returns403Forbidden` |
