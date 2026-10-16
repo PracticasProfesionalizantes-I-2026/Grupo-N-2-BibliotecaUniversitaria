@@ -26,6 +26,7 @@ builder.Services.AddScoped<ILibroService, LibroService>();
 builder.Services.AddScoped<ILectorService, LectorService>();
 builder.Services.AddScoped<IPrestamoService, PrestamoService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"]!;
