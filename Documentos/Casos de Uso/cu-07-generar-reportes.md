@@ -4,9 +4,10 @@
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso_Limpio.docx`.
 > Reglas de negocio RN-17 (reportes básicos en el MVP) y RN-18 (estadísticas avanzadas
-> fuera de alcance) **pendientes de implementación**; el proyecto se encuentra en
-> etapa de análisis, por lo que los tests listados en la matriz de trazabilidad son
-> **propuestos**, no implementados aún.
+> fuera de alcance) **implementadas** en `ReporteService`: tres reportes básicos
+> (`resumen`, `prestamos` con filtro de fechas y `mora`), sin estadísticas avanzadas.
+> Acceso con cualquier usuario autenticado (`[Authorize]`). La matriz de trazabilidad
+> lista los tests reales.
 
 | Campo | Valor |
 | --- | --- |
@@ -53,7 +54,8 @@ del sistema para facilitar el control y seguimiento de la biblioteca.
 
 * **3a. Filtro inválido (HTTP 400 Bad Request):**
   1. Si en el Paso 3 el Sistema detecta que el filtro ingresado no es válido.
-  2. La Capa de Presentación rechaza la petición por error de validación.
+  2. La Capa de Negocio rechaza la petición (`ReporteInvalidoException`); también se
+     rechaza un tipo de reporte inexistente.
   3. El Sistema devuelve un código **400 Bad Request**, solicitando corregir los
      criterios de búsqueda. Fin del caso de uso.
 
@@ -70,22 +72,29 @@ flujo principal y alternativo._
 
 ## Anexo: matrices de referencia
 
+### Reportes disponibles
+
+| Tipo | Ruta | Contenido | Filtros |
+| --- | --- | --- | --- |
+| — | `GET /api/reportes` | Lista de reportes disponibles | — |
+| `resumen` | `GET /api/reportes/resumen` | Total de libros, libros sin stock, total de lectores y préstamos activos/devueltos/vencidos | — |
+| `prestamos` | `GET /api/reportes/prestamos?desde=&hasta=` | Préstamos realizados en el rango (por fecha de préstamo, ambos días incluidos) | `desde`, `hasta` (opcionales) |
+| `mora` | `GET /api/reportes/mora` | Préstamos activos vencidos | — |
+
 ### Códigos HTTP usados
 
 | Código HTTP | Nombre Técnico | Contexto de Aplicación en el Caso de Uso |
 | --- | --- | --- |
-| `200` | OK | Reporte generado con éxito (incluyendo el caso de resultado vacío por falta de datos). |
-| `400` | Bad Request | Filtro de consulta inválido. |
+| `200` | OK | Reporte generado con éxito (incluyendo el caso de resultado vacío, con `mensaje` "No hay datos disponibles para el reporte."). |
+| `400` | Bad Request | Filtro inválido (`desde` posterior a `hasta`, o fecha con formato inválido) o tipo de reporte inexistente. |
+| `401` | Unauthorized | Petición sin token válido. |
 
-### Matriz de trazabilidad CU-07 → Test (propuesta)
+### Matriz de trazabilidad CU-07 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Código HTTP | Test unitario | Test de integración |
 | --- | --- | --- | --- |
-| Flujo principal | `200 OK` | `GetReporteAsync_WithValidType_ReturnsReportData` | `GetReporte_ReturnsSuccessAndData` |
+| Paso 1. Opciones de reportes | `200 OK` | `GetTipos_ReturnsReportesDisponibles` | `GetTipos_ReturnsReportesDisponibles` |
+| Flujo principal | `200 OK` | `GetReporteAsync_WithValidType_ReturnsReportData`, `GetReporteAsync_Prestamos_WithRange_PassesDatesToRepository` | `GetReporte_ReturnsSuccessAndData`, `GetReporte_Mora_ReturnsPrestamosVencidos` |
 | 5a. No existen datos suficientes | `200 OK` | `GetReporteAsync_WithNoData_ReturnsEmptyReport` | `GetReporte_WithNoData_Returns200OKEmpty` |
-| 3a. Filtro inválido | `400 Bad Request` | `GetReporteAsync_WithInvalidFilter_ThrowsValidationException` | `GetReporte_WithInvalidFilter_Returns400BadRequest` |
-
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+| 3a. Filtro inválido | `400 Bad Request` | `GetReporteAsync_WithInvalidFilter_ThrowsValidationException`, `GetReporteAsync_WithUnknownType_ThrowsValidationException` | `GetReporte_WithInvalidFilter_Returns400BadRequest`, `GetReporte_WithUnknownType_Returns400BadRequest` |
+| Sin autenticación | `401 Unauthorized` | — (lo resuelve `[Authorize]` en Presentación) | `GetReporte_WithoutToken_Returns401Unauthorized` |

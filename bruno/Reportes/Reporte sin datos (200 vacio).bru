@@ -1,0 +1,19 @@
+meta {
+  name: Reporte sin datos (200 vacio)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/reportes/prestamos?desde=2000-01-01&hasta=2000-01-31
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+docs {
+  Flujo 5a: no hay préstamos en el rango, devuelve 200 con la lista vacía y un mensaje.
+}

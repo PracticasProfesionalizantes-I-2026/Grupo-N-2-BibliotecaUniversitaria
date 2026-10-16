@@ -1,0 +1,15 @@
+meta {
+  name: Reporte resumen (200)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/reportes/resumen
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

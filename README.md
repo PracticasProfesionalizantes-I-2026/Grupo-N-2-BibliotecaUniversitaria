@@ -18,13 +18,12 @@ cubre exclusivamente los 3 casos de uso principales del sistema —
 (incluyendo el control de mora, que es parte de la misma regla de negocio
 de Préstamos) — según lo acordado con la cátedra.
 
-Además están implementados **Iniciar Sesión** (CU-01) y **Gestionar
-Usuarios del Sistema** (CU-08). Los endpoints de Libros, Lectores y
-Préstamos requieren un token JWT (`Authorization: Bearer <token>`,
-obtenido via `POST /api/auth/login`) y llevan `[Authorize]`; los de
-Usuarios llevan `[Authorize(Roles = "Administrador")]` (RN-19).
-
-**Pendiente:** Generar Reportes (CU-07).
+Además están implementados **Iniciar Sesión** (CU-01), **Generar
+Reportes** (CU-07) y **Gestionar Usuarios del Sistema** (CU-08). Los
+endpoints de Libros, Lectores, Préstamos y Reportes requieren un token JWT
+(`Authorization: Bearer <token>`, obtenido via `POST /api/auth/login`) y
+llevan `[Authorize]`; los de Usuarios llevan
+`[Authorize(Roles = "Administrador")]` (RN-19).
 
 ## Arquitectura
 
@@ -38,11 +37,12 @@ Controller → Service → Repository → DbContext
 ```
 BiblioGest.slnx
 API/                → BiblioGest.Api
-  Controllers/        AuthController, LibrosController, LectoresController, PrestamosController, UsuariosController
+  Controllers/        AuthController, LibrosController, LectoresController, PrestamosController, ReportesController, UsuariosController
+  Middleware/         ExceptionMiddleware (errores no controlados → 500)
   Program.cs          DI, DbContext, DbInitializer, Scalar (OpenAPI UI)
 BusinessLogic/      → BiblioGest.BusinessLogic
-  Interfaces/         IAuthService, ILibroService, ILectorService, IPrestamoService, IUsuarioService, IPasswordHasher
-  Services/           AuthService, LibroService, LectorService, PrestamoService, UsuarioService, PasswordHasher
+  Interfaces/         IAuthService, ILibroService, ILectorService, IPrestamoService, IReporteService, IUsuarioService, IPasswordHasher
+  Services/           AuthService, LibroService, LectorService, PrestamoService, ReporteService, UsuarioService, PasswordHasher
 DataAccess/         → BiblioGest.DataAccess (EF Core + SQLite)
   Entities/           Libro, Lector, Prestamo, EstadoPrestamo, Usuario, RolUsuario
   Repositories/       ILibroRepository/LibroRepository, etc.
@@ -52,7 +52,7 @@ DataAccess/         → BiblioGest.DataAccess (EF Core + SQLite)
 Shared/             → BiblioGest.Shared
   DTOs/               Create/Update/Response por entidad
   Exceptions/         NotFoundException, ValidationException, ConflictException + concretas
-bruno/              → Colección de requests (Auth, Libros, Lectores, Prestamos, Usuarios)
+bruno/              → Colección de requests (Auth, Libros, Lectores, Prestamos, Reportes, Usuarios)
 tests/
   BiblioGest.UnitTests/        xUnit + Moq (services, sin tocar la base)
   BiblioGest.IntegrationTests/ WebApplicationFactory (API completa, SQLite en memoria)
@@ -105,11 +105,14 @@ de datos, además de la validación explícita en el service (409 Conflict).
 | Usuario sin email, contraseña < 6 caracteres o rol inexistente (RN-20, RN-21) | `UsuarioInvalidoException` | 400 |
 | Usuario inexistente | `UsuarioNotFoundException` | 404 |
 | Email de usuario duplicado | `UsuarioDuplicadoException` | 409 |
+| Reporte inexistente o filtro de fechas inválido (`desde` > `hasta`) | `ReporteInvalidoException` | 400 |
 | Usuario sin rol Administrador en `/api/usuarios` (RN-19) | `[Authorize(Roles)]` | 403 |
 
 Todas heredan de una categoría base (`NotFoundException`,
 `ValidationException`, `ConflictException`), y cada controller las mapea
-con bloques `try/catch` explícitos.
+con bloques `try/catch` explícitos. Cualquier otra excepción no prevista la
+captura `ExceptionMiddleware`, que la registra en el log y responde `500`
+con `{ "message": "Ocurrió un error interno en el servidor." }`.
 
 ## Cómo ejecutar
 
@@ -240,6 +243,18 @@ Ejemplo `POST /api/prestamos`:
 }
 ```
 
+### Reportes
+
+| Método | Ruta | Descripción | Éxito | Errores |
+| --- | --- | --- | --- | --- |
+| GET | `/api/reportes` | Listar los reportes disponibles | 200 | 401 |
+| GET | `/api/reportes/resumen` | Totales de libros, lectores y préstamos por estado | 200 | 401 |
+| GET | `/api/reportes/prestamos?desde=&hasta=` | Préstamos en un rango de fechas | 200 | 400, 401 |
+| GET | `/api/reportes/mora` | Préstamos activos vencidos | 200 | 401 |
+
+Si no hay datos, el reporte vuelve con `200`, la lista vacía y
+`"mensaje": "No hay datos disponibles para el reporte."`.
+
 ### Usuarios (solo Administrador)
 
 | Método | Ruta | Descripción | Éxito | Errores |
@@ -280,8 +295,8 @@ ejecutar `Auth/Login Administrador (200)`, que guarda el `token`.
 ## Testing
 
 - `tests/BiblioGest.UnitTests`: xUnit + Moq sobre los services, sin tocar
-  la base real (36 tests).
+  la base real (42 tests).
 - `tests/BiblioGest.IntegrationTests`: `WebApplicationFactory` levantando la
-  API completa contra una SQLite en memoria aislada por instancia (27 tests).
+  API completa contra una SQLite en memoria aislada por instancia (35 tests).
 
 Link: https://docs.google.com/document/d/1f4idud-PCBsQK\_48ZCf5ibF\_MNzNLKdxSAvWgO32Wt4/edit?tab=t.0#heading=h.frnk5y8ou0gl
