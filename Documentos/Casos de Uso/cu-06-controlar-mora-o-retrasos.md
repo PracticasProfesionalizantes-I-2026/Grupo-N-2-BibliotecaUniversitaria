@@ -3,9 +3,11 @@
 > Especificación elaborada siguiendo la guía
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso.pdf`.
-> Reglas de negocio RN-14, RN-15 y RN-16 **pendientes de implementación**; el proyecto
-> se encuentra en etapa de análisis, por lo que los tests listados en la matriz de
-> trazabilidad son **propuestos**, no implementados aún.
+> Reglas de negocio RN-14, RN-15 y RN-16 **implementadas**: el estado "vencido" no se
+> persiste, se calcula en la consulta (`PrestamoRepository.GetVencidosAsync` y
+> `LectorTieneMoraAsync`), y un lector en mora no puede pedir otro préstamo (CU-05,
+> alternativa 3b). No se generan multas (RN-16). La matriz de trazabilidad lista los
+> tests reales.
 
 | Campo | Valor |
 | --- | --- |
@@ -83,18 +85,14 @@ flujo principal y alternativo._
 | Código HTTP | Nombre Técnico | Contexto de Aplicación en el Caso de Uso |
 | --- | --- | --- |
 | `200` | OK | Consulta exitosa del listado de préstamos vencidos (incluyendo el caso de listado vacío) o confirmación de una devolución tardía registrada. |
+| `401` | Unauthorized | Petición sin token válido. |
 | `409` | Conflict | Devolución de un préstamo que ya estaba devuelto (alternativa 7b). |
 
-### Matriz de trazabilidad CU-06 → Test (propuesta)
+### Matriz de trazabilidad CU-06 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Código HTTP | Test unitario | Test de integración |
 | --- | --- | --- | --- |
-| Flujo principal | `200 OK` | `GetPrestamosVencidosAsync_WithOverdueLoans_ReturnsOverdueList` | `GetPrestamosVencidos_ReturnsSuccessAndOverdueList` |
-| 2a. No hay préstamos vencidos | `200 OK` | `GetPrestamosVencidosAsync_WithNoOverdueLoans_ReturnsEmptyList` | `GetPrestamosVencidos_WithNoOverdueLoans_Returns200OKWithEmptyList` |
-| 7a. El lector no devuelve el libro | — | `GetPrestamosVencidosAsync_WhenLoanRemainsUnreturned_KeepsLoanListedAsOverdue` | *(cubierto indirectamente por CU-05, alternativa 3b — restricción de nuevo préstamo por mora)* |
+| Flujo principal | `200 OK` | `GetPrestamosVencidosAsync_ReturnsOverdueList` | `GetPrestamosVencidos_ReturnsSuccessAndOverdueList` |
+| 2a. No hay préstamos vencidos | `200 OK` | `GetPrestamosVencidosAsync_WithNoOverdueLoans_ReturnsEmptyList` | — (la base de prueba siempre trae un préstamo vencido) |
+| 7a. El lector no devuelve el libro | — | `GetPrestamosVencidosAsync_ReturnsOverdueList`, `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsConflictException` | `CreatePrestamo_WhenLectorInMora_Returns409Conflict` |
 | 7b. Préstamo ya devuelto | `409 Conflict` | `RegisterDevolucionAsync_WhenAlreadyReturned_ThrowsConflictException` | `RegisterDevolucion_WhenAlreadyReturned_Returns409ConflictAndKeepsStock` |
-
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.

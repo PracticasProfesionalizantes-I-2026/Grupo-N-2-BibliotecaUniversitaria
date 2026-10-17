@@ -4,10 +4,9 @@
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso.pdf`.
 > Reglas de negocio RN-03 (datos obligatorios del libro), RN-04 (stock no
-> negativo) y RN-05 (búsqueda por título/autor/ISBN) **pendientes de
-> implementación**; el proyecto se encuentra en etapa de análisis, por lo que
-> los tests listados en la matriz de trazabilidad son **propuestos**, no
-> implementados aún.
+> negativo) y RN-05 (búsqueda por título/autor/ISBN) **implementadas**: RN-03 y
+> RN-04 en `LibroService`, RN-05 en `LibroRepository.GetAllAsync`. Requiere token
+> JWT (`[Authorize]`). La matriz de trazabilidad lista los tests reales.
 
 | Campo | Valor |
 | --- | --- |
@@ -80,7 +79,7 @@ actualizada la información del catálogo y del stock.
 * **4a. Datos obligatorios incompletos (HTTP 400 Bad Request):**
   1. Si en el Paso 4 el Sistema detecta que faltan datos obligatorios (título, autor,
      ISBN, ubicación o cantidad de stock).
-  2. La Capa de Presentación rechaza la petición por error de validación.
+  2. La Capa de Negocio rechaza la petición por error de validación.
   3. El Sistema devuelve un código **400 Bad Request** informando los campos
      requeridos. Fin del caso de uso.
 
@@ -109,21 +108,19 @@ actualizada la información del catálogo y del stock.
 | --- | --- | --- |
 | `200` | OK | Consulta del listado/detalle, modificación o baja exitosa de un libro. |
 | `201` | Created | Confirmación de alta de un nuevo libro en el catálogo. |
-| `400` | Bad Request | Datos obligatorios faltantes o stock negativo (RN-04). |
+| `400` | Bad Request | Datos obligatorios faltantes (RN-03) o stock negativo (RN-04). |
+| `401` | Unauthorized | Petición sin token válido. |
+| `404` | Not Found | No existe un libro con el Id indicado. |
 | `409` | Conflict | Intento de eliminar un libro con préstamos activos. |
 
-### Matriz de trazabilidad CU-02 → Test (propuesta)
+### Matriz de trazabilidad CU-02 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Código HTTP | Test unitario | Test de integración |
 | --- | --- | --- | --- |
 | 3a. Registrar libro | `201 Created` | `CreateLibroAsync_WithValidData_SavesAndReturnsCreatedLibro` | `CreateLibro_ReturnsSuccessAndCreatedLibro` |
 | 3b. Modificar libro | `200 OK` | `UpdateLibroAsync_WithValidData_UpdatesLibro` | `UpdateLibro_ReturnsSuccessAndUpdatedLibro` |
 | 3c. Eliminar libro | `200 OK` | `DeleteLibroAsync_WithoutActiveLoans_DeletesLibro` | `DeleteLibro_WithoutActiveLoans_Returns200OK` |
 | 3c-1. Libro con préstamos activos | `409 Conflict` | `DeleteLibroAsync_WhenLibroHasActiveLoans_ThrowsConflictException` | `DeleteLibro_WithActiveLoans_Returns409Conflict` |
-| 4a. Datos obligatorios incompletos | `400 Bad Request` | — (validación de esquema en Presentación) | `CreateLibro_WithMissingRequiredField_Returns400BadRequest` |
+| 4a. Datos obligatorios incompletos | `400 Bad Request` | `CreateLibroAsync_WithMissingRequiredField_ThrowsValidationException` | `CreateLibro_WithMissingRequiredField_Returns400BadRequest` |
 | 6a. Stock negativo | `400 Bad Request` | `CreateLibroAsync_WithNegativeStock_ThrowsValidationException` | `CreateLibro_WithNegativeStock_Returns400BadRequest` |
-
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.
+| Id inexistente | `404 Not Found` | `GetLibroByIdAsync_WhenLibroDoesNotExist_ThrowsNotFoundException` | `GetLibro_WithUnknownId_Returns404NotFound` |

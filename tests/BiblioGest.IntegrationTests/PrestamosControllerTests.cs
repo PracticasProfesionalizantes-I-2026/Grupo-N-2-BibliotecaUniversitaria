@@ -165,4 +165,59 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         Assert.NotNull(vencidos);
         Assert.Contains(vencidos!, p => p.LibroId == libro.Id && p.EnMora);
     }
+
+    [Fact]
+    public async Task CreatePrestamo_WhenLectorHasThreeActiveLoans_Returns409Conflict()
+    {
+        var lector = await CrearLectorAsync();
+        for (var i = 0; i < 3; i++)
+        {
+            var libroPrestado = await CrearLibroAsync(stock: 1);
+            await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+            {
+                LectorId = lector.Id,
+                LibroId = libroPrestado.Id
+            });
+        }
+        var libro = await CrearLibroAsync(stock: 1);
+
+        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libro.Id
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreatePrestamo_WhenLectorInMora_Returns409Conflict()
+    {
+        var libroVencido = await CrearLibroAsync(stock: 1);
+        var lector = await CrearLectorAsync();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
+            context.Prestamos.Add(new Prestamo
+            {
+                Id = Guid.NewGuid(),
+                LectorId = lector.Id,
+                LibroId = libroVencido.Id,
+                FechaPrestamo = DateTime.UtcNow.AddDays(-20),
+                FechaVencimiento = DateTime.UtcNow.AddDays(-6),
+                Estado = EstadoPrestamo.Activo
+            });
+            await context.SaveChangesAsync();
+        }
+        var libro = await CrearLibroAsync(stock: 1);
+
+        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libro.Id
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
 }
