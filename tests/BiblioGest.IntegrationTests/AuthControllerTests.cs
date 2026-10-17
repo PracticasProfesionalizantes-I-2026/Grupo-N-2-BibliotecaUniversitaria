@@ -31,6 +31,18 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Login_WithUppercaseEmail_ReturnsOkAndToken()
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequestDTO
+        {
+            Email = "Admin@BiblioGest.com",
+            Password = "Admin123!"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Login_WithValidBibliotecarioCredentials_ReturnsOkAndToken()
     {
         var response = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequestDTO

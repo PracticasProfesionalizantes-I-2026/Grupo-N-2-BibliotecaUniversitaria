@@ -101,6 +101,7 @@ de datos, además de la validación explícita en el service (409 Conflict).
 | Lector con 3 préstamos activos | `LimitePrestamosActivosException` | 409 |
 | Libro sin stock disponible | `StockInsuficienteException` | 409 |
 | Lector con préstamos vencidos (mora) | `LectorEnMoraException` | 409 |
+| Devolver un préstamo ya devuelto | `PrestamoYaDevueltoException` | 409 |
 | Credenciales inválidas o usuario inactivo (login) | `CredencialesInvalidasException` | 401 |
 | Usuario sin email, contraseña < 6 caracteres o rol inexistente (RN-20, RN-21) | `UsuarioInvalidoException` | 400 |
 | Usuario inexistente | `UsuarioNotFoundException` | 404 |
@@ -216,7 +217,7 @@ Ejemplo `POST /api/lectores`:
 | --- | --- | --- | --- | --- |
 | POST | `/api/prestamos` | Crear préstamo | 201 | 404, 409 |
 | GET | `/api/prestamos/{id}` | Obtener un préstamo | 200 | 404 |
-| PUT | `/api/prestamos/{id}/devolucion` | Registrar devolución | 200 | 404 |
+| PUT | `/api/prestamos/{id}/devolucion` | Registrar devolución | 200 | 404, 409 |
 | GET | `/api/prestamos/mora` | Listar préstamos vencidos | 200 | — |
 
 Ejemplo `POST /api/prestamos`:
@@ -295,8 +296,8 @@ ejecutar `Auth/Login Administrador (200)`, que guarda el `token`.
 ## Testing
 
 - `tests/BiblioGest.UnitTests`: xUnit + Moq sobre los services, sin tocar
-  la base real (42 tests).
+  la base real (50 tests).
 - `tests/BiblioGest.IntegrationTests`: `WebApplicationFactory` levantando la
-  API completa contra una SQLite en memoria aislada por instancia (35 tests).
+  API completa contra una SQLite en memoria aislada por instancia (49 tests).
 
 Link: https://docs.google.com/document/d/1f4idud-PCBsQK\_48ZCf5ibF\_MNzNLKdxSAvWgO32Wt4/edit?tab=t.0#heading=h.frnk5y8ou0gl

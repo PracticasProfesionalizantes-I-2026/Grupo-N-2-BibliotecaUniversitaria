@@ -78,6 +78,11 @@ public class PrestamoService : IPrestamoService
     {
         var prestamo = await _prestamoRepository.GetByIdAsync(id, ct) ?? throw new PrestamoNotFoundException(id);
 
+        if (prestamo.Estado == EstadoPrestamo.Devuelto)
+        {
+            throw new PrestamoYaDevueltoException(id);
+        }
+
         prestamo.Estado = EstadoPrestamo.Devuelto;
         prestamo.FechaDevolucion = DateTime.UtcNow;
         await _prestamoRepository.UpdateAsync(prestamo, ct);

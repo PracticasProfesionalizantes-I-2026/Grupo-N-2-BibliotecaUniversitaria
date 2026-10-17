@@ -5,9 +5,10 @@
 > `BiblioGest_CasosDeUso.pdf`.
 > Reglas de negocio RN-10 (máximo 3 préstamos activos por lector), RN-11 (no prestar
 > sin stock), RN-12 (14 días de préstamo) y RN-13 (consistencia, sin préstamos
-> duplicados) **pendientes de implementación**; el proyecto se encuentra en etapa de
-> análisis, por lo que los tests listados en la matriz de trazabilidad son
-> **propuestos**, no implementados aún.
+> duplicados) **implementadas** en `PrestamoService`: crear un préstamo descuenta stock
+> y registrar la devolución lo repone una sola vez (una devolución repetida devuelve
+> 409, ver CU-06 alternativa 7b). Requiere token JWT (`[Authorize]`). La matriz de
+> trazabilidad lista los tests reales.
 
 | Campo | Valor |
 | --- | --- |
@@ -104,12 +105,13 @@ flujo principal y alternativo._
 | --- | --- | --- |
 | `200` | OK | Confirmación de registro de una devolución. |
 | `201` | Created | Confirmación de registro de un nuevo préstamo. |
+| `401` | Unauthorized | Petición sin token válido. |
 | `404` | Not Found | El lector o el libro indicado no existen en el sistema. |
-| `409` | Conflict | Lector con 3 préstamos activos (RN-10), lector en mora, o libro sin stock disponible (RN-11). |
+| `409` | Conflict | Lector con 3 préstamos activos (RN-10), lector en mora, libro sin stock disponible (RN-11) o devolución de un préstamo ya devuelto. |
 
-### Matriz de trazabilidad CU-05 → Test (propuesta)
+### Matriz de trazabilidad CU-05 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Código HTTP | Test unitario | Test de integración |
 | --- | --- | --- | --- |
 | Flujo principal | `201 Created` | `CreatePrestamoAsync_WithValidData_SavesAndReturnsCreatedPrestamo` | `CreatePrestamo_ReturnsSuccessAndCreatedPrestamo` |
 | 1a. Lector o libro inexistente | `404 Not Found` | `CreatePrestamoAsync_WhenLectorOrLibroNotFound_ThrowsNotFoundException` | `CreatePrestamo_WithUnknownLectorOrLibro_Returns404NotFound` |
@@ -117,8 +119,3 @@ flujo principal y alternativo._
 | 3b. Lector con mora | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsConflictException` | `CreatePrestamo_WhenLectorInMora_Returns409Conflict` |
 | 5a. Libro sin stock | `409 Conflict` | `CreatePrestamoAsync_WhenLibroHasNoStock_ThrowsConflictException` | `CreatePrestamo_WithoutStock_Returns409Conflict` |
 | 6a. Registrar devolución | `200 OK` | `RegisterDevolucionAsync_WithValidData_UpdatesStockAndPrestamoState` | `RegisterDevolucion_ReturnsSuccessAndUpdatedPrestamo` |
-
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.

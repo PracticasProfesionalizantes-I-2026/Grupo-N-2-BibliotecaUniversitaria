@@ -89,4 +89,83 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>,
 
         Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
     }
+
+    [Fact]
+    public async Task CreateLibro_WithNegativeStock_Returns400BadRequest()
+    {
+        var response = await _client.PostAsJsonAsync("/api/libros", NuevoLibroDto(stock: -1));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateLibro_ReturnsSuccessAndUpdatedLibro()
+    {
+        var crearResponse = await _client.PostAsJsonAsync("/api/libros", NuevoLibroDto());
+        var creado = await crearResponse.Content.ReadFromJsonAsync<LibroResponseDTO>();
+        var dto = new LibroUpdateDTO
+        {
+            Titulo = "Título modificado",
+            Autor = creado!.Autor,
+            Isbn = creado.Isbn,
+            Ubicacion = "Estante Y",
+            Stock = 7
+        };
+
+        var response = await _client.PutAsJsonAsync($"/api/libros/{creado.Id}", dto);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var actualizado = await response.Content.ReadFromJsonAsync<LibroResponseDTO>();
+        Assert.Equal("Título modificado", actualizado!.Titulo);
+        Assert.Equal(7, actualizado.Stock);
+    }
+
+    [Fact]
+    public async Task DeleteLibro_WithoutActiveLoans_Returns200OK()
+    {
+        var crearResponse = await _client.PostAsJsonAsync("/api/libros", NuevoLibroDto());
+        var creado = await crearResponse.Content.ReadFromJsonAsync<LibroResponseDTO>();
+
+        var response = await _client.DeleteAsync($"/api/libros/{creado!.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var getResponse = await _client.GetAsync($"/api/libros/{creado.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task SearchLibros_WithText_ReturnsMatchingLibros()
+    {
+        var dto = NuevoLibroDto();
+        await _client.PostAsJsonAsync("/api/libros", dto);
+
+        var libros = await _client.GetFromJsonAsync<List<LibroResponseDTO>>($"/api/libros?busqueda={dto.Isbn}");
+
+        Assert.NotNull(libros);
+        Assert.Single(libros!);
+        Assert.Equal(dto.Titulo, libros[0].Titulo);
+    }
+
+    [Fact]
+    public async Task SearchLibros_WithNoMatches_Returns200OKWithEmptyList()
+    {
+        var response = await _client.GetAsync($"/api/libros?busqueda={Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var libros = await response.Content.ReadFromJsonAsync<List<LibroResponseDTO>>();
+        Assert.Empty(libros!);
+    }
+
+    [Fact]
+    public async Task GetLibroDisponibilidad_WithZeroStock_Returns200OKUnavailable()
+    {
+        var crearResponse = await _client.PostAsJsonAsync("/api/libros", NuevoLibroDto(stock: 0));
+        var creado = await crearResponse.Content.ReadFromJsonAsync<LibroResponseDTO>();
+
+        var response = await _client.GetAsync($"/api/libros/{creado!.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var libro = await response.Content.ReadFromJsonAsync<LibroResponseDTO>();
+        Assert.False(libro!.Disponible);
+    }
 }

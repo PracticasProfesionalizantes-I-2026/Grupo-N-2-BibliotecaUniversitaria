@@ -134,4 +134,51 @@ public class LibroServiceTests
         await Assert.ThrowsAsync<LibroConPrestamosActivosException>(() => service.DeleteAsync(id));
         _libroRepository.Verify(r => r.DeleteAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task SearchLibrosAsync_WithText_ReturnsMatchingLibrosWithDisponibilidad()
+    {
+        _libroRepository
+            .Setup(r => r.GetAllAsync("borges", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Libro>
+            {
+                new() { Id = Guid.NewGuid(), Titulo = "Ficciones", Autor = "Borges", Isbn = "1", Ubicacion = "A1", Stock = 2 },
+                new() { Id = Guid.NewGuid(), Titulo = "El Aleph", Autor = "Borges", Isbn = "2", Ubicacion = "A2", Stock = 0 }
+            });
+
+        var service = CrearService();
+        var resultado = await service.GetAllAsync("borges");
+
+        Assert.Equal(2, resultado.Count);
+        Assert.True(resultado[0].Disponible);
+        Assert.False(resultado[1].Disponible);
+    }
+
+    [Fact]
+    public async Task SearchLibrosAsync_WithNoMatches_ReturnsEmptyList()
+    {
+        _libroRepository
+            .Setup(r => r.GetAllAsync("inexistente", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Libro>());
+
+        var service = CrearService();
+        var resultado = await service.GetAllAsync("inexistente");
+
+        Assert.Empty(resultado);
+    }
+
+    [Fact]
+    public async Task GetLibroDisponibilidadAsync_WithZeroStock_ReturnsUnavailable()
+    {
+        var id = Guid.NewGuid();
+        _libroRepository
+            .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Libro { Id = id, Titulo = "Rayuela", Autor = "Cortázar", Isbn = "3", Ubicacion = "B1", Stock = 0 });
+
+        var service = CrearService();
+        var resultado = await service.GetByIdAsync(id);
+
+        Assert.Equal(0, resultado.Stock);
+        Assert.False(resultado.Disponible);
+    }
 }

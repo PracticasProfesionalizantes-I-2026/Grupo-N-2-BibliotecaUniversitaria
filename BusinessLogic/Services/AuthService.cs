@@ -26,7 +26,7 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponseDTO> LoginAsync(LoginRequestDTO dto, CancellationToken ct = default)
     {
-        var usuario = await _usuarioRepository.GetByEmailAsync(dto.Email, ct);
+        var usuario = await _usuarioRepository.GetByEmailAsync(dto.Email.Trim().ToLowerInvariant(), ct);
 
         if (usuario == null || !_passwordHasher.Verify(dto.Password, usuario.PasswordHash) || !usuario.Activo)
         {

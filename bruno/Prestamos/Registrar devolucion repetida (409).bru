@@ -1,0 +1,20 @@
+meta {
+  name: Registrar devolucion repetida (409)
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/prestamos/{{prestamoId}}/devolucion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+docs {
+  Ejecutar después de "Registrar devolucion (200)": el préstamo ya está devuelto,
+  así que responde 409 y no vuelve a sumar stock al libro.
+}
