@@ -141,6 +141,31 @@ public class PrestamoServiceTests
     }
 
     [Fact]
+    public async Task RegisterDevolucionAsync_WhenAlreadyReturned_ThrowsConflictException()
+    {
+        var id = Guid.NewGuid();
+        var libro = CrearLibro(Guid.NewGuid(), stock: 1);
+        var prestamo = new Prestamo
+        {
+            Id = id,
+            LectorId = Guid.NewGuid(),
+            LibroId = libro.Id,
+            Libro = libro,
+            FechaPrestamo = DateTime.UtcNow.AddDays(-5),
+            FechaVencimiento = DateTime.UtcNow.AddDays(9),
+            FechaDevolucion = DateTime.UtcNow.AddDays(-1),
+            Estado = EstadoPrestamo.Devuelto
+        };
+        _prestamoRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<PrestamoYaDevueltoException>(() => service.RegistrarDevolucionAsync(id));
+        Assert.Equal(1, libro.Stock);
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task GetPrestamosVencidosAsync_ReturnsOverdueList()
     {
         var vencido = new Prestamo

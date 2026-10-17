@@ -69,8 +69,9 @@ dotnet ef database update
 | Préstamo: no se presta un libro sin stock | `PrestamoService.CreateAsync` |
 | Préstamo: lector en mora no puede pedir otro | `PrestamoService.CreateAsync` |
 | Préstamo: vencimiento a 14 días | `PrestamoService.CreateAsync` |
+| Préstamo: no se registra dos veces la devolución (409) | `PrestamoService.RegistrarDevolucionAsync` |
 | Préstamo: "vencido" se calcula en la consulta, no se persiste | `PrestamoRepository.GetVencidosAsync` / `LectorTieneMoraAsync` |
-| Login: credenciales inválidas o usuario inactivo → 401 | `AuthService.LoginAsync` |
+| Login: credenciales inválidas o usuario inactivo → 401 (email sin distinguir mayúsculas) | `AuthService.LoginAsync` |
 | Usuario: solo el Administrador gestiona usuarios (RN-19) | `[Authorize(Roles = "Administrador")]` en `UsuariosController` |
 | Usuario: email/contraseña/rol obligatorios, rol válido (RN-20) | `UsuarioService.CreateAsync/UpdateAsync` |
 | Usuario: contraseña ≥ 6 caracteres, guardada con hash PBKDF2 (RN-21) | `UsuarioService` + `IPasswordHasher` |

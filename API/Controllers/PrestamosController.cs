@@ -74,5 +74,9 @@ public class PrestamosController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 }
