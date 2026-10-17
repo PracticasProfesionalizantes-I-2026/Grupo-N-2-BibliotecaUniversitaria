@@ -39,7 +39,7 @@ BiblioGest.slnx
 API/                → BiblioGest.Api
   Controllers/        AuthController, LibrosController, LectoresController, PrestamosController, ReportesController, UsuariosController
   Middleware/         ExceptionMiddleware (errores no controlados → 500)
-  Program.cs          DI, DbContext, DbInitializer, Scalar (OpenAPI UI)
+  Program.cs          DI, DbContext, DbInitializer, Swagger UI (OpenAPI)
 BusinessLogic/      → BiblioGest.BusinessLogic
   Interfaces/         IAuthService, ILibroService, ILectorService, IPrestamoService, IReporteService, IUsuarioService, IPasswordHasher
   Services/           AuthService, LibroService, LectorService, PrestamoService, ReporteService, UsuarioService, PasswordHasher
@@ -125,11 +125,44 @@ dotnet test BiblioGest.slnx       # corre unitarios (Moq) e integración (WebApp
 dotnet run --project API          # levanta la API (crea bibliogest.db con datos de prueba)
 ```
 
-Con la API corriendo en desarrollo, la documentación interactiva está en:
+Con la API corriendo en desarrollo (`dotnet run --project API` la abre sola
+en el navegador), la documentación interactiva está en:
 
 ```
-http://localhost:<puerto>/scalar/v1
+http://localhost:5203/swagger
 ```
+
+### Cuentas de prueba
+
+Se crean solas al levantar la API por primera vez:
+
+| Rol | Email | Contraseña | Puede usar |
+| --- | --- | --- | --- |
+| Administrador | `admin@bibliogest.com` | `Admin123!` | Todos los endpoints, incluido `/api/usuarios` |
+| Bibliotecario | `bibliotecario@bibliogest.com` | `Bibliotecario123!` | Todo menos `/api/usuarios` (responde `403`) |
+
+### Guía rápida para probar desde Swagger
+
+1. Ejecutar `dotnet run --project API` (requiere el SDK de .NET 10). Se abre
+   `http://localhost:5203/swagger` en el navegador.
+2. Abrir `POST /api/auth/login`, tocar **Try it out** y enviar:
+
+   ```json
+   {
+     "email": "admin@bibliogest.com",
+     "password": "Admin123!"
+   }
+   ```
+
+3. Copiar el valor de `token` de la respuesta (sin comillas).
+4. Tocar el botón **Authorize** (arriba a la derecha), pegar el token y
+   confirmar. A partir de ahí, todos los requests lo envían en el header
+   `Authorization: Bearer <token>`.
+5. Probar cualquier endpoint, por ejemplo `GET /api/libros` (200) o
+   `GET /api/prestamos/mora` (devuelve el préstamo vencido de prueba).
+
+Para ver el `403` de RN-19, repetir los pasos con la cuenta de
+Bibliotecario y llamar a `GET /api/usuarios`.
 
 La base SQLite (`bibliogest.db`) se crea sola la primera vez que se corre
 la API, con datos de prueba (3 libros, 2 lectores, 1 préstamo vencido) vía
