@@ -118,6 +118,26 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
+    public async Task RegisterDevolucion_WhenAlreadyReturned_Returns409ConflictAndKeepsStock()
+    {
+        var libro = await CrearLibroAsync(stock: 1);
+        var lector = await CrearLectorAsync();
+        var creadoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libro.Id
+        });
+        var creado = await creadoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        await _client.PutAsync($"/api/prestamos/{creado!.Id}/devolucion", content: null);
+
+        var response = await _client.PutAsync($"/api/prestamos/{creado.Id}/devolucion", content: null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var libroActual = await _client.GetFromJsonAsync<LibroResponseDTO>($"/api/libros/{libro.Id}");
+        Assert.Equal(1, libroActual!.Stock);
+    }
+
+    [Fact]
     public async Task GetPrestamosVencidos_ReturnsSuccessAndOverdueList()
     {
         var libro = await CrearLibroAsync(stock: 1);

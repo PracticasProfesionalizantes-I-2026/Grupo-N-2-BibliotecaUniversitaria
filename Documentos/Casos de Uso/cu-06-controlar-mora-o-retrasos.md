@@ -57,6 +57,13 @@ para que el bibliotecario pueda realizar el seguimiento correspondiente.
      nueva respuesta HTTP; la restricción se hace efectiva en el próximo intento de
      préstamo del lector, ver CU-05 alternativa 3b). Fin del caso de uso.
 
+* **7b. El préstamo ya había sido devuelto (HTTP 409 Conflict):**
+  1. Si en el Paso 7 se intenta registrar la devolución de un préstamo que ya está en
+     estado `Devuelto`.
+  2. La Capa de Negocio rechaza la operación (`PrestamoYaDevueltoException`) sin volver
+     a sumar stock al libro.
+  3. El Sistema devuelve un código **409 Conflict**. Fin del caso de uso.
+
 ### 5. SUB-VARIACIONES (opcional)
 _No se identifican variaciones de datos o mecanismo adicionales a las descriptas en el
 flujo principal y alternativo._
@@ -76,6 +83,7 @@ flujo principal y alternativo._
 | Código HTTP | Nombre Técnico | Contexto de Aplicación en el Caso de Uso |
 | --- | --- | --- |
 | `200` | OK | Consulta exitosa del listado de préstamos vencidos (incluyendo el caso de listado vacío) o confirmación de una devolución tardía registrada. |
+| `409` | Conflict | Devolución de un préstamo que ya estaba devuelto (alternativa 7b). |
 
 ### Matriz de trazabilidad CU-06 → Test (propuesta)
 
@@ -84,6 +92,7 @@ flujo principal y alternativo._
 | Flujo principal | `200 OK` | `GetPrestamosVencidosAsync_WithOverdueLoans_ReturnsOverdueList` | `GetPrestamosVencidos_ReturnsSuccessAndOverdueList` |
 | 2a. No hay préstamos vencidos | `200 OK` | `GetPrestamosVencidosAsync_WithNoOverdueLoans_ReturnsEmptyList` | `GetPrestamosVencidos_WithNoOverdueLoans_Returns200OKWithEmptyList` |
 | 7a. El lector no devuelve el libro | — | `GetPrestamosVencidosAsync_WhenLoanRemainsUnreturned_KeepsLoanListedAsOverdue` | *(cubierto indirectamente por CU-05, alternativa 3b — restricción de nuevo préstamo por mora)* |
+| 7b. Préstamo ya devuelto | `409 Conflict` | `RegisterDevolucionAsync_WhenAlreadyReturned_ThrowsConflictException` | `RegisterDevolucion_WhenAlreadyReturned_Returns409ConflictAndKeepsStock` |
 
 > Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
 > esta especificación el sistema aún no cuenta con implementación (BiblioGest está en

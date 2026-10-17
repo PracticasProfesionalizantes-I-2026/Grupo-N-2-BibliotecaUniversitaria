@@ -59,6 +59,33 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task LoginAsync_ConEmailEnMayusculas_BuscaElEmailNormalizado()
+    {
+        var usuario = new Usuario
+        {
+            Id = Guid.NewGuid(),
+            Email = "ana@example.com",
+            PasswordHash = "hash-cualquiera",
+            RolUsuario = RolUsuario.Bibliotecario,
+            Activo = true
+        };
+
+        _usuarioRepository
+            .Setup(r => r.GetByEmailAsync("ana@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(usuario);
+        _passwordHasher
+            .Setup(h => h.Verify("Password123!", usuario.PasswordHash))
+            .Returns(true);
+
+        var service = CrearService();
+        var dto = new LoginRequestDTO { Email = "  Ana@Example.COM ", Password = "Password123!" };
+
+        var resultado = await service.LoginAsync(dto);
+
+        Assert.Equal("ana@example.com", resultado.Email);
+    }
+
+    [Fact]
     public async Task LoginAsync_ConEmailInexistente_LanzaCredencialesInvalidasException()
     {
         _usuarioRepository
