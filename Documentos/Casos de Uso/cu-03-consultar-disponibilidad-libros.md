@@ -4,9 +4,9 @@
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso_Limpio.docx`.
 > Reglas de negocio RN-06 (disponibilidad según stock actual) y RN-07 (libro sin stock
-> no puede prestarse) **pendientes de implementación**; el proyecto se encuentra en
-> etapa de análisis, por lo que los tests listados en la matriz de trazabilidad son
-> **propuestos**, no implementados aún.
+> no puede prestarse) **implementadas**: RN-06 con el campo calculado `Disponible`
+> (`Stock > 0`) en `LibroService`, RN-07 en `PrestamoService.CreateAsync` (ver CU-05,
+> alternativa 5a). La matriz de trazabilidad lista los tests reales.
 
 | Campo | Valor |
 | --- | --- |
@@ -72,16 +72,12 @@ flujo principal y alternativo._
 | Código HTTP | Nombre Técnico | Contexto de Aplicación en el Caso de Uso |
 | --- | --- | --- |
 | `200` | OK | Consulta exitosa de resultados (incluyendo listado vacío o stock agotado). |
+| `401` | Unauthorized | Petición sin token válido. |
 
-### Matriz de trazabilidad CU-03 → Test (propuesta)
+### Matriz de trazabilidad CU-03 → Test
 
-| Paso del CU | Excepción / Código | Test unitario (propuesto) | Test integración (propuesto) |
+| Paso del CU | Código HTTP | Test unitario | Test de integración |
 | --- | --- | --- | --- |
-| Flujo principal | `200 OK` | `GetLibroDisponibilidadAsync_WithExistingLibro_ReturnsStock` | `GetLibroDisponibilidad_ReturnsSuccessAndStock` |
+| Flujo principal | `200 OK` | `SearchLibrosAsync_WithText_ReturnsMatchingLibrosWithDisponibilidad` | `SearchLibros_WithText_ReturnsMatchingLibros` |
 | 2a. Libro no encontrado | `200 OK` | `SearchLibrosAsync_WithNoMatches_ReturnsEmptyList` | `SearchLibros_WithNoMatches_Returns200OKWithEmptyList` |
 | 5a. Stock agotado | `200 OK` | `GetLibroDisponibilidadAsync_WithZeroStock_ReturnsUnavailable` | `GetLibroDisponibilidad_WithZeroStock_Returns200OKUnavailable` |
-
-> Regla de oro: cada flujo del caso de uso debe tener al menos un test. Al momento de
-> esta especificación el sistema aún no cuenta con implementación (BiblioGest está en
-> etapa de análisis), por lo que los nombres de test listados son una propuesta a
-> implementar durante el desarrollo.

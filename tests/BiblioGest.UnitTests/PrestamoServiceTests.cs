@@ -188,4 +188,16 @@ public class PrestamoServiceTests
         Assert.Single(resultado);
         Assert.True(resultado[0].EnMora);
     }
+
+    [Fact]
+    public async Task GetPrestamosVencidosAsync_WithNoOverdueLoans_ReturnsEmptyList()
+    {
+        _prestamoRepository.Setup(r => r.GetVencidosAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Prestamo>());
+
+        var service = CrearService();
+        var resultado = await service.GetVencidosAsync();
+
+        Assert.Empty(resultado);
+    }
 }
