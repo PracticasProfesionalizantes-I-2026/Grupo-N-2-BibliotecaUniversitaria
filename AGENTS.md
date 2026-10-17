@@ -23,7 +23,7 @@ documentados en `Documentos/Casos de Uso/`.
 ```bash
 dotnet build BiblioGest.slnx      # compilar toda la solución
 dotnet test BiblioGest.slnx       # correr unitarios + integración
-dotnet run --project API          # levantar la API (Scalar en /scalar/v1 en Development)
+dotnet run --project API          # levantar la API (Swagger UI en /swagger en Development)
 ```
 
 Para migraciones de EF Core (ejecutar desde `DataAccess/`, requiere el
