@@ -94,6 +94,30 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
+
+    // Sin esto, un 401/403 resuelto por el propio middleware de JWT (sin
+    // token, token invalido, vencido, o rol insuficiente) devuelve el body
+    // vacio por defecto de ASP.NET, sin pasar por ExceptionMiddleware.
+    options.Events = new JwtBearerEvents
+    {
+        OnChallenge = async context =>
+        {
+            // Evita que ASP.NET tambien escriba su respuesta 401 por defecto.
+            context.HandleResponse();
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json";
+            var mensaje = context.AuthenticateFailure is null
+                ? "Debe iniciar sesión."
+                : "Token inválido o vencido.";
+            await context.Response.WriteAsJsonAsync(new { message = mensaje });
+        },
+        OnForbidden = async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "No tiene permisos para realizar esta acción." });
+        }
+    };
 });
 builder.Services.AddAuthorization();
 
