@@ -10,12 +10,21 @@ post {
   auth: inherit
 }
 
+script:pre-request {
+  // Mismo email que "Crear lector (201)" pero en mayusculas y con espacios
+  // de mas, para probar que la comparacion se hace sobre el valor
+  // normalizado. lectorEmail ya viene seteado por ese request.
+  const original = bru.getEnvVar("lectorEmail") || "facundo.lopez@example.com";
+  bru.setEnvVar("lectorEmailDuplicado", `  ${original.toUpperCase()}  `);
+  bru.setEnvVar("lectorIdentificadorNuevo", `ID-DUP-${Date.now()}`);
+}
+
 body:json {
   {
     "nombre": "Otro",
     "apellido": "Lector",
-    "email": "  FACUNDO.LOPEZ@EXAMPLE.COM  ",
-    "identificador": "99999002"
+    "email": "{{lectorEmailDuplicado}}",
+    "identificador": "{{lectorIdentificadorNuevo}}"
   }
 }
 

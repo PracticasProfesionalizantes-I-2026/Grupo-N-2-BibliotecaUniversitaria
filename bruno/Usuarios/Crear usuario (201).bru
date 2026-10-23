@@ -10,9 +10,13 @@ post {
   auth: inherit
 }
 
+script:pre-request {
+  bru.setEnvVar("usuarioEmail", `nuevo.bibliotecario.${Date.now()}@bibliogest.com`);
+}
+
 body:json {
   {
-    "email": "nuevo.bibliotecario@bibliogest.com",
+    "email": "{{usuarioEmail}}",
     "password": "Clave123",
     "rolUsuario": "Bibliotecario"
   }

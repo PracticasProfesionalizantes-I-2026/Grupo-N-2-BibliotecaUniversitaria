@@ -10,12 +10,16 @@ put {
   auth: inherit
 }
 
+script:pre-request {
+  bru.setEnvVar("lectorIdentificadorModificado", `ID-M-${Date.now()}`);
+}
+
 body:json {
   {
     "nombre": "Facundo",
     "apellido": "López",
-    "email": "facundo.lopez@example.com",
-    "identificador": "35555112"
+    "email": "{{lectorEmail}}",
+    "identificador": "{{lectorIdentificadorModificado}}"
   }
 }
 

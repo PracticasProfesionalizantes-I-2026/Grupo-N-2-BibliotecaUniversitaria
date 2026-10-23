@@ -10,12 +10,20 @@ post {
   auth: inherit
 }
 
+script:pre-request {
+  // Valores unicos por corrida para poder ejecutar la coleccion varias
+  // veces seguidas sin chocar con lo que quedo de una corrida anterior.
+  const sufijo = Date.now();
+  bru.setEnvVar("lectorEmail", `facundo.lopez.${sufijo}@example.com`);
+  bru.setEnvVar("lectorIdentificador", `ID-${sufijo}`);
+}
+
 body:json {
   {
     "nombre": "Facundo",
     "apellido": "López",
-    "email": "facundo.lopez@example.com",
-    "identificador": "35555111"
+    "email": "{{lectorEmail}}",
+    "identificador": "{{lectorIdentificador}}"
   }
 }
 
