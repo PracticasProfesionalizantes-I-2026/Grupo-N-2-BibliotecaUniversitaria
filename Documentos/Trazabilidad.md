@@ -63,10 +63,12 @@ etc., explicado en una nota); `No cumple` = no implementado.
 | Requerimiento | Dónde se aplica | Implementación | Test(s) | Request de Bruno | Estado |
 | --- | --- | --- | --- | --- | --- |
 | Autenticación JWT obligatoria en endpoints protegidos | Libros, Lectores, Préstamos, Reportes, Usuarios | `[Authorize]` + `AddJwtBearer` en `Program.cs` | `ProtectedEndpoint_WithoutToken_Returns401Unauthorized` | `Libros/Listar libros sin token (401)` | Cumple |
-| Token rechazado si está vencido o mal firmado | Todos los endpoints protegidos | `TokenValidationParameters` (`ValidateLifetime`, `ValidateIssuerSigningKey`) | `ProtectedEndpoint_WithExpiredToken_Returns401Unauthorized`, `ProtectedEndpoint_WithTamperedSignature_Returns401Unauthorized`, `ProtectedEndpoint_WithTokenEditedByHand_Returns401Unauthorized` | `Libros/Listar libros con token invalido (401)` | Cumple |
+| Token rechazado si está vencido, mal firmado o directamente malformado | Todos los endpoints protegidos | `TokenValidationParameters` (`ValidateLifetime`, `ValidateIssuerSigningKey`) | `ProtectedEndpoint_WithExpiredToken_Returns401Unauthorized`, `ProtectedEndpoint_WithTamperedSignature_Returns401Unauthorized`, `ProtectedEndpoint_WithTokenEditedByHand_Returns401Unauthorized`, `ProtectedEndpoint_WithGarbageToken_Returns401Unauthorized` | `Libros/Listar libros con token invalido (401)` | Cumple |
+| Los 401/403 del middleware de JWT devuelven `{"message": "..."}` en español (no el body vacío por defecto de ASP.NET) | Todos los endpoints protegidos | `JwtBearerEvents.OnChallenge`/`OnForbidden` en `Program.cs` (con `HandleResponse()` para no escribir el body dos veces) | `ProtectedEndpoint_WithoutToken_ReturnsSpanishMessage`, `ProtectedEndpoint_WithInvalidToken_ReturnsSpanishMessage`, `Usuarios_AsBibliotecario_ReturnsSpanishForbiddenMessage` | — | Cumple |
 | El JWT no expone datos sensibles (sin hash de contraseña) | Login | `AuthService.GenerateJwtToken` solo incluye `NameIdentifier`, `Email`, `Role` | Verificado manualmente (ver guía de jwt.io en el README) | — | Cumple |
 | Autorización por rol (Administrador vs Bibliotecario) | `/api/usuarios/*` | `[Authorize(Roles = "Administrador")]` | `GetUsuarios_AsBibliotecario_Returns403Forbidden` | `Usuarios/Listar usuarios como bibliotecario (403)` | Cumple |
 | Validaciones de entrada consistentes devuelven 400 con mensaje claro en español | Todos los `Create`/`Update` | Cada `*Service.ValidarDatos`/`ValidarEmail`/etc. | Toda la batería de tests `*_Throws*Exception` de 400 | Todos los `(400)` de Bruno | Cumple |
+| Errores de model binding (campo `null`, body vacío, JSON inválido) devuelven `{"message": "..."}` en español, no el `ProblemDetails` en inglés por defecto de `[ApiController]` | Todos los `POST`/`PUT`, y el email de login (`[EmailAddress]`) | `InvalidModelStateResponseFactory` en `Program.cs` | `ValidacionDeEntradaTests` (4 tests: título null, body vacío, JSON inválido, email de login inválido) | — | Cumple |
 | No se permiten registros duplicados (ISBN, identificador, email de lector, email de usuario, préstamo activo repetido) | Libros, Lectores, Usuarios, Préstamos | Índices únicos en `BiblioGestDbContext` + validación en el service | Ver fila "Reglas técnicas" de arriba | Todos los `(409)` de duplicados en Bruno | Cumple |
 | Códigos HTTP correctos de punta a punta | Todos | `ExceptionMiddleware` (400/404/409/401/500) | Todos los tests de integración (verifican `response.StatusCode`) | Todos los `assert { res.status: ... }` de Bruno | Cumple |
 | "La lógica la resuelve la API, el frontend solo muestra" (cálculos de fechas, estados, mensajes) | Préstamos, Libros, Reportes | `PrestamoMapper` + `TimeProvider`, `LibroService.MapToResponseDTO` | `PrestamoMapperTests`, `CreatePrestamo_ReturnsDiasRestantesYMensajeCalculados` | `Prestamos/Crear prestamo (201)` | Cumple |
@@ -78,20 +80,17 @@ etc., explicado en una nota); `No cumple` = no implementado.
    porque, a propósito, también se le permite a Administrador (ver (c)). No es
    una falta de implementación sino una decisión de diseño no reflejada en un
    test negativo.
-2. **"Último administrador activo" desde un caller distinto del propio
-   administrador** (ver tabla de reglas técnicas) solo tiene test unitario
-   (mockeando el repositorio); **se verificó manualmente con curl** (ver
-   `Documentos/Informe-Verificacion.md`, PASO 4-e8) que funciona end-to-end:
-   se creó un segundo admin, se lo desactivó desde el primero, y con el
-   token (ya emitido, todavía válido) de ese segundo admin desactivado se
-   intentó desactivar al único admin activo restante → 409 correcto. Sigue
-   sin existir un test de integración automático porque, en la práctica,
-   para llegar a ese estado con el flujo HTTP real hace falta un token JWT
-   emitido antes de que ese mismo usuario fuera desactivado (los tokens son
-   stateless y no se revocan al desactivar la cuenta). Si se quiere cerrar
-   ese hueco de automatización, se podría agregar un test de integración
-   que reproduzca exactamente esos pasos (ya probados a mano), o una lista
-   de revocación de tokens (esto último, fuera de alcance de este trabajo).
+2. ~~"Último administrador activo" desde un caller distinto del propio
+   administrador solo tiene test unitario~~ — **resuelto**: ahora hay un
+   test de integración (`UpdateUsuario_WhenLastActiveAdminDeactivatedByDifferentStaleToken_Returns409Conflict`
+   en `UsuarioAutoBajaTests`, aislado en su propia fábrica) que reproduce
+   el escenario completo contra la API real: se crea un segundo admin, se
+   lo desactiva desde el primero, y con el token (ya emitido, todavía
+   válido) de ese segundo admin desactivado se intenta desactivar al
+   único admin activo restante → 409. Explota a propósito que los tokens
+   JWT son stateless y no se revocan al desactivar la cuenta — eso en sí
+   no se "arregla" (sería agregar una lista de revocación de tokens,
+   fuera de alcance de este trabajo), pero ya no es un hueco de test.
 3. **Atomicidad (transacciones)**: se verifica que, tras una operación
    exitosa, el préstamo y el stock queden consistentes, pero no hay un test
    que fuerce una falla a mitad de camino (por ejemplo, mockeando que
