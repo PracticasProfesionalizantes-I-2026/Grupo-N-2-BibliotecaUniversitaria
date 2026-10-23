@@ -92,4 +92,53 @@ public class TokenValidationTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task ProtectedEndpoint_WithGarbageToken_Returns401Unauthorized()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "esto-no-es-un-token-valido");
+
+        var response = await client.GetAsync("/api/libros");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProtectedEndpoint_WithoutToken_ReturnsSpanishMessage()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/api/libros");
+
+        var body = await response.Content.ReadFromJsonAsync<MensajeRespuesta>();
+        Assert.Equal("Debe iniciar sesión.", body!.Message);
+    }
+
+    [Fact]
+    public async Task ProtectedEndpoint_WithInvalidToken_ReturnsSpanishMessage()
+    {
+        var client = _factory.CreateClient();
+        var tokenFirmadoConOtraClave = CrearToken(DateTime.UtcNow.AddMinutes(30), key: "OtraClaveCompletamenteDistintaYLarga!!");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenFirmadoConOtraClave);
+
+        var response = await client.GetAsync("/api/libros");
+
+        var body = await response.Content.ReadFromJsonAsync<MensajeRespuesta>();
+        Assert.Equal("Token inválido o vencido.", body!.Message);
+    }
+
+    [Fact]
+    public async Task Usuarios_AsBibliotecario_ReturnsSpanishForbiddenMessage()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync("bibliotecario@bibliogest.com", "Bibliotecario123!");
+
+        var response = await client.GetAsync("/api/usuarios");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<MensajeRespuesta>();
+        Assert.Equal("No tiene permisos para realizar esta acción.", body!.Message);
+    }
+
+    private sealed record MensajeRespuesta(string Message);
 }

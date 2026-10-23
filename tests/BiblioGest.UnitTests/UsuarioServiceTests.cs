@@ -136,6 +136,16 @@ namespace BiblioGest.UnitTests
         }
 
         [Fact]
+        public async Task CreateUsuarioAsync_WithWhitespaceOnlyEmail_ThrowsValidationException()
+        {
+            var dto = new UsuarioCreateDTO { Email = "   ", Password = "Password123", RolUsuario = "Administrador" };
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioInvalidoException>(() => service.CreateAsync(dto));
+        }
+
+        [Fact]
         public async Task CreateUsuarioAsync_WithShortPassword_ThrowsValidationException()
         {
             var dto = new UsuarioCreateDTO { Email = "nuevo@example.com", Password = "12345", RolUsuario = "Administrador" };

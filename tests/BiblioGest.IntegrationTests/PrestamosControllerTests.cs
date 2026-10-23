@@ -169,6 +169,36 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
+    public async Task RegisterDevolucion_WhenOverdue_ReturnsDevueltoConAtraso()
+    {
+        var libro = await CrearLibroAsync(stock: 1);
+        var lector = await CrearLectorAsync();
+        var creadoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libro.Id
+        });
+        var creado = await creadoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
+            var prestamo = await context.Prestamos.FindAsync(creado!.Id);
+            prestamo!.FechaVencimiento = DateTime.UtcNow.AddDays(-5);
+            await context.SaveChangesAsync();
+        }
+
+        var response = await _client.PutAsync($"/api/prestamos/{creado!.Id}/devolucion", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var actualizado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        Assert.Equal("Devuelto con atraso", actualizado!.Estado);
+        Assert.Null(actualizado.DiasRestantes);
+        Assert.Equal(5, actualizado.DiasDeAtraso);
+        Assert.Equal("Devuelto con 5 días de atraso.", actualizado.Mensaje);
+    }
+
+    [Fact]
     public async Task RegisterDevolucion_WhenAlreadyReturned_Returns409ConflictAndKeepsStock()
     {
         var libro = await CrearLibroAsync(stock: 1);

@@ -246,4 +246,27 @@ public class LectorServiceTests
         await Assert.ThrowsAsync<IdentificadorDuplicadoException>(() => service.UpdateAsync(id, dto));
         _lectorRepository.Verify(r => r.UpdateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task UpdateLectorAsync_WhenEmailBelongsToOtherLector_ThrowsConflictException()
+    {
+        var id = Guid.NewGuid();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Identificador = "30111222" };
+        var otro = new Lector { Id = Guid.NewGuid(), Nombre = "Luis", Apellido = "Paz", Email = "luis@example.com", Identificador = "40999888" };
+        var dto = new LectorUpdateDTO { Nombre = "Ana", Apellido = "Gómez", Email = "luis@example.com", Identificador = "30111222" };
+        _lectorRepository
+            .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(lector);
+        _lectorRepository
+            .Setup(r => r.GetByIdentificadorAsync(dto.Identificador, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(lector);
+        _lectorRepository
+            .Setup(r => r.GetByEmailAsync(dto.Email, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(otro);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorEmailDuplicadoException>(() => service.UpdateAsync(id, dto));
+        _lectorRepository.Verify(r => r.UpdateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

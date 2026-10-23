@@ -76,6 +76,21 @@ public class LibroServiceTests
     }
 
     [Theory]
+    [InlineData("   ", "Autor")]
+    [InlineData("Titulo", "   ")]
+    public async Task CreateLibroAsync_WithWhitespaceOnlyField_ThrowsValidationException(string titulo, string autor)
+    {
+        var dto = NuevoLibroDto();
+        dto.Titulo = titulo;
+        dto.Autor = autor;
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LibroInvalidoException>(() => service.CreateAsync(dto));
+        _libroRepository.Verify(r => r.CreateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
     [InlineData("123")]
     [InlineData("9780307474729")]
     [InlineData("97803074747")]
@@ -197,6 +212,24 @@ public class LibroServiceTests
         var resultado = await service.UpdateAsync(id, dto);
 
         Assert.Equal("Nuevo", resultado.Titulo);
+    }
+
+    [Fact]
+    public async Task UpdateLibroAsync_WhenIsbnBelongsToOtherLibro_ThrowsConflictException()
+    {
+        var id = Guid.NewGuid();
+        var isbnPropio = IsbnTestHelper.NuevoIsbnValido();
+        var isbnDeOtroLibro = IsbnTestHelper.NuevoIsbnValido();
+        var libroExistente = new Libro { Id = id, Titulo = "Viejo", Autor = "A", Isbn = isbnPropio, Ubicacion = "A1", Stock = 1 };
+        var otroLibro = new Libro { Id = Guid.NewGuid(), Titulo = "Otro", Autor = "B", Isbn = isbnDeOtroLibro, Ubicacion = "B1", Stock = 2 };
+        _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(libroExistente);
+        _libroRepository.Setup(r => r.GetByIsbnAsync(isbnDeOtroLibro, It.IsAny<CancellationToken>())).ReturnsAsync(otroLibro);
+
+        var dto = new LibroUpdateDTO { Titulo = "Nuevo", Autor = "A", Isbn = isbnDeOtroLibro, Ubicacion = "A1", Stock = 1 };
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<IsbnDuplicadoException>(() => service.UpdateAsync(id, dto));
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
