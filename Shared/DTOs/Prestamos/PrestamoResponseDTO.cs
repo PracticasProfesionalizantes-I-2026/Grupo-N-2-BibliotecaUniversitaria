@@ -12,4 +12,7 @@ public class PrestamoResponseDTO
     public DateTime? FechaDevolucion { get; set; }
     public string Estado { get; set; } = string.Empty;
     public bool EnMora { get; set; }
+    public int? DiasRestantes { get; set; }
+    public int DiasDeAtraso { get; set; }
+    public string Mensaje { get; set; } = string.Empty;
 }
