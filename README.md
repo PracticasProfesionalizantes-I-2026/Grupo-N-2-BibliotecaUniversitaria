@@ -132,6 +132,20 @@ mapeo de esas 4 categorías a 400/404/409/401. Cualquier otra excepción no
 prevista también la captura el middleware y responde `500` con
 `{ "message": "Ocurrió un error interno en el servidor." }`.
 
+Dos casos quedan *fuera* de `ExceptionMiddleware` porque los resuelve
+ASP.NET antes de llegar al controller, pero también devuelven
+`{ "message": "..." }` en español:
+
+- **Model binding** (campo `null` explícito, body vacío, JSON mal
+  formado): `Program.cs` configura `InvalidModelStateResponseFactory`
+  para devolver 400 con el mismo formato (por ejemplo, "El campo Email es
+  obligatorio." o "El cuerpo de la solicitud no es un JSON válido.").
+- **Autenticación/autorización JWT** (sin token, token inválido/vencido,
+  rol insuficiente): `Program.cs` configura `JwtBearerEvents.OnChallenge`
+  (con `HandleResponse()`, para que ASP.NET no escriba también su 401 por
+  defecto) y `OnForbidden`, devolviendo "Debe iniciar sesión.", "Token
+  inválido o vencido." o "No tiene permisos para realizar esta acción."
+
 ## Cómo ejecutar
 
 Desde la raíz del repositorio:
@@ -382,27 +396,21 @@ carpeta respeta el campo `seq` de cada request. `Auth/Login Administrador
 (200)` corre primero y carga `tokenAdmin`; a partir de ahí todo lo
 protegido reutiliza ese token vía `auth: inherit`.
 
-**Limitación conocida (verificada corriendo la colección con el CLI de
-Bruno):** `Libros/Eliminar libro con prestamos activos (409)` necesita que
-el libro tenga un préstamo asociado, pero la carpeta `Prestamos` corre
-*después* de `Libros` en el orden alfabético — así que en una corrida
-completa de punta a punta ese request encuentra el libro sin préstamos
-todavía y lo borra con `200` en vez de `409` (y esa borrada en cascada hace
-fallar, de paso, "Crear libro con isbn duplicado" y todos los requests de
-`Prestamos` que dependían de ese libro). Para verificar manualmente ese
-caso puntual hay que correr primero `Prestamos/Crear prestamo (201)` con
-ese `libroId` y recién después el `DELETE`, o ejecutarlo como test de
-integración (`DeleteLibro_WithActiveLoans_Returns409Conflict`, que sí crea
-su propio lector/libro/préstamo y no depende del orden de carpetas).
+La colección corre de punta a punta sin intervención manual y se puede
+ejecutar varias veces seguidas sin reiniciar la base (verificado con el
+CLI de Bruno, 3 corridas consecutivas, 58/58 en las 3):
 
-**Otra limitación conocida:** los requests "Crear lector/libro/usuario
-(201)" usan datos fijos (identificador, ISBN, email). Correr la colección
-completa dos veces seguidas sin reiniciar la base hace que esos `POST`
-choquen con los registros que quedaron de la corrida anterior y devuelvan
-`409` en vez de `201` (y alguno de los "duplicado (409)" pase a dar `201`,
-porque el registro original fue modificado por `Modificar ... (200)` en la
-corrida previa). Para una corrida limpia, borrar `bibliogest.db` antes de
-cada ejecución completa de la colección.
+- `Libros/Eliminar libro con prestamos activos (409)` no depende de que
+  la carpeta `Prestamos` haya corrido antes: usa 3 requests previos en su
+  misma carpeta ("Preparar lector/libro/prestamo para historial") que
+  crean su propio lector+libro+préstamo dedicados, así que no borra ni
+  modifica el `{{libroId}}` compartido con el resto de la colección.
+- `Prestamos/Crear prestamo sin stock (409)` usa `{{rayuelaId}}` (el libro
+  "Rayuela" sembrado por `DbInitializer`, siempre con stock 0), resuelto
+  por el request previo "Buscar libro Rayuela (seed, stock 0)".
+- Los requests "Crear lector/libro/usuario (201)" generan identificador,
+  ISBN (con dígito verificador válido) y email únicos por corrida con un
+  script `pre-request`, en vez de usar datos fijos.
 
 ## Guía rápida: inspeccionar el JWT en jwt.io
 
@@ -431,8 +439,8 @@ cada ejecución completa de la colección.
 ## Testing
 
 - `tests/BiblioGest.UnitTests`: xUnit + Moq sobre los services, sin tocar
-  la base real (91 tests).
+  la base real (96 tests).
 - `tests/BiblioGest.IntegrationTests`: `WebApplicationFactory` levantando la
-  API completa contra una SQLite en memoria aislada por instancia (74 tests).
+  API completa contra una SQLite en memoria aislada por instancia (85 tests).
 
 Link: https://docs.google.com/document/d/1f4idud-PCBsQK\_48ZCf5ibF\_MNzNLKdxSAvWgO32Wt4/edit?tab=t.0#heading=h.frnk5y8ou0gl
