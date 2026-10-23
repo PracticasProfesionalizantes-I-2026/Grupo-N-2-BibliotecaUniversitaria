@@ -1,4 +1,4 @@
-﻿using BiblioGest.BusinessLogic.Interfaces;
+using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.BusinessLogic.Services;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
@@ -16,13 +16,13 @@ namespace BiblioGest.UnitTests
 
         private UsuarioService CrearService() => new(_usuarioRepository.Object, _passwordHasher.Object);
 
-        private static Usuario UsuarioExistente(Guid id) => new()
+        private static Usuario UsuarioExistente(Guid id, RolUsuario rol = RolUsuario.Bibliotecario, bool activo = true) => new()
         {
             Id = id,
             Email = "existente@example.com",
             PasswordHash = "hash-original",
-            RolUsuario = RolUsuario.Bibliotecario,
-            Activo = true
+            RolUsuario = rol,
+            Activo = activo
         };
 
         [Fact]
@@ -60,6 +60,34 @@ namespace BiblioGest.UnitTests
                 Times.Once);
         }
 
+        [Theory]
+        [InlineData("no-es-un-email")]
+        [InlineData("falta-arroba.com")]
+        [InlineData("   ")]
+        public async Task CreateUsuarioAsync_WithInvalidEmail_ThrowsValidationException(string email)
+        {
+            var dto = new UsuarioCreateDTO { Email = email, Password = "Password123", RolUsuario = "Administrador" };
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioInvalidoException>(() => service.CreateAsync(dto));
+        }
+
+        [Fact]
+        public async Task CreateUsuarioAsync_WithTooLongEmail_ThrowsValidationException()
+        {
+            var dto = new UsuarioCreateDTO
+            {
+                Email = $"{new string('a', 150)}@example.com",
+                Password = "Password123",
+                RolUsuario = "Administrador"
+            };
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioInvalidoException>(() => service.CreateAsync(dto));
+        }
+
         [Fact]
         public async Task CreateUsuarioAsync_WhenEmailAlreadyExists_ThrowsConflictException()
         {
@@ -77,6 +105,24 @@ namespace BiblioGest.UnitTests
 
             await Assert.ThrowsAsync<UsuarioDuplicadoException>(() => service.CreateAsync(dto));
             _usuarioRepository.Verify(r => r.CreateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CreateUsuarioAsync_WhenEmailDuplicadoWithDifferentCaseAndSpaces_ThrowsConflictException()
+        {
+            var dto = new UsuarioCreateDTO
+            {
+                Email = "  Existente@Example.com ",
+                Password = "Password123",
+                RolUsuario = "Bibliotecario"
+            };
+            _usuarioRepository
+                .Setup(r => r.GetByEmailAsync("existente@example.com", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(UsuarioExistente(Guid.NewGuid()));
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioDuplicadoException>(() => service.CreateAsync(dto));
         }
 
         [Fact]
@@ -138,7 +184,7 @@ namespace BiblioGest.UnitTests
                 .ReturnsAsync((Usuario?)null);
 
             var service = CrearService();
-            var resultado = await service.UpdateAsync(id, dto);
+            var resultado = await service.UpdateAsync(id, dto, Guid.NewGuid());
 
             Assert.Equal("modificado@example.com", resultado.Email);
             Assert.Equal("Administrador", resultado.RolUsuario);
@@ -164,7 +210,7 @@ namespace BiblioGest.UnitTests
                 .Returns("hash-nuevo");
 
             var service = CrearService();
-            await service.UpdateAsync(id, dto);
+            await service.UpdateAsync(id, dto, Guid.NewGuid());
 
             Assert.Equal("hash-nuevo", usuario.PasswordHash);
         }
@@ -179,7 +225,7 @@ namespace BiblioGest.UnitTests
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.UpdateAsync(Guid.NewGuid(), dto));
+            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.UpdateAsync(Guid.NewGuid(), dto, Guid.NewGuid()));
         }
 
         [Fact]
@@ -196,7 +242,92 @@ namespace BiblioGest.UnitTests
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioDuplicadoException>(() => service.UpdateAsync(id, dto));
+            await Assert.ThrowsAsync<UsuarioDuplicadoException>(() => service.UpdateAsync(id, dto, Guid.NewGuid()));
+        }
+
+        [Fact]
+        public async Task UpdateUsuarioAsync_WhenAdminDeactivatesHimself_ThrowsConflictException()
+        {
+            var id = Guid.NewGuid();
+            var usuario = UsuarioExistente(id, RolUsuario.Administrador);
+            var dto = new UsuarioUpdateDTO { Email = usuario.Email, Activo = false };
+            _usuarioRepository
+                .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.GetByEmailAsync(usuario.Email, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioAutoBajaException>(() => service.UpdateAsync(id, dto, currentUserId: id));
+            _usuarioRepository.Verify(r => r.UpdateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task UpdateUsuarioAsync_WhenDeactivatingLastActiveAdmin_ThrowsConflictException()
+        {
+            var id = Guid.NewGuid();
+            var usuario = UsuarioExistente(id, RolUsuario.Administrador);
+            var dto = new UsuarioUpdateDTO { Email = usuario.Email, Activo = false };
+            _usuarioRepository
+                .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.GetByEmailAsync(usuario.Email, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.CountAdministradoresActivosAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UltimoAdministradorException>(
+                () => service.UpdateAsync(id, dto, currentUserId: Guid.NewGuid()));
+        }
+
+        [Fact]
+        public async Task UpdateUsuarioAsync_WhenChangingRoleOfLastActiveAdmin_ThrowsConflictException()
+        {
+            var id = Guid.NewGuid();
+            var usuario = UsuarioExistente(id, RolUsuario.Administrador);
+            var dto = new UsuarioUpdateDTO { Email = usuario.Email, RolUsuario = "Bibliotecario" };
+            _usuarioRepository
+                .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.GetByEmailAsync(usuario.Email, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.CountAdministradoresActivosAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UltimoAdministradorException>(
+                () => service.UpdateAsync(id, dto, currentUserId: Guid.NewGuid()));
+        }
+
+        [Fact]
+        public async Task UpdateUsuarioAsync_WhenDeactivatingAdminAndAnotherAdminIsActive_Succeeds()
+        {
+            var id = Guid.NewGuid();
+            var usuario = UsuarioExistente(id, RolUsuario.Administrador);
+            var dto = new UsuarioUpdateDTO { Email = usuario.Email, Activo = false };
+            _usuarioRepository
+                .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.GetByEmailAsync(usuario.Email, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.CountAdministradoresActivosAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(2);
+
+            var service = CrearService();
+            var resultado = await service.UpdateAsync(id, dto, currentUserId: Guid.NewGuid());
+
+            Assert.False(resultado.Activo);
         }
 
         [Fact]
@@ -209,7 +340,7 @@ namespace BiblioGest.UnitTests
                 .ReturnsAsync(usuario);
 
             var service = CrearService();
-            await service.DeleteAsync(id);
+            await service.DeleteAsync(id, Guid.NewGuid());
 
             Assert.False(usuario.Activo);
             _usuarioRepository.Verify(r => r.UpdateAsync(usuario, It.IsAny<CancellationToken>()), Times.Once);
@@ -224,7 +355,40 @@ namespace BiblioGest.UnitTests
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.DeleteAsync(Guid.NewGuid()));
+            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.DeleteAsync(Guid.NewGuid(), Guid.NewGuid()));
+        }
+
+        [Fact]
+        public async Task DeleteUsuarioAsync_WhenAdminDeletesHimself_ThrowsConflictException()
+        {
+            var id = Guid.NewGuid();
+            var usuario = UsuarioExistente(id, RolUsuario.Administrador);
+            _usuarioRepository
+                .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioAutoBajaException>(() => service.DeleteAsync(id, currentUserId: id));
+            _usuarioRepository.Verify(r => r.UpdateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task DeleteUsuarioAsync_WhenLastActiveAdmin_ThrowsConflictException()
+        {
+            var id = Guid.NewGuid();
+            var usuario = UsuarioExistente(id, RolUsuario.Administrador);
+            _usuarioRepository
+                .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.CountAdministradoresActivosAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UltimoAdministradorException>(
+                () => service.DeleteAsync(id, currentUserId: Guid.NewGuid()));
         }
     }
 }

@@ -33,7 +33,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         {
             Titulo = $"Libro {Guid.NewGuid()}",
             Autor = "Autor",
-            Isbn = Guid.NewGuid().ToString("N")[..10],
+            Isbn = IsbnTestHelper.NuevoIsbnValido(),
             Ubicacion = "Estante Z",
             Stock = stock
         });
@@ -82,6 +82,54 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task CreatePrestamo_WithEmptyGuid_Returns400BadRequest(bool lectorVacio, bool libroVacio)
+    {
+        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lectorVacio ? Guid.Empty : Guid.NewGuid(),
+            LibroId = libroVacio ? Guid.Empty : Guid.NewGuid()
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreatePrestamo_WhenLectorAlreadyHasActiveLoanOfSameLibro_Returns409Conflict()
+    {
+        var libro = await CrearLibroAsync(stock: 2);
+        var lector = await CrearLectorAsync();
+        await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id });
+
+        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libro.Id
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreatePrestamo_ReturnsDiasRestantesYMensajeCalculados()
+    {
+        var libro = await CrearLibroAsync(stock: 1);
+        var lector = await CrearLectorAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libro.Id
+        });
+
+        var creado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        Assert.Equal(14, creado!.DiasRestantes);
+        Assert.Equal(0, creado.DiasDeAtraso);
+        Assert.Equal("Vence en 14 días.", creado.Mensaje);
+    }
+
     [Fact]
     public async Task CreatePrestamo_WithoutStock_Returns409Conflict()
     {
@@ -115,6 +163,9 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         var actualizado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
         Assert.Equal("Devuelto", actualizado!.Estado);
         Assert.NotNull(actualizado.FechaDevolucion);
+        Assert.Null(actualizado.DiasRestantes);
+        Assert.Equal(0, actualizado.DiasDeAtraso);
+        Assert.Equal("Devuelto a tiempo.", actualizado.Mensaje);
     }
 
     [Fact]
