@@ -375,29 +375,34 @@ automáticamente `libroId`/`lectorId`/`prestamoId`/`usuarioId` para
 encadenar los siguientes. Cada request tiene un bloque `assert` que verifica
 el código HTTP esperado.
 
-**Orden de ejecución recomendado** (correr la carpeta completa con el botón
-"Run" de Bruno, en este orden, para que los `docs` de cada request con
-dependencias se cumplan):
+**Orden real de ejecución.** `bru run --env Local` (o el botón "Run" sobre
+la colección completa) recorre las carpetas en orden alfabético: **Auth →
+Lectores → Libros → Prestamos → Reportes → Usuarios**, y dentro de cada
+carpeta respeta el campo `seq` de cada request. `Auth/Login Administrador
+(200)` corre primero y carga `tokenAdmin`; a partir de ahí todo lo
+protegido reutiliza ese token vía `auth: inherit`.
 
-1. **Auth** → `Login Administrador (200)` primero (carga `tokenAdmin`
-   para el resto de la colección); después los casos de error de login.
-2. **Libros** → crear, buscar, obtener, modificar; los de error (ISBN
-   inválido/duplicado, texto largo, sin token, token inválido); por último
-   "Eliminar libro con prestamos activos (409)" (requiere el préstamo
-   creado en el paso 4) y "Eliminar libro inexistente (404)".
-3. **Lectores** → crear, obtener, modificar; duplicados (identificador y
-   email, con mayúsculas/espacios), email inválido, texto largo; por
-   último los de eliminar (con historial de préstamos y 404).
-4. **Prestamos** → crear (usa el `libroId`/`lectorId` de los pasos 2-3),
-   duplicado del mismo lector+libro, Guid vacío, sin stock, obtener,
-   registrar devolución, devolución repetida, listar mora.
-5. **Reportes** → no tienen dependencias de datos de otros pasos.
-6. **Usuarios** → crear, listar, obtener, modificar, email
-   inválido/duplicado; `Login Bibliotecario (200)` + "Listar usuarios como
-   bibliotecario (403)" (y volver a loguearse como admin después, porque
-   el token de la colección sigue siendo `tokenAdmin`); "Obtener id del
-   admin logueado" + los dos de auto-baja (409); por último eliminar e
-   inexistente (404).
+**Limitación conocida (verificada corriendo la colección con el CLI de
+Bruno):** `Libros/Eliminar libro con prestamos activos (409)` necesita que
+el libro tenga un préstamo asociado, pero la carpeta `Prestamos` corre
+*después* de `Libros` en el orden alfabético — así que en una corrida
+completa de punta a punta ese request encuentra el libro sin préstamos
+todavía y lo borra con `200` en vez de `409` (y esa borrada en cascada hace
+fallar, de paso, "Crear libro con isbn duplicado" y todos los requests de
+`Prestamos` que dependían de ese libro). Para verificar manualmente ese
+caso puntual hay que correr primero `Prestamos/Crear prestamo (201)` con
+ese `libroId` y recién después el `DELETE`, o ejecutarlo como test de
+integración (`DeleteLibro_WithActiveLoans_Returns409Conflict`, que sí crea
+su propio lector/libro/préstamo y no depende del orden de carpetas).
+
+**Otra limitación conocida:** los requests "Crear lector/libro/usuario
+(201)" usan datos fijos (identificador, ISBN, email). Correr la colección
+completa dos veces seguidas sin reiniciar la base hace que esos `POST`
+choquen con los registros que quedaron de la corrida anterior y devuelvan
+`409` en vez de `201` (y alguno de los "duplicado (409)" pase a dar `201`,
+porque el registro original fue modificado por `Modificar ... (200)` en la
+corrida previa). Para una corrida limpia, borrar `bibliogest.db` antes de
+cada ejecución completa de la colección.
 
 ## Guía rápida: inspeccionar el JWT en jwt.io
 
