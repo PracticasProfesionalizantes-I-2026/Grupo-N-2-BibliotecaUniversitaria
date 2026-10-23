@@ -410,10 +410,12 @@ cada ejecución completa de la colección.
    valor de `tokenAdmin`/`tokenBibliotecario` en el entorno de Bruno).
 2. Pegarlo en https://jwt.io en el panel **Encoded**.
 3. En el panel decodificado, el **payload** debe mostrar exactamente estos
-   claims (y ningún dato sensible como el hash de la contraseña):
-   - `nameid` (`ClaimTypes.NameIdentifier`): el Id del usuario.
-   - `email`: el email normalizado (minúsculas).
-   - `role`: `Administrador` o `Bibliotecario`.
+   claims (y ningún dato sensible como el hash de la contraseña). Como la
+   API usa `ClaimTypes.*` de .NET (no los nombres cortos del estándar
+   JWT), en jwt.io se ven con la URI larga, no como `nameid`/`email`/`role`:
+   - `.../identity/claims/nameidentifier`: el Id (Guid) del usuario.
+   - `.../identity/claims/emailaddress`: el email normalizado (minúsculas).
+   - `.../identity/claims/role`: `Administrador` o `Bibliotecario`.
    - `exp`: fecha de expiración (60 minutos después del login).
    - `iss`: `BiblioGestApi`.
    - `aud`: `BiblioGestClient`.
