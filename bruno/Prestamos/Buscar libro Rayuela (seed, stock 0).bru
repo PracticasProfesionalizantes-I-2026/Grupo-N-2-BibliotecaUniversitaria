@@ -1,0 +1,33 @@
+meta {
+  name: Buscar libro Rayuela (seed, stock 0)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/libros?busqueda=Rayuela
+  body: none
+  auth: inherit
+}
+
+params:query {
+  busqueda: Rayuela
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.length > 0) {
+    bru.setEnvVar("rayuelaId", res.body[0].id);
+  }
+}
+
+docs {
+  "Rayuela" la carga el DbInitializer con stock 0 (y un préstamo vencido
+  de Ana Gómez). Se usa su Id en "Crear prestamo sin stock (409)" en vez
+  de {{libroId}}, porque {{libroId}} (el libro creado en esta misma
+  corrida) deja de tener stock 0 ahora que "Eliminar libro con prestamos
+  activos" ya no lo borra prematuramente.
+}
+
+assert {
+  res.status: eq 200
+}

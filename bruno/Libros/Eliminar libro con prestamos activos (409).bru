@@ -1,19 +1,21 @@
 meta {
   name: Eliminar libro con prestamos activos (409)
   type: http
-  seq: 8
+  seq: 11
 }
 
 delete {
-  url: {{baseUrl}}/api/libros/{{libroId}}
+  url: {{baseUrl}}/api/libros/{{libroHistLibroId}}
   body: none
   auth: inherit
 }
 
 docs {
-  Ejecutar después de "Crear préstamo (201)" en la carpeta Prestamos usando
-  este mismo libroId, para que la eliminación choque contra la RN de
-  historial de préstamos y devuelva 409 Conflict.
+  Usa el libro/lector/préstamo creados en los 3 requests anteriores de
+  esta misma carpeta ("Preparar ... para historial de prestamos/
+  historial"), no el {{libroId}} compartido con el resto de la colección
+  — así no depende de que la carpeta Prestamos ya haya corrido, y no borra
+  ni modifica datos que usan otros requests.
 }
 
 assert {
