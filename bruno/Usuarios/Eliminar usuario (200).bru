@@ -7,13 +7,13 @@ meta {
 delete {
   url: {{baseUrl}}/api/usuarios/{{usuarioId}}
   body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 docs {
   Baja lógica: el usuario queda con activo = false y ya no puede iniciar sesión.
+}
+
+assert {
+  res.status: eq 200
 }

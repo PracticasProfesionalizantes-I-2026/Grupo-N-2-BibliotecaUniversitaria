@@ -7,17 +7,22 @@ meta {
 post {
   url: {{baseUrl}}/api/usuarios
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 body:json {
   {
-    "email": "admin@bibliogest.com",
+    "email": "  Admin@BiblioGest.com  ",
     "password": "Clave123",
     "rolUsuario": "Bibliotecario"
   }
+}
+
+docs {
+  Mismo email que el administrador semilla, con mayúsculas y espacios de más:
+  al normalizarse antes de comparar, debe responder 409 igual.
+}
+
+assert {
+  res.status: eq 409
 }

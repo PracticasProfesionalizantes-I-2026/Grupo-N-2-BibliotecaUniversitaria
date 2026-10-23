@@ -118,7 +118,7 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
         {
             Titulo = $"Libro {Guid.NewGuid()}",
             Autor = "Autor",
-            Isbn = Guid.NewGuid().ToString("N")[..10],
+            Isbn = IsbnTestHelper.NuevoIsbnValido(),
             Ubicacion = "Estante Z",
             Stock = 1
         });
@@ -130,6 +130,86 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
         });
 
         var response = await _client.DeleteAsync($"/api/lectores/{lector.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteLector_AfterLoanWasReturned_Returns409ConflictAndKeepsHistory()
+    {
+        var lectorResponse = await _client.PostAsJsonAsync("/api/lectores", NuevoLectorDto());
+        var lector = await lectorResponse.Content.ReadFromJsonAsync<LectorResponseDTO>();
+        var libroResponse = await _client.PostAsJsonAsync("/api/libros", new LibroCreateDTO
+        {
+            Titulo = $"Libro {Guid.NewGuid()}",
+            Autor = "Autor",
+            Isbn = IsbnTestHelper.NuevoIsbnValido(),
+            Ubicacion = "Estante Z",
+            Stock = 1
+        });
+        var libro = await libroResponse.Content.ReadFromJsonAsync<LibroResponseDTO>();
+        var prestamoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector!.Id,
+            LibroId = libro!.Id
+        });
+        var prestamo = await prestamoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        await _client.PutAsync($"/api/prestamos/{prestamo!.Id}/devolucion", content: null);
+
+        var response = await _client.DeleteAsync($"/api/lectores/{lector.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("no-es-un-email")]
+    [InlineData("falta-arroba.com")]
+    public async Task CreateLector_WithInvalidEmail_Returns400BadRequest(string email)
+    {
+        var dto = NuevoLectorDto();
+        dto.Email = email;
+
+        var response = await _client.PostAsJsonAsync("/api/lectores", dto);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateLector_WithTooLongNombre_Returns400BadRequest()
+    {
+        var dto = NuevoLectorDto();
+        dto.Nombre = new string('A', 101);
+
+        var response = await _client.PostAsJsonAsync("/api/lectores", dto);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateLector_WithDuplicateEmailDifferentCaseAndSpaces_Returns409Conflict()
+    {
+        var dto = NuevoLectorDto();
+        await _client.PostAsJsonAsync("/api/lectores", dto);
+
+        var dtoDuplicado = NuevoLectorDto();
+        dtoDuplicado.Email = $"  {dto.Email.ToUpperInvariant()}  ";
+
+        var response = await _client.PostAsJsonAsync("/api/lectores", dtoDuplicado);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateLector_WithDuplicateIdentificadorDifferentCaseAndSpaces_Returns409Conflict()
+    {
+        var dto = NuevoLectorDto();
+        dto.Identificador = "l-900";
+        await _client.PostAsJsonAsync("/api/lectores", dto);
+
+        var dtoDuplicado = NuevoLectorDto();
+        dtoDuplicado.Identificador = "  L-900  ";
+
+        var response = await _client.PostAsJsonAsync("/api/lectores", dtoDuplicado);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }

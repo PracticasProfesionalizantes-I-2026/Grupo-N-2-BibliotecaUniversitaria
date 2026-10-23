@@ -38,30 +38,35 @@ public class PrestamoRepository : IPrestamoRepository
             .AsNoTracking()
             .CountAsync(p => p.LectorId == lectorId && p.Estado == EstadoPrestamo.Activo, ct);
 
-    public Task<bool> TieneActivosPorLibroAsync(Guid libroId, CancellationToken ct = default) =>
+    public Task<bool> TienePrestamosPorLibroAsync(Guid libroId, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
-            .AnyAsync(p => p.LibroId == libroId && p.Estado == EstadoPrestamo.Activo, ct);
+            .AnyAsync(p => p.LibroId == libroId, ct);
 
-    public Task<bool> TieneActivosPorLectorAsync(Guid lectorId, CancellationToken ct = default) =>
+    public Task<bool> TienePrestamosPorLectorAsync(Guid lectorId, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
-            .AnyAsync(p => p.LectorId == lectorId && p.Estado == EstadoPrestamo.Activo, ct);
+            .AnyAsync(p => p.LectorId == lectorId, ct);
 
-    public Task<bool> LectorTieneMoraAsync(Guid lectorId, CancellationToken ct = default) =>
+    public Task<bool> ExistePrestamoActivoAsync(Guid lectorId, Guid libroId, CancellationToken ct = default) =>
+        _context.Prestamos
+            .AsNoTracking()
+            .AnyAsync(p => p.LectorId == lectorId && p.LibroId == libroId && p.Estado == EstadoPrestamo.Activo, ct);
+
+    public Task<bool> LectorTieneMoraAsync(Guid lectorId, DateTime ahoraUtc, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
             .AnyAsync(p =>
                 p.LectorId == lectorId &&
                 p.Estado == EstadoPrestamo.Activo &&
-                p.FechaVencimiento < DateTime.UtcNow, ct);
+                p.FechaVencimiento < ahoraUtc, ct);
 
-    public async Task<IReadOnlyList<Prestamo>> GetVencidosAsync(CancellationToken ct = default) =>
+    public async Task<IReadOnlyList<Prestamo>> GetVencidosAsync(DateTime ahoraUtc, CancellationToken ct = default) =>
         await _context.Prestamos
             .AsNoTracking()
             .Include(p => p.Libro)
             .Include(p => p.Lector)
-            .Where(p => p.Estado == EstadoPrestamo.Activo && p.FechaVencimiento < DateTime.UtcNow)
+            .Where(p => p.Estado == EstadoPrestamo.Activo && p.FechaVencimiento < ahoraUtc)
             .OrderBy(p => p.FechaVencimiento)
             .ToListAsync(ct);
 

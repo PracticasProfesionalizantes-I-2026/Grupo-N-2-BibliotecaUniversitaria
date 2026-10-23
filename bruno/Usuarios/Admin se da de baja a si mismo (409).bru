@@ -1,0 +1,20 @@
+meta {
+  name: Admin se da de baja a si mismo (409)
+  type: http
+  seq: 12
+}
+
+delete {
+  url: {{baseUrl}}/api/usuarios/{{adminId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  Ejecutar después de "Obtener id del admin logueado". Un administrador no
+  puede darse de baja a sí mismo: la cuenta queda intacta tras el 409.
+}
+
+assert {
+  res.status: eq 409
+}

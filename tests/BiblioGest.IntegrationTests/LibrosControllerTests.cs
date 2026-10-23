@@ -28,7 +28,7 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>,
     {
         Titulo = $"Libro {Guid.NewGuid()}",
         Autor = "Autor de Prueba",
-        Isbn = Guid.NewGuid().ToString("N")[..10],
+        Isbn = IsbnTestHelper.NuevoIsbnValido(),
         Ubicacion = "Estante Z",
         Stock = stock
     };
@@ -167,5 +167,73 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>,
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var libro = await response.Content.ReadFromJsonAsync<LibroResponseDTO>();
         Assert.False(libro!.Disponible);
+        Assert.Equal("Sin stock", libro.DisponibilidadTexto);
+    }
+
+    [Theory]
+    [InlineData("123")]
+    [InlineData("abcdefghijklm")]
+    public async Task CreateLibro_WithInvalidIsbn_Returns400BadRequest(string isbnInvalido)
+    {
+        var dto = NuevoLibroDto();
+        dto.Isbn = isbnInvalido;
+
+        var response = await _client.PostAsJsonAsync("/api/libros", dto);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateLibro_WithDuplicateIsbnUsingHyphensAndSpaces_Returns409Conflict()
+    {
+        var dto = NuevoLibroDto();
+        await _client.PostAsJsonAsync("/api/libros", dto);
+
+        var isbn = dto.Isbn;
+        var dtoDuplicado = NuevoLibroDto();
+        dtoDuplicado.Isbn = $" {isbn[..3]}-{isbn[3..6]}-{isbn[6..]} ";
+
+        var response = await _client.PostAsJsonAsync("/api/libros", dtoDuplicado);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateLibro_WithTooLongTitulo_Returns400BadRequest()
+    {
+        var dto = NuevoLibroDto();
+        dto.Titulo = new string('A', 201);
+
+        var response = await _client.PostAsJsonAsync("/api/libros", dto);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteLibro_AfterLoanWasReturned_Returns409ConflictAndKeepsHistory()
+    {
+        var libroResponse = await _client.PostAsJsonAsync("/api/libros", NuevoLibroDto(stock: 1));
+        var libro = await libroResponse.Content.ReadFromJsonAsync<LibroResponseDTO>();
+
+        var lectorResponse = await _client.PostAsJsonAsync("/api/lectores", new LectorCreateDTO
+        {
+            Nombre = "Carla",
+            Apellido = "Ruiz",
+            Email = $"{Guid.NewGuid()}@example.com",
+            Identificador = Guid.NewGuid().ToString("N")[..8]
+        });
+        var lector = await lectorResponse.Content.ReadFromJsonAsync<LectorResponseDTO>();
+
+        var prestamoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector!.Id,
+            LibroId = libro!.Id
+        });
+        var prestamo = await prestamoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        await _client.PutAsync($"/api/prestamos/{prestamo!.Id}/devolucion", content: null);
+
+        var deleteResponse = await _client.DeleteAsync($"/api/libros/{libro.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
     }
 }

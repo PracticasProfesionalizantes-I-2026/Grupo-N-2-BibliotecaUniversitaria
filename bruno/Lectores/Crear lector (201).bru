@@ -1,25 +1,29 @@
 meta {
   name: Crear lector (201)
   type: http
-  seq: 3
+  seq: 2
 }
 
 post {
   url: {{baseUrl}}/api/lectores
   body: json
-  auth: bearer
+  auth: inherit
 }
 
-auth:bearer {
-  token: {{token}}
+script:pre-request {
+  // Valores unicos por corrida para poder ejecutar la coleccion varias
+  // veces seguidas sin chocar con lo que quedo de una corrida anterior.
+  const sufijo = Date.now();
+  bru.setEnvVar("lectorEmail", `facundo.lopez.${sufijo}@example.com`);
+  bru.setEnvVar("lectorIdentificador", `ID-${sufijo}`);
 }
 
 body:json {
   {
     "nombre": "Facundo",
     "apellido": "López",
-    "email": "facundo.lopez@example.com",
-    "identificador": "35555111"
+    "email": "{{lectorEmail}}",
+    "identificador": "{{lectorIdentificador}}"
   }
 }
 
@@ -27,4 +31,8 @@ script:post-response {
   if (res.status === 201) {
     bru.setEnvVar("lectorId", res.body.id);
   }
+}
+
+assert {
+  res.status: eq 201
 }

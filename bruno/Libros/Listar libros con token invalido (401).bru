@@ -1,0 +1,24 @@
+meta {
+  name: Listar libros con token invalido (401)
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/libros
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: esto-no-es-un-token-valido
+}
+
+docs {
+  Verifica que un token con formato/firma inválidos sea rechazado con 401,
+  sin importar el token de la colección. Ver también la guía de jwt.io en el README.
+}
+
+assert {
+  res.status: eq 401
+}

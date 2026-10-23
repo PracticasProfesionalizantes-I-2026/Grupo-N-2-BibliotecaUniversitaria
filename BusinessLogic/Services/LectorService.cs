@@ -1,4 +1,5 @@
 using BiblioGest.BusinessLogic.Interfaces;
+using BiblioGest.BusinessLogic.Validation;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Lectores;
@@ -8,6 +9,11 @@ namespace BiblioGest.BusinessLogic.Services;
 
 public class LectorService : ILectorService
 {
+    private const int NombreMaxLength = 100;
+    private const int ApellidoMaxLength = 100;
+    private const int EmailMaxLength = 150;
+    private const int IdentificadorMaxLength = 20;
+
     private readonly ILectorRepository _lectorRepository;
     private readonly IPrestamoRepository _prestamoRepository;
 
@@ -31,15 +37,16 @@ public class LectorService : ILectorService
 
     public async Task<LectorResponseDTO> CreateAsync(LectorCreateDTO dto, CancellationToken ct = default)
     {
-        ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Identificador);
-        await ValidarIdentificadorUnicoAsync(dto.Identificador, lectorIdActual: null, ct);
+        var (email, identificador) = ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Identificador);
+        await ValidarIdentificadorUnicoAsync(identificador, lectorIdActual: null, ct);
+        await ValidarEmailUnicoAsync(email, lectorIdActual: null, ct);
 
         var lector = new Lector
         {
             Nombre = dto.Nombre.Trim(),
             Apellido = dto.Apellido.Trim(),
-            Email = dto.Email.Trim(),
-            Identificador = dto.Identificador.Trim()
+            Email = email,
+            Identificador = identificador
         };
 
         var creado = await _lectorRepository.CreateAsync(lector, ct);
@@ -50,13 +57,14 @@ public class LectorService : ILectorService
     {
         var lector = await _lectorRepository.GetByIdAsync(id, ct) ?? throw new LectorNotFoundException(id);
 
-        ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Identificador);
-        await ValidarIdentificadorUnicoAsync(dto.Identificador, lectorIdActual: id, ct);
+        var (email, identificador) = ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Identificador);
+        await ValidarIdentificadorUnicoAsync(identificador, lectorIdActual: id, ct);
+        await ValidarEmailUnicoAsync(email, lectorIdActual: id, ct);
 
         lector.Nombre = dto.Nombre.Trim();
         lector.Apellido = dto.Apellido.Trim();
-        lector.Email = dto.Email.Trim();
-        lector.Identificador = dto.Identificador.Trim();
+        lector.Email = email;
+        lector.Identificador = identificador;
 
         await _lectorRepository.UpdateAsync(lector, ct);
         return MapToResponseDTO(lector);
@@ -66,15 +74,15 @@ public class LectorService : ILectorService
     {
         var lector = await _lectorRepository.GetByIdAsync(id, ct) ?? throw new LectorNotFoundException(id);
 
-        if (await _prestamoRepository.TieneActivosPorLectorAsync(id, ct))
+        if (await _prestamoRepository.TienePrestamosPorLectorAsync(id, ct))
         {
-            throw new LectorConPrestamosActivosException(id);
+            throw new LectorConHistorialPrestamosException(id);
         }
 
         await _lectorRepository.DeleteAsync(lector, ct);
     }
 
-    private static void ValidarDatos(string nombre, string apellido, string email, string identificador)
+    private static (string Email, string Identificador) ValidarDatos(string nombre, string apellido, string email, string identificador)
     {
         if (string.IsNullOrWhiteSpace(nombre) ||
             string.IsNullOrWhiteSpace(apellido) ||
@@ -84,14 +92,52 @@ public class LectorService : ILectorService
             throw new LectorInvalidoException(
                 "Nombre, apellido, email e identificador (DNI o legajo) son obligatorios.");
         }
+
+        if (nombre.Trim().Length > NombreMaxLength)
+        {
+            throw new LectorInvalidoException($"El nombre no puede superar los {NombreMaxLength} caracteres.");
+        }
+
+        if (apellido.Trim().Length > ApellidoMaxLength)
+        {
+            throw new LectorInvalidoException($"El apellido no puede superar los {ApellidoMaxLength} caracteres.");
+        }
+
+        var emailNormalizado = email.Trim().ToLowerInvariant();
+        if (emailNormalizado.Length > EmailMaxLength)
+        {
+            throw new LectorInvalidoException($"El email no puede superar los {EmailMaxLength} caracteres.");
+        }
+
+        if (!EmailValidator.EsFormatoValido(emailNormalizado))
+        {
+            throw new LectorInvalidoException("El email no tiene un formato válido.");
+        }
+
+        var identificadorNormalizado = identificador.Trim().ToUpperInvariant();
+        if (identificadorNormalizado.Length > IdentificadorMaxLength)
+        {
+            throw new LectorInvalidoException($"El identificador no puede superar los {IdentificadorMaxLength} caracteres.");
+        }
+
+        return (emailNormalizado, identificadorNormalizado);
     }
 
     private async Task ValidarIdentificadorUnicoAsync(string identificador, Guid? lectorIdActual, CancellationToken ct)
     {
-        var existente = await _lectorRepository.GetByIdentificadorAsync(identificador.Trim(), ct);
+        var existente = await _lectorRepository.GetByIdentificadorAsync(identificador, ct);
         if (existente is not null && existente.Id != lectorIdActual)
         {
             throw new IdentificadorDuplicadoException(identificador);
+        }
+    }
+
+    private async Task ValidarEmailUnicoAsync(string email, Guid? lectorIdActual, CancellationToken ct)
+    {
+        var existente = await _lectorRepository.GetByEmailAsync(email, ct);
+        if (existente is not null && existente.Id != lectorIdActual)
+        {
+            throw new LectorEmailDuplicadoException(email);
         }
     }
 

@@ -1,20 +1,21 @@
 meta {
   name: Listar prestamos en mora (200)
   type: http
-  seq: 7
+  seq: 10
 }
 
 get {
   url: {{baseUrl}}/api/prestamos/mora
   body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 docs {
   Con los datos de prueba del DbInitializer ya debería devolver al menos
-  el préstamo vencido de "Rayuela".
+  el préstamo vencido de "Rayuela". Cada préstamo incluye diasDeAtraso y
+  mensaje ya calculados por la API.
+}
+
+assert {
+  res.status: eq 200
 }

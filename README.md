@@ -38,20 +38,23 @@ Controller → Service → Repository → DbContext
 BiblioGest.slnx
 API/                → BiblioGest.Api
   Controllers/        AuthController, LibrosController, LectoresController, PrestamosController, ReportesController, UsuariosController
-  Middleware/         ExceptionMiddleware (errores no controlados → 500)
+  Middleware/         ExceptionMiddleware (mapea ValidationException→400, NotFoundException→404, ConflictException→409, UnauthorizedException→401; cualquier otra excepción → 500)
   Program.cs          DI, DbContext, DbInitializer, Swagger UI (OpenAPI)
 BusinessLogic/      → BiblioGest.BusinessLogic
   Interfaces/         IAuthService, ILibroService, ILectorService, IPrestamoService, IReporteService, IUsuarioService, IPasswordHasher
   Services/           AuthService, LibroService, LectorService, PrestamoService, ReporteService, UsuarioService, PasswordHasher
+  Validation/         EmailValidator, IsbnValidator (formato + normalización)
+  Mapping/            PrestamoMapper (estado/días/mensaje calculados a partir de un TimeProvider)
 DataAccess/         → BiblioGest.DataAccess (EF Core + SQLite)
   Entities/           Libro, Lector, Prestamo, EstadoPrestamo, Usuario, RolUsuario
   Repositories/       ILibroRepository/LibroRepository, etc.
-  BiblioGestDbContext.cs
+  BiblioGestDbContext.cs    índices únicos + HasMaxLength
+  IUnitOfWork/UnitOfWork.cs transacciones para préstamo + stock
   DbInitializer.cs    Crea la base y carga datos de prueba
   Migrations/
 Shared/             → BiblioGest.Shared
   DTOs/               Create/Update/Response por entidad
-  Exceptions/         NotFoundException, ValidationException, ConflictException + concretas
+  Exceptions/         NotFoundException, ValidationException, ConflictException, UnauthorizedException + concretas
 bruno/              → Colección de requests (Auth, Libros, Lectores, Prestamos, Reportes, Usuarios)
 tests/
   BiblioGest.UnitTests/        xUnit + Moq (services, sin tocar la base)
@@ -62,9 +65,9 @@ tests/
 
 | Capa | Responsabilidad |
 | --- | --- |
-| API | Recibe HTTP, valida el DTO de entrada, mapea excepciones a status codes con `try/catch` |
-| BusinessLogic | Reglas de negocio, orquestación, validaciones, `MapToResponseDTO` manual |
-| DataAccess | Único acceso a la base vía EF Core (`AsNoTracking()` en lecturas, Guid asignado en `CreateAsync`) |
+| API | Recibe HTTP, valida el DTO de entrada, delega en el service. No mapea excepciones: eso lo centraliza `ExceptionMiddleware` |
+| BusinessLogic | Reglas de negocio, orquestación, validaciones, normalización de datos, cálculos de fechas/estados/mensajes (vía `PrestamoMapper` + `TimeProvider`), `MapToResponseDTO` |
+| DataAccess | Único acceso a la base vía EF Core (`AsNoTracking()` en lecturas, Guid asignado en `CreateAsync`, índices únicos + `HasMaxLength` en el `DbContext`) |
 | Shared | DTOs y excepciones tipadas, compartidos entre capas |
 
 Los services reciben sus repositorios (interfaces de `DataAccess`) por
@@ -73,47 +76,75 @@ con Moq en los tests unitarios.
 
 ## Entidades
 
-- **Libro**: Id (Guid), Titulo, Autor, Isbn, Ubicacion, Stock (int, ≥ 0).
-- **Lector**: Id (Guid), Nombre, Apellido, Email, Identificador (único — DNI
-  o legajo en un solo campo).
+- **Libro**: Id (Guid), Titulo (≤200), Autor (≤150), Isbn (ISBN-10/13 válido,
+  único, se guarda sin guiones/espacios), Ubicacion (≤50), Stock (int, ≥ 0).
+- **Lector**: Id (Guid), Nombre (≤100), Apellido (≤100), Email (formato
+  válido, único, se guarda en minúsculas), Identificador (≤20, único — DNI
+  o legajo en un solo campo, se guarda en mayúsculas).
 - **Prestamo**: Id (Guid), LectorId, LibroId, FechaPrestamo,
   FechaVencimiento (FechaPrestamo + 14 días), FechaDevolucion (nullable),
-  Estado (Activo/Devuelto — "vencido" se calcula en la consulta, no se
-  persiste).
-- **Usuario**: Id (Guid), Email (único), PasswordHash (PBKDF2), RolUsuario
-  (Administrador/Bibliotecario), Activo (baja lógica).
+  Estado (Activo/Devuelto persistido). El estado que ve el frontend
+  (`Activo`/`Vencido`/`Devuelto`/`Devuelto con atraso`), los días
+  restantes/de atraso y el mensaje se calculan en `PrestamoMapper` a partir
+  de un único `TimeProvider`, nunca en el cliente.
+- **Usuario**: Id (Guid), Email (formato válido, ≤150, único, se guarda en
+  minúsculas), PasswordHash (PBKDF2), RolUsuario (Administrador/
+  Bibliotecario), Activo (baja lógica).
 
-`Prestamo` es hijo de `Libro` y `Lector` con `DeleteBehavior.Restrict`: no
-se puede eliminar un libro o lector con préstamos activos a nivel de base
-de datos, además de la validación explícita en el service (409 Conflict).
+`Prestamo` es hijo de `Libro` y `Lector` con `DeleteBehavior.Restrict` a
+nivel de base de datos. Además, el service rechaza con 409 el borrado de
+un libro o lector que tenga **cualquier** préstamo en su historial (activo
+o ya devuelto): el historial nunca se borra. Un lector tampoco puede tener
+dos préstamos activos del mismo libro a la vez (índice único filtrado por
+`Estado = 'Activo'` + validación en el service).
 
 ## Reglas de negocio y excepciones
 
 | Regla | Excepción (`Shared/Exceptions/`) | HTTP |
 | --- | --- | --- |
-| Datos obligatorios del libro faltantes | `LibroInvalidoException` | 400 |
-| Stock negativo | `LibroInvalidoException` | 400 |
-| Datos obligatorios del lector faltantes | `LectorInvalidoException` | 400 |
+| Datos obligatorios del libro faltantes, texto demasiado largo o stock negativo | `LibroInvalidoException` | 400 |
+| ISBN con formato inválido (no es ISBN-10/13 con dígito verificador correcto) | `LibroInvalidoException` | 400 |
+| ISBN duplicado (comparando el valor normalizado, sin guiones/espacios) | `IsbnDuplicadoException` | 409 |
+| Datos obligatorios del lector faltantes, texto demasiado largo o email inválido | `LectorInvalidoException` | 400 |
+| Email de lector duplicado (sin distinguir mayúsculas/espacios) | `LectorEmailDuplicadoException` | 409 |
+| Identificador (DNI/legajo) duplicado (normalizado) | `IdentificadorDuplicadoException` | 409 |
 | Libro/Lector/Préstamo inexistente | `LibroNotFoundException` / `LectorNotFoundException` / `PrestamoNotFoundException` | 404 |
-| Eliminar libro con préstamos activos | `LibroConPrestamosActivosException` | 409 |
-| Eliminar lector con préstamos activos | `LectorConPrestamosActivosException` | 409 |
-| Identificador (DNI/legajo) duplicado | `IdentificadorDuplicadoException` | 409 |
+| `LectorId`/`LibroId` vacíos (`Guid.Empty`) al crear un préstamo | `PrestamoInvalidoException` | 400 |
+| Eliminar libro/lector con préstamos en su historial (activos o ya devueltos) | `LibroConHistorialPrestamosException` / `LectorConHistorialPrestamosException` | 409 |
 | Lector con 3 préstamos activos | `LimitePrestamosActivosException` | 409 |
+| Lector con un préstamo activo del mismo libro | `PrestamoActivoDuplicadoException` | 409 |
 | Libro sin stock disponible | `StockInsuficienteException` | 409 |
 | Lector con préstamos vencidos (mora) | `LectorEnMoraException` | 409 |
 | Devolver un préstamo ya devuelto | `PrestamoYaDevueltoException` | 409 |
 | Credenciales inválidas o usuario inactivo (login) | `CredencialesInvalidasException` | 401 |
-| Usuario sin email, contraseña < 6 caracteres o rol inexistente (RN-20, RN-21) | `UsuarioInvalidoException` | 400 |
+| Usuario sin email/email inválido, contraseña < 6 caracteres o rol inexistente (RN-20, RN-21) | `UsuarioInvalidoException` | 400 |
 | Usuario inexistente | `UsuarioNotFoundException` | 404 |
-| Email de usuario duplicado | `UsuarioDuplicadoException` | 409 |
+| Email de usuario duplicado (sin distinguir mayúsculas/espacios) | `UsuarioDuplicadoException` | 409 |
+| Un administrador se da de baja o se desactiva a sí mismo | `UsuarioAutoBajaException` | 409 |
+| Desactivar o cambiar el rol del último administrador activo | `UltimoAdministradorException` | 409 |
 | Reporte inexistente o filtro de fechas inválido (`desde` > `hasta`) | `ReporteInvalidoException` | 400 |
 | Usuario sin rol Administrador en `/api/usuarios` (RN-19) | `[Authorize(Roles)]` | 403 |
 
 Todas heredan de una categoría base (`NotFoundException`,
-`ValidationException`, `ConflictException`), y cada controller las mapea
-con bloques `try/catch` explícitos. Cualquier otra excepción no prevista la
-captura `ExceptionMiddleware`, que la registra en el log y responde `500`
-con `{ "message": "Ocurrió un error interno en el servidor." }`.
+`ValidationException`, `ConflictException`, `UnauthorizedException`).
+Los controllers no tienen `try/catch`: `ExceptionMiddleware` centraliza el
+mapeo de esas 4 categorías a 400/404/409/401. Cualquier otra excepción no
+prevista también la captura el middleware y responde `500` con
+`{ "message": "Ocurrió un error interno en el servidor." }`.
+
+Dos casos quedan *fuera* de `ExceptionMiddleware` porque los resuelve
+ASP.NET antes de llegar al controller, pero también devuelven
+`{ "message": "..." }` en español:
+
+- **Model binding** (campo `null` explícito, body vacío, JSON mal
+  formado): `Program.cs` configura `InvalidModelStateResponseFactory`
+  para devolver 400 con el mismo formato (por ejemplo, "El campo Email es
+  obligatorio." o "El cuerpo de la solicitud no es un JSON válido.").
+- **Autenticación/autorización JWT** (sin token, token inválido/vencido,
+  rol insuficiente): `Program.cs` configura `JwtBearerEvents.OnChallenge`
+  (con `HandleResponse()`, para que ASP.NET no escriba también su 401 por
+  defecto) y `OnForbidden`, devolviendo "Debe iniciar sesión.", "Token
+  inválido o vencido." o "No tiene permisos para realizar esta acción."
 
 ## Cómo ejecutar
 
@@ -124,6 +155,11 @@ dotnet build BiblioGest.slnx      # compila toda la solución
 dotnet test BiblioGest.slnx       # corre unitarios (Moq) e integración (WebApplicationFactory)
 dotnet run --project API          # levanta la API (crea bibliogest.db con datos de prueba)
 ```
+
+> Si ya tenías una `bibliogest.db` de una corrida anterior, borrala antes de
+> levantar la API: se agregaron índices únicos nuevos (ISBN, email de
+> lector) y se corrigieron ISBN de prueba inválidos, y `Database.Migrate()`
+> puede fallar si la base vieja tiene datos que ya violan esas reglas.
 
 Con la API corriendo en desarrollo (`dotnet run --project API` la abre sola
 en el navegador), la documentación interactiva está en:
@@ -185,8 +221,8 @@ Usuarios de prueba: `admin@bibliogest.com` / `Admin123!` (Administrador) y
 | --- | --- | --- | --- | --- |
 | GET | `/api/libros?busqueda=` | Listar/buscar por título, autor o ISBN | 200 | — |
 | GET | `/api/libros/{id}` | Obtener un libro | 200 | 404 |
-| POST | `/api/libros` | Crear libro | 201 | 400 |
-| PUT | `/api/libros/{id}` | Modificar libro | 200 | 400, 404 |
+| POST | `/api/libros` | Crear libro | 201 | 400, 409 |
+| PUT | `/api/libros/{id}` | Modificar libro | 200 | 400, 404, 409 |
 | DELETE | `/api/libros/{id}` | Eliminar libro | 200 | 404, 409 |
 
 Ejemplo `POST /api/libros`:
@@ -196,7 +232,7 @@ Ejemplo `POST /api/libros`:
 {
   "titulo": "El Aleph",
   "autor": "Jorge Luis Borges",
-  "isbn": "978-8420633109",
+  "isbn": "978-8420633107",
   "ubicacion": "Estante A4",
   "stock": 4
 }
@@ -206,12 +242,16 @@ Ejemplo `POST /api/libros`:
   "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "titulo": "El Aleph",
   "autor": "Jorge Luis Borges",
-  "isbn": "978-8420633109",
+  "isbn": "9788420633107",
   "ubicacion": "Estante A4",
   "stock": 4,
-  "disponible": true
+  "disponible": true,
+  "disponibilidadTexto": "Disponible (4 ejemplares)"
 }
 ```
+
+El ISBN se guarda sin guiones ni espacios (se normaliza antes de
+persistir), y se valida el dígito verificador de ISBN-10/13.
 
 ### Lectores
 
@@ -248,7 +288,7 @@ Ejemplo `POST /api/lectores`:
 
 | Método | Ruta | Descripción | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| POST | `/api/prestamos` | Crear préstamo | 201 | 404, 409 |
+| POST | `/api/prestamos` | Crear préstamo | 201 | 400, 404, 409 |
 | GET | `/api/prestamos/{id}` | Obtener un préstamo | 200 | 404 |
 | PUT | `/api/prestamos/{id}/devolucion` | Registrar devolución | 200 | 404, 409 |
 | GET | `/api/prestamos/mora` | Listar préstamos vencidos | 200 | — |
@@ -273,9 +313,16 @@ Ejemplo `POST /api/prestamos`:
   "fechaVencimiento": "2026-10-02T01:00:00Z",
   "fechaDevolucion": null,
   "estado": "Activo",
-  "enMora": false
+  "enMora": false,
+  "diasRestantes": 14,
+  "diasDeAtraso": 0,
+  "mensaje": "Vence en 14 días."
 }
 ```
+
+`estado` puede ser `Activo`, `Vencido`, `Devuelto` o `Devuelto con atraso`;
+`diasRestantes` es `null` una vez devuelto. Todo lo calcula `PrestamoMapper`
+en el service (nunca el frontend).
 
 ### Reportes
 
@@ -320,17 +367,80 @@ Ejemplo `POST /api/usuarios`:
 
 ## Colección de Bruno
 
-En `bruno/` hay una carpeta por controller con un request por caso de éxito
-y de error relevante (400/401/403/404/409). El entorno `Local` trae `baseUrl` y los
-requests de creación completan automáticamente `libroId`/`lectorId`/
-`prestamoId`/`usuarioId` para encadenar los siguientes. Primero hay que
-ejecutar `Auth/Login Administrador (200)`, que guarda el `token`.
+Bruno es la herramienta elegida para probar manualmente la API (no se usa
+Postman ni ningún otro cliente). En `bruno/` hay una carpeta por controller
+con un request por caso de éxito y de error relevante
+(400/401/403/404/409).
+
+**Autenticación a nivel de colección.** `collection.bru` define
+`auth: bearer` usando `{{tokenAdmin}}`, y todos los requests protegidos
+usan `auth: inherit` — no repiten el token en cada request. La excepción es
+"Usuarios/Listar usuarios como bibliotecario (403)", que fija
+explícitamente `{{tokenBibliotecario}}` porque necesita probar el rol
+equivocado a propósito.
+
+- `Auth/Login Administrador (200)` guarda `tokenAdmin` (el que usa la
+  colección).
+- `Auth/Login Bibliotecario (200)` guarda `tokenBibliotecario` por
+  separado, sin pisar `tokenAdmin`.
+
+El entorno `Local` trae `baseUrl` y los requests de creación completan
+automáticamente `libroId`/`lectorId`/`prestamoId`/`usuarioId` para
+encadenar los siguientes. Cada request tiene un bloque `assert` que verifica
+el código HTTP esperado.
+
+**Orden real de ejecución.** `bru run --env Local` (o el botón "Run" sobre
+la colección completa) recorre las carpetas en orden alfabético: **Auth →
+Lectores → Libros → Prestamos → Reportes → Usuarios**, y dentro de cada
+carpeta respeta el campo `seq` de cada request. `Auth/Login Administrador
+(200)` corre primero y carga `tokenAdmin`; a partir de ahí todo lo
+protegido reutiliza ese token vía `auth: inherit`.
+
+La colección corre de punta a punta sin intervención manual y se puede
+ejecutar varias veces seguidas sin reiniciar la base (verificado con el
+CLI de Bruno, 3 corridas consecutivas, 58/58 en las 3):
+
+- `Libros/Eliminar libro con prestamos activos (409)` no depende de que
+  la carpeta `Prestamos` haya corrido antes: usa 3 requests previos en su
+  misma carpeta ("Preparar lector/libro/prestamo para historial") que
+  crean su propio lector+libro+préstamo dedicados, así que no borra ni
+  modifica el `{{libroId}}` compartido con el resto de la colección.
+- `Prestamos/Crear prestamo sin stock (409)` usa `{{rayuelaId}}` (el libro
+  "Rayuela" sembrado por `DbInitializer`, siempre con stock 0), resuelto
+  por el request previo "Buscar libro Rayuela (seed, stock 0)".
+- Los requests "Crear lector/libro/usuario (201)" generan identificador,
+  ISBN (con dígito verificador válido) y email únicos por corrida con un
+  script `pre-request`, en vez de usar datos fijos.
+
+## Guía rápida: inspeccionar el JWT en jwt.io
+
+1. Copiar el `token` de cualquier respuesta de `POST /api/auth/login` (o el
+   valor de `tokenAdmin`/`tokenBibliotecario` en el entorno de Bruno).
+2. Pegarlo en https://jwt.io en el panel **Encoded**.
+3. En el panel decodificado, el **payload** debe mostrar exactamente estos
+   claims (y ningún dato sensible como el hash de la contraseña). Como la
+   API usa `ClaimTypes.*` de .NET (no los nombres cortos del estándar
+   JWT), en jwt.io se ven con la URI larga, no como `nameid`/`email`/`role`:
+   - `.../identity/claims/nameidentifier`: el Id (Guid) del usuario.
+   - `.../identity/claims/emailaddress`: el email normalizado (minúsculas).
+   - `.../identity/claims/role`: `Administrador` o `Bibliotecario`.
+   - `exp`: fecha de expiración (60 minutos después del login).
+   - `iss`: `BiblioGestApi`.
+   - `aud`: `BiblioGestClient`.
+4. Para comprobar que un token modificado a mano se rechaza: en el panel
+   **Encoded**, cambiar un solo carácter de la firma (la tercera parte,
+   después del segundo `.`) o del payload, y usar ese token en un request
+   protegido (por ejemplo `Libros/Listar libros con token invalido (401)`
+   en Bruno, o `GET /api/libros` con ese header `Authorization: Bearer
+   <token modificado>`). La API debe responder `401 Unauthorized`, porque
+   la firma ya no coincide con la clave configurada en `Jwt:Key`
+   (`appsettings.json`).
 
 ## Testing
 
 - `tests/BiblioGest.UnitTests`: xUnit + Moq sobre los services, sin tocar
-  la base real (50 tests).
+  la base real (96 tests).
 - `tests/BiblioGest.IntegrationTests`: `WebApplicationFactory` levantando la
-  API completa contra una SQLite en memoria aislada por instancia (49 tests).
+  API completa contra una SQLite en memoria aislada por instancia (85 tests).
 
 Link: https://docs.google.com/document/d/1f4idud-PCBsQK\_48ZCf5ibF\_MNzNLKdxSAvWgO32Wt4/edit?tab=t.0#heading=h.frnk5y8ou0gl

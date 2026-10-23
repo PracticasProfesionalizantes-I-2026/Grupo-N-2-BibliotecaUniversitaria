@@ -9,6 +9,13 @@
 > `[Authorize(Roles = "Administrador")]` en `UsuariosController`, RN-20 y RN-21 en
 > `UsuarioService` (hash PBKDF2 vía `IPasswordHasher`). La baja es lógica
 > (`Activo = false`). La matriz de trazabilidad lista los tests reales.
+> **Actualizado:** RN-20 ahora también valida el formato del email y un
+> largo máximo (150). Se agregaron dos reglas nuevas, no contempladas en
+> la especificación original: un administrador no puede darse de baja ni
+> desactivarse a sí mismo (`UsuarioAutoBajaException`, 409), y no se puede
+> desactivar ni cambiar el rol del último administrador activo
+> (`UltimoAdministradorException`, 409) — para que el sistema nunca quede
+> sin ningún administrador que pueda operarlo.
 
 | Campo | Valor |
 | --- | --- |
@@ -89,6 +96,23 @@ sistema, como bibliotecarios o personal autorizado.
   3. El Sistema devuelve un código **409 Conflict** indicando que el email debe ser
      único, permitiendo corregir el dato. Fin del caso de uso.
 
+* **3c-1. El administrador intenta darse de baja o desactivarse a sí mismo
+  (HTTP 409 Conflict, nuevo):**
+  1. Si en el flujo 3c (eliminar) o 3b (modificar con `activo: false`) el
+     Id del usuario objetivo coincide con el del administrador autenticado
+     (claim `NameIdentifier` del token).
+  2. La Capa de Negocio rechaza la operación (`UsuarioAutoBajaException`),
+     sin modificar la cuenta.
+  3. El Sistema devuelve un código **409 Conflict**. Fin del caso de uso.
+
+* **3c-2. Desactivar o cambiar el rol del último administrador activo
+  (HTTP 409 Conflict, nuevo):**
+  1. Si en el flujo 3b o 3c el usuario objetivo es el único administrador
+     con `activo = true` en el sistema.
+  2. La Capa de Negocio rechaza la operación (`UltimoAdministradorException`),
+     para que el sistema nunca quede sin nadie que pueda gestionarlo.
+  3. El Sistema devuelve un código **409 Conflict**. Fin del caso de uso.
+
 * **Id inexistente (HTTP 404 Not Found):**
   1. Si al consultar, modificar o eliminar no existe un usuario con ese Id.
   2. El Sistema devuelve **404 Not Found**. Fin del caso de uso.
@@ -119,7 +143,7 @@ flujo principal y alternativo._
 | `401` | Unauthorized | Petición sin token válido. |
 | `403` | Forbidden | Usuario autenticado que no es Administrador (RN-19). |
 | `404` | Not Found | No existe un usuario con el Id indicado. |
-| `409` | Conflict | Email duplicado (RN-20). |
+| `409` | Conflict | Email duplicado (RN-20), administrador que se da de baja/desactiva a sí mismo, o último administrador activo. |
 
 ### Matriz de trazabilidad CU-08 → Test
 
@@ -129,6 +153,9 @@ flujo principal y alternativo._
 | 3b. Modificar usuario | `200 OK` | `UpdateUsuarioAsync_WithValidData_UpdatesUsuario`, `UpdateUsuarioAsync_WithNewPassword_HashesPassword` | `UpdateUsuario_ReturnsSuccessAndUpdatedUsuario` |
 | 3c. Eliminar usuario | `200 OK` | `DeleteUsuarioAsync_WithConfirmation_DeletesUsuario` | `DeleteUsuario_ReturnsSuccessAndDeletesUsuario` |
 | 4a. Datos obligatorios incompletos o inválidos | `400 Bad Request` | `CreateUsuarioAsync_WithMissingEmail_ThrowsValidationException`, `CreateUsuarioAsync_WithShortPassword_ThrowsValidationException`, `CreateUsuarioAsync_WithInvalidRol_ThrowsValidationException` | `CreateUsuario_WithMissingRequiredField_Returns400BadRequest` |
-| 6a. Email repetido | `409 Conflict` | `CreateUsuarioAsync_WhenEmailAlreadyExists_ThrowsConflictException`, `UpdateUsuarioAsync_WhenEmailBelongsToOtherUsuario_ThrowsConflictException` | `CreateUsuario_WhenDuplicateEmail_Returns409Conflict` |
+| Email inválido o muy largo (nuevo) | `400 Bad Request` | `CreateUsuarioAsync_WithInvalidEmail_ThrowsValidationException`, `CreateUsuarioAsync_WithTooLongEmail_ThrowsValidationException` | `CreateUsuario_WithInvalidEmail_Returns400BadRequest`, `CreateUsuario_WithTooLongEmail_Returns400BadRequest` |
+| 6a. Email repetido | `409 Conflict` | `CreateUsuarioAsync_WhenEmailAlreadyExists_ThrowsConflictException`, `CreateUsuarioAsync_WhenEmailDuplicadoWithDifferentCaseAndSpaces_ThrowsConflictException`, `UpdateUsuarioAsync_WhenEmailBelongsToOtherUsuario_ThrowsConflictException` | `CreateUsuario_WhenDuplicateEmail_Returns409Conflict`, `CreateUsuario_WithDuplicateEmailDifferentCaseAndSpaces_Returns409Conflict` |
+| 3c-1. Auto-baja del administrador (nuevo) | `409 Conflict` | `UpdateUsuarioAsync_WhenAdminDeactivatesHimself_ThrowsConflictException`, `DeleteUsuarioAsync_WhenAdminDeletesHimself_ThrowsConflictException` | `DeleteUsuario_WhenAdminDeletesHimself_Returns409Conflict`, `UpdateUsuario_WhenAdminDeactivatesHimself_Returns409Conflict` |
+| 3c-2. Último administrador activo (nuevo) | `409 Conflict` | `UpdateUsuarioAsync_WhenDeactivatingLastActiveAdmin_ThrowsConflictException`, `UpdateUsuarioAsync_WhenChangingRoleOfLastActiveAdmin_ThrowsConflictException`, `DeleteUsuarioAsync_WhenLastActiveAdmin_ThrowsConflictException` | — (requiere manipular tokens JWT ya emitidos; cubierto a nivel de service, ver nota en `Documentos/Trazabilidad.md`) |
 | Id inexistente | `404 Not Found` | `GetUsuarioByIdAsync_WithUnknownId_ThrowsNotFoundException`, `UpdateUsuarioAsync_WithUnknownId_ThrowsNotFoundException`, `DeleteUsuarioAsync_WithUnknownId_ThrowsNotFoundException` | `GetUsuario_WithUnknownId_Returns404NotFound` |
 | RN-19 sin permisos | `401` / `403` | — (lo resuelve `[Authorize(Roles)]` en Presentación) | `GetUsuarios_WithoutToken_Returns401Unauthorized`, `GetUsuarios_AsBibliotecario_Returns403Forbidden` |

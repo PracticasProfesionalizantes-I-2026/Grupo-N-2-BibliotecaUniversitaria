@@ -9,6 +9,15 @@
 > y registrar la devolución lo repone una sola vez (una devolución repetida devuelve
 > 409, ver CU-06 alternativa 7b). Requiere token JWT (`[Authorize]`). La matriz de
 > trazabilidad lista los tests reales.
+> **Actualizado:** RN-13 ahora se cumple de punta a punta — antes no existía
+> una validación explícita contra préstamos duplicados; se agregó
+> `PrestamoActivoDuplicadoException` (409) cuando el mismo lector ya tiene
+> un préstamo activo del mismo libro, reforzada con un índice único
+> filtrado en la base. También se agregó validación de `LectorId`/`LibroId`
+> vacíos (`Guid.Empty` → 400, en vez de 404) y la creación del préstamo +
+> el descuento de stock (o la devolución + reposición de stock) ahora
+> ocurren dentro de una misma transacción (`IUnitOfWork`), para que nunca
+> queden inconsistentes entre sí.
 
 | Campo | Valor |
 | --- | --- |
@@ -86,6 +95,21 @@ stock y el estado del préstamo.
   3. El Sistema devuelve un código **404 Not Found** indicando el recurso no
      encontrado. Fin del caso de uso.
 
+* **1b. LectorId o LibroId vacíos (HTTP 400 Bad Request):**
+  1. Si en el Paso 1 el `lectorId` o el `libroId` enviados son
+     `00000000-0000-0000-0000-000000000000` (`Guid.Empty`).
+  2. La Capa de Negocio rechaza la petición antes de buscar los recursos
+     (`PrestamoInvalidoException`): un Id vacío es un dato inválido, no un
+     recurso inexistente.
+  3. El Sistema devuelve un código **400 Bad Request**. Fin del caso de uso.
+
+* **3c. Préstamo activo duplicado (HTTP 409 Conflict):**
+  1. Si en el Paso 3 la Capa de Negocio detecta que el lector ya tiene un
+     préstamo **activo** de ese mismo libro, violando **RN-13**.
+  2. El Sistema impide registrar el préstamo duplicado
+     (`PrestamoActivoDuplicadoException`).
+  3. El Sistema devuelve un código **409 Conflict**. Fin del caso de uso.
+
 ### 5. SUB-VARIACIONES (opcional)
 _No se identifican variaciones de datos o mecanismo adicionales a las descriptas en el
 flujo principal y alternativo._
@@ -107,15 +131,17 @@ flujo principal y alternativo._
 | `201` | Created | Confirmación de registro de un nuevo préstamo. |
 | `401` | Unauthorized | Petición sin token válido. |
 | `404` | Not Found | El lector o el libro indicado no existen en el sistema. |
-| `409` | Conflict | Lector con 3 préstamos activos (RN-10), lector en mora, libro sin stock disponible (RN-11) o devolución de un préstamo ya devuelto. |
+| `409` | Conflict | Lector con 3 préstamos activos (RN-10), lector en mora, libro sin stock disponible (RN-11), préstamo activo duplicado del mismo libro (RN-13) o devolución de un préstamo ya devuelto. |
 
 ### Matriz de trazabilidad CU-05 → Test
 
 | Paso del CU | Código HTTP | Test unitario | Test de integración |
 | --- | --- | --- | --- |
-| Flujo principal | `201 Created` | `CreatePrestamoAsync_WithValidData_SavesAndReturnsCreatedPrestamo` | `CreatePrestamo_ReturnsSuccessAndCreatedPrestamo` |
+| Flujo principal | `201 Created` | `CreatePrestamoAsync_WithValidData_SavesAndReturnsCreatedPrestamo` | `CreatePrestamo_ReturnsSuccessAndCreatedPrestamo`, `CreatePrestamo_ReturnsDiasRestantesYMensajeCalculados` |
 | 1a. Lector o libro inexistente | `404 Not Found` | `CreatePrestamoAsync_WhenLectorOrLibroNotFound_ThrowsNotFoundException` | `CreatePrestamo_WithUnknownLectorOrLibro_Returns404NotFound` |
+| 1b. LectorId/LibroId vacíos (nuevo) | `400 Bad Request` | `CreatePrestamoAsync_WithEmptyGuid_ThrowsValidationException` | `CreatePrestamo_WithEmptyGuid_Returns400BadRequest` |
 | 3a. Lector con 3 préstamos activos | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasThreeActiveLoans_ThrowsConflictException` | `CreatePrestamo_WhenLectorHasThreeActiveLoans_Returns409Conflict` |
 | 3b. Lector con mora | `409 Conflict` | `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsConflictException` | `CreatePrestamo_WhenLectorInMora_Returns409Conflict` |
+| 3c. Préstamo activo duplicado (RN-13, nuevo) | `409 Conflict` | `CreatePrestamoAsync_WhenLectorAlreadyHasActiveLoanOfSameLibro_ThrowsConflictException` | `CreatePrestamo_WhenLectorAlreadyHasActiveLoanOfSameLibro_Returns409Conflict` |
 | 5a. Libro sin stock | `409 Conflict` | `CreatePrestamoAsync_WhenLibroHasNoStock_ThrowsConflictException` | `CreatePrestamo_WithoutStock_Returns409Conflict` |
 | 6a. Registrar devolución | `200 OK` | `RegisterDevolucionAsync_WithValidData_UpdatesStockAndPrestamoState` | `RegisterDevolucion_ReturnsSuccessAndUpdatedPrestamo` |

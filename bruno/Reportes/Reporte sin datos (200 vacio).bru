@@ -7,13 +7,13 @@ meta {
 get {
   url: {{baseUrl}}/api/reportes/prestamos?desde=2000-01-01&hasta=2000-01-31
   body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 docs {
   Flujo 5a: no hay préstamos en el rango, devuelve 200 con la lista vacía y un mensaje.
+}
+
+assert {
+  res.status: eq 200
 }
