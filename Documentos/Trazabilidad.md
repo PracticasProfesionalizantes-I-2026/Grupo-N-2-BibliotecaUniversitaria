@@ -53,7 +53,7 @@ etc., explicado en una nota); `No cumple` = no implementado.
 | Un lector no puede tener dos préstamos activos del mismo libro | CU-05 | `POST /api/prestamos` | `PrestamoService.CreateAsync` (`ExistePrestamoActivoAsync`) + índice único filtrado `Estado='Activo'` | `CreatePrestamoAsync_WhenLectorAlreadyHasActiveLoanOfSameLibro_ThrowsConflictException` | `Prestamos/Crear prestamo duplicado del mismo lector y libro (409)` | Cumple |
 | Atomicidad: préstamo/devolución + cambio de stock en una misma transacción | CU-05 | `POST /api/prestamos`, `PUT /api/prestamos/{id}/devolucion` | `PrestamoService.CreateAsync`/`RegistrarDevolucionAsync` + `IUnitOfWork` | `CreatePrestamoAsync_WithValidData_SavesAndReturnsCreatedPrestamo` (verifica stock consistente tras la operación) | `Prestamos/Crear prestamo (201)` | Cumple (sin test de concurrencia real, ver (a)) |
 | Un administrador no puede darse de baja ni desactivarse a sí mismo | CU-08 | `PUT/DELETE /api/usuarios/{id}` | `UsuarioService.UpdateAsync`/`DeleteAsync` (compara con el claim `NameIdentifier`) | `UpdateUsuarioAsync_WhenAdminDeactivatesHimself_ThrowsConflictException`, `DeleteUsuarioAsync_WhenAdminDeletesHimself_ThrowsConflictException` | `Usuarios/Admin se da de baja a si mismo (409)`, `Usuarios/Admin se desactiva a si mismo (409)` | Cumple |
-| No se puede desactivar ni cambiar el rol del último administrador activo | CU-08 | `PUT/DELETE /api/usuarios/{id}` | `UsuarioService.UpdateAsync`/`DeleteAsync` (`CountAdministradoresActivosAsync`) | `UpdateUsuarioAsync_WhenDeactivatingLastActiveAdmin_ThrowsConflictException`, `UpdateUsuarioAsync_WhenChangingRoleOfLastActiveAdmin_ThrowsConflictException`, `DeleteUsuarioAsync_WhenLastActiveAdmin_ThrowsConflictException` | — (ver (a): el camino "otro admin distinto" requiere un token ya emitido de un admin luego desactivado; solo se prueba a nivel unitario) | Parcial |
+| No se puede desactivar ni cambiar el rol del último administrador activo | CU-08 | `PUT/DELETE /api/usuarios/{id}` | `UsuarioService.UpdateAsync`/`DeleteAsync` (`CountAdministradoresActivosAsync`) | `UpdateUsuarioAsync_WhenDeactivatingLastActiveAdmin_ThrowsConflictException`, `UpdateUsuarioAsync_WhenChangingRoleOfLastActiveAdmin_ThrowsConflictException`, `DeleteUsuarioAsync_WhenLastActiveAdmin_ThrowsConflictException` | — (ver (a): el camino "otro admin distinto" sólo se prueba a nivel unitario, no hay test de integración/Bruno) | Cumple (verificado manualmente con curl en `Documentos/Informe-Verificacion.md`, incluido el camino "otro admin distinto" vía token emitido antes de desactivarlo; falta test automático de integración, ver (a)) |
 | Mapeo centralizado de excepciones (400/404/409/401/500) | Todos | Todos | `ExceptionMiddleware` | `UnhandledException_Returns500InternalServerError` (resto cubierto indirectamente por cada test de 400/404/409/401) | — | Cumple |
 | Campos calculados de préstamo (`estado`, `diasRestantes`, `diasDeAtraso`, `mensaje`) resueltos por la API con un único `TimeProvider` | CU-05, CU-06, CU-07 | `POST /api/prestamos`, `GET /api/prestamos/{id}`, `GET /api/prestamos/mora`, `GET /api/reportes/{tipo}` | `PrestamoMapper.ToResponseDTO` | `PrestamoMapperTests` (6 tests: activo, vence hoy, vencido, devuelto a tiempo, devuelto con atraso, singular/plural) | `Prestamos/Crear prestamo (201)` (assert agregado), `Reportes/Reporte de mora (200)` | Cumple |
 | Texto de disponibilidad de libro resuelto por la API (`disponibilidadTexto`) | CU-03 | `GET /api/libros`, `GET /api/libros/{id}` | `LibroService.MapToResponseDTO` | `SearchLibrosAsync_WithText_ReturnsMatchingLibrosWithDisponibilidad` | `Libros/Obtener libro por Id` | Cumple |
@@ -80,14 +80,18 @@ etc., explicado en una nota); `No cumple` = no implementado.
    test negativo.
 2. **"Último administrador activo" desde un caller distinto del propio
    administrador** (ver tabla de reglas técnicas) solo tiene test unitario
-   (mockeando el repositorio). No hay test de integración porque, en la
-   práctica, para llegar a ese estado con el flujo HTTP real hace falta un
-   token JWT emitido antes de que ese mismo usuario fuera desactivado (los
-   tokens son stateless y no se revocan al desactivar la cuenta) — un
-   escenario válido pero deliberadamente no reproducido en un test de
-   integración por la complejidad de orquestarlo. Si se quiere cerrar este
-   hueco, se podría agregar una lista de revocación de tokens (fuera de
-   alcance de este trabajo).
+   (mockeando el repositorio); **se verificó manualmente con curl** (ver
+   `Documentos/Informe-Verificacion.md`, PASO 4-e8) que funciona end-to-end:
+   se creó un segundo admin, se lo desactivó desde el primero, y con el
+   token (ya emitido, todavía válido) de ese segundo admin desactivado se
+   intentó desactivar al único admin activo restante → 409 correcto. Sigue
+   sin existir un test de integración automático porque, en la práctica,
+   para llegar a ese estado con el flujo HTTP real hace falta un token JWT
+   emitido antes de que ese mismo usuario fuera desactivado (los tokens son
+   stateless y no se revocan al desactivar la cuenta). Si se quiere cerrar
+   ese hueco de automatización, se podría agregar un test de integración
+   que reproduzca exactamente esos pasos (ya probados a mano), o una lista
+   de revocación de tokens (esto último, fuera de alcance de este trabajo).
 3. **Atomicidad (transacciones)**: se verifica que, tras una operación
    exitosa, el préstamo y el stock queden consistentes, pero no hay un test
    que fuerce una falla a mitad de camino (por ejemplo, mockeando que
