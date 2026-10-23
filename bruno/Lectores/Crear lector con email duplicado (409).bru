@@ -1,0 +1,30 @@
+meta {
+  name: Crear lector con email duplicado (409)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Otro",
+    "apellido": "Lector",
+    "email": "  FACUNDO.LOPEZ@EXAMPLE.COM  ",
+    "identificador": "99999002"
+  }
+}
+
+docs {
+  Ejecutar después de "Crear lector (201)": mismo email pero con mayúsculas y
+  espacios de más. Como el email se normaliza (Trim + minúsculas) antes de
+  comparar, debe responder 409 Conflict igual.
+}
+
+assert {
+  res.status: eq 409
+}

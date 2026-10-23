@@ -7,11 +7,7 @@ meta {
 post {
   url: {{baseUrl}}/api/usuarios
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 body:json {
@@ -26,4 +22,8 @@ script:post-response {
   if (res.status === 201) {
     bru.setEnvVar("usuarioId", res.body.id);
   }
+}
+
+assert {
+  res.status: eq 201
 }

@@ -1,0 +1,27 @@
+meta {
+  name: Admin se desactiva a si mismo (409)
+  type: http
+  seq: 11
+}
+
+put {
+  url: {{baseUrl}}/api/usuarios/{{adminId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "admin@bibliogest.com",
+    "activo": false
+  }
+}
+
+docs {
+  Ejecutar después de "Obtener id del admin logueado". Un administrador no
+  puede desactivarse a sí mismo: la cuenta queda intacta tras el 409.
+}
+
+assert {
+  res.status: eq 409
+}

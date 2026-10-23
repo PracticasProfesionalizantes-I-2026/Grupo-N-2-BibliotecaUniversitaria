@@ -7,11 +7,7 @@ meta {
 put {
   url: {{baseUrl}}/api/lectores/{{lectorId}}
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 body:json {
@@ -21,4 +17,8 @@ body:json {
     "email": "facundo.lopez@example.com",
     "identificador": "35555112"
   }
+}
+
+assert {
+  res.status: eq 200
 }

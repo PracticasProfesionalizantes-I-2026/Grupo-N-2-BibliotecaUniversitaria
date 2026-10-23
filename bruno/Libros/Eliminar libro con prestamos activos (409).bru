@@ -7,15 +7,15 @@ meta {
 delete {
   url: {{baseUrl}}/api/libros/{{libroId}}
   body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 docs {
   Ejecutar después de "Crear préstamo (201)" en la carpeta Prestamos usando
-  este mismo libroId, para que la eliminación choque contra RN de préstamos
-  activos y devuelva 409 Conflict.
+  este mismo libroId, para que la eliminación choque contra la RN de
+  historial de préstamos y devuelva 409 Conflict.
+}
+
+assert {
+  res.status: eq 409
 }

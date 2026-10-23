@@ -1,0 +1,31 @@
+meta {
+  name: Crear libro con isbn duplicado (409)
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "titulo": "El Aleph (otra copia)",
+    "autor": "Jorge Luis Borges",
+    "isbn": "978-8420633107",
+    "ubicacion": "Estante A5",
+    "stock": 1
+  }
+}
+
+docs {
+  Ejecutar después de "Crear libro (201)": mismo ISBN pero con guiones distintos
+  a los guardados. Como el ISBN se normaliza (se le quitan guiones y espacios)
+  antes de comparar, debe responder 409 Conflict igual.
+}
+
+assert {
+  res.status: eq 409
+}

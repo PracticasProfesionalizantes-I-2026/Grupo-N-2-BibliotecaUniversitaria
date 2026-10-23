@@ -7,11 +7,7 @@ meta {
 put {
   url: {{baseUrl}}/api/usuarios/{{usuarioId}}
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 body:json {
@@ -23,4 +19,8 @@ body:json {
 
 docs {
   La contraseña es opcional en la modificación: si no se envía, se mantiene la actual.
+}
+
+assert {
+  res.status: eq 200
 }

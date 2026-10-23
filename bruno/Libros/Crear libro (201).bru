@@ -7,18 +7,14 @@ meta {
 post {
   url: {{baseUrl}}/api/libros
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 body:json {
   {
     "titulo": "El Aleph",
     "autor": "Jorge Luis Borges",
-    "isbn": "978-8420633109",
+    "isbn": "978-8420633107",
     "ubicacion": "Estante A4",
     "stock": 4
   }
@@ -28,4 +24,8 @@ script:post-response {
   if (res.status === 201) {
     bru.setEnvVar("libroId", res.body.id);
   }
+}
+
+assert {
+  res.status: eq 201
 }
