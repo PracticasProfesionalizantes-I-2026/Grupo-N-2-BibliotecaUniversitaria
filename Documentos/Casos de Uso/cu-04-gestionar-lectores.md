@@ -7,6 +7,13 @@
 > préstamos activos) **implementadas** en `LectorService`. El DNI o legajo se guarda en
 > un único campo `Identificador`. Requiere token JWT (`[Authorize]`). La matriz de
 > trazabilidad lista los tests reales.
+> **Actualizado:** RN-08 ahora también valida el formato del email (único,
+> se guarda en minúsculas, `LectorEmailDuplicadoException` si está
+> repetido) y largos máximos por campo; el identificador se normaliza a
+> mayúsculas sin espacios para que la unicidad no distinga mayúsculas. El
+> flujo 3c-1 (eliminar lector) se endureció igual que en CU-02: se rechaza
+> si el lector tiene **cualquier préstamo en su historial** (activo o ya
+> devuelto), no solo préstamos activos (ver `Documentos/Trazabilidad.md`).
 
 | Campo | Valor |
 | --- | --- |
@@ -66,16 +73,19 @@ mantener actualizada la información de quienes solicitan préstamos.
 
 * **3c. Eliminar lector (HTTP 200 OK):**
   1. El usuario selecciona un lector existente y envía `DELETE /api/lectores/{id}`.
-  2. La Capa de Negocio verifica si el lector posee préstamos activos, conforme a
-     **RN-09**.
-  3. Si no posee préstamos activos, el Sistema elimina o desactiva el registro y
+  2. La Capa de Negocio verifica si el lector posee préstamos en su historial
+     (activos o ya devueltos), conforme a **RN-09**.
+  3. Si no posee ningún préstamo registrado, el Sistema elimina el registro y
      devuelve **HTTP 200 OK**.
 
-* **3c-1. Lector con préstamos activos (HTTP 409 Conflict):**
-  1. Si en el Paso 2 del flujo 3c el lector posee préstamos activos.
-  2. La Capa de Negocio impide la eliminación del registro, conforme a **RN-09**.
+* **3c-1. Lector con préstamos en su historial (HTTP 409 Conflict):**
+  1. Si en el Paso 2 del flujo 3c el lector posee algún préstamo registrado,
+     esté activo o ya devuelto.
+  2. La Capa de Negocio impide la eliminación del registro
+     (`LectorConHistorialPrestamosException`), conforme a **RN-09**, para no
+     perder el historial de movimientos.
   3. El Sistema devuelve un código **409 Conflict** indicando que el lector no puede
-     eliminarse mientras tenga préstamos activos. Fin del caso de uso.
+     eliminarse mientras tenga préstamos en su historial. Fin del caso de uso.
 
 * **4a. Datos obligatorios incompletos (HTTP 400 Bad Request):**
   1. Si en el Paso 4 el Sistema detecta que faltan datos obligatorios (nombre, apellido,
@@ -111,7 +121,7 @@ flujo principal y alternativo._
 | `400` | Bad Request | Datos obligatorios faltantes en el alta o modificación del lector. |
 | `401` | Unauthorized | Petición sin token válido. |
 | `404` | Not Found | No existe un lector con el Id indicado. |
-| `409` | Conflict | DNI/legajo duplicado (RN-08) o intento de eliminar un lector con préstamos activos (RN-09). |
+| `409` | Conflict | DNI/legajo duplicado (RN-08), email de lector duplicado, o intento de eliminar un lector con préstamos en su historial (RN-09). |
 
 ### Matriz de trazabilidad CU-04 → Test
 
@@ -119,8 +129,11 @@ flujo principal y alternativo._
 | --- | --- | --- | --- |
 | 3a. Registrar lector | `201 Created` | `CreateLectorAsync_WithValidData_SavesAndReturnsCreatedLector` | `CreateLector_ReturnsSuccessAndCreatedLector` |
 | 3b. Modificar lector | `200 OK` | `UpdateLectorAsync_WithValidData_UpdatesLector` | `UpdateLector_ReturnsSuccessAndUpdatedLector` |
-| 3c. Eliminar lector | `200 OK` | `DeleteLectorAsync_WithoutActiveLoans_DeletesLector` | `DeleteLector_WithoutActiveLoans_Returns200OK` |
-| 3c-1. Lector con préstamos activos | `409 Conflict` | `DeleteLectorAsync_WhenLectorHasActiveLoans_ThrowsConflictException` | `DeleteLector_WithActiveLoans_Returns409Conflict` |
-| 4a. Datos obligatorios incompletos | `400 Bad Request` | `CreateLectorAsync_WithMissingRequiredField_ThrowsValidationException` | `CreateLector_WithMissingRequiredField_Returns400BadRequest` |
-| 6a. DNI o legajo repetido | `409 Conflict` | `CreateLectorAsync_WhenIdentificadorAlreadyExists_ThrowsConflictException`, `UpdateLectorAsync_WhenIdentificadorBelongsToOtherLector_ThrowsConflictException` | `CreateLector_WhenDuplicateIdentificador_Returns409Conflict` |
+| 3c. Eliminar lector | `200 OK` | `DeleteLectorAsync_WithoutLoanHistory_DeletesLector` | `DeleteLector_WithoutActiveLoans_Returns200OK` |
+| 3c-1. Lector con préstamos en su historial | `409 Conflict` | `DeleteLectorAsync_WhenLectorHasLoanHistory_ThrowsConflictException` | `DeleteLector_WithActiveLoans_Returns409Conflict`, `DeleteLector_AfterLoanWasReturned_Returns409ConflictAndKeepsHistory` |
+| 4a. Datos obligatorios incompletos | `400 Bad Request` | `CreateLectorAsync_WithMissingOrBlankField_ThrowsValidationException` | `CreateLector_WithMissingRequiredField_Returns400BadRequest` |
+| 6a. DNI o legajo repetido | `409 Conflict` | `CreateLectorAsync_WhenIdentificadorAlreadyExists_ThrowsConflictException`, `CreateLectorAsync_WhenIdentificadorDuplicadoWithDifferentCaseAndSpaces_ThrowsConflictException`, `UpdateLectorAsync_WhenIdentificadorBelongsToOtherLector_ThrowsConflictException` | `CreateLector_WhenDuplicateIdentificador_Returns409Conflict`, `CreateLector_WithDuplicateIdentificadorDifferentCaseAndSpaces_Returns409Conflict` |
+| Email inválido (nuevo) | `400 Bad Request` | `CreateLectorAsync_WithInvalidEmailFormat_ThrowsValidationException` | `CreateLector_WithInvalidEmail_Returns400BadRequest` |
+| Email duplicado (nuevo) | `409 Conflict` | `CreateLectorAsync_WhenEmailAlreadyExists_ThrowsConflictException` | `CreateLector_WithDuplicateEmailDifferentCaseAndSpaces_Returns409Conflict` |
+| Texto demasiado largo (nuevo) | `400 Bad Request` | `CreateLectorAsync_WithTooLongTitulo_ThrowsValidationException` | `CreateLector_WithTooLongNombre_Returns400BadRequest` |
 | Id inexistente | `404 Not Found` | `GetLectorByIdAsync_WhenLectorDoesNotExist_ThrowsNotFoundException` | `GetLector_WithUnknownId_Returns404NotFound` |
