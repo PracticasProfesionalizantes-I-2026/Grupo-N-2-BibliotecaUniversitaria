@@ -30,6 +30,9 @@ public class LibroRepository : ILibroRepository
     public Task<Libro?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         _context.Libros.AsNoTracking().FirstOrDefaultAsync(l => l.Id == id, ct);
 
+    public Task<Libro?> GetByIsbnAsync(string isbn, CancellationToken ct = default) =>
+        _context.Libros.AsNoTracking().FirstOrDefaultAsync(l => l.Isbn == isbn, ct);
+
     public async Task<Libro> CreateAsync(Libro libro, CancellationToken ct = default)
     {
         libro.Id = Guid.NewGuid();

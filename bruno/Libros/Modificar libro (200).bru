@@ -7,19 +7,19 @@ meta {
 put {
   url: {{baseUrl}}/api/libros/{{libroId}}
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 body:json {
   {
     "titulo": "El Aleph (2da edición)",
     "autor": "Jorge Luis Borges",
-    "isbn": "978-8420633109",
+    "isbn": "{{libroIsbn}}",
     "ubicacion": "Estante A4",
     "stock": 6
   }
+}
+
+assert {
+  res.status: eq 200
 }

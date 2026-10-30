@@ -7,11 +7,7 @@ meta {
 post {
   url: {{baseUrl}}/api/prestamos
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 body:json {
@@ -30,4 +26,8 @@ script:post-response {
 docs {
   Requiere haber corrido antes "Crear lector (201)" y "Crear libro (201)"
   (con stock > 0) para tener lectorId y libroId cargados en el entorno.
+}
+
+assert {
+  res.status: eq 201
 }

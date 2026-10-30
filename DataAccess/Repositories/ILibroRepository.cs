@@ -6,6 +6,7 @@ public interface ILibroRepository
 {
     Task<IReadOnlyList<Libro>> GetAllAsync(string? busqueda, CancellationToken ct = default);
     Task<Libro?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<Libro?> GetByIsbnAsync(string isbn, CancellationToken ct = default);
     Task<Libro> CreateAsync(Libro libro, CancellationToken ct = default);
     Task UpdateAsync(Libro libro, CancellationToken ct = default);
     Task DeleteAsync(Libro libro, CancellationToken ct = default);

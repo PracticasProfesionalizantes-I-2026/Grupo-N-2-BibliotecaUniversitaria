@@ -7,6 +7,6 @@ public interface IUsuarioService
     Task<IReadOnlyList<UsuarioResponseDTO>> GetAllAsync(CancellationToken ct = default);
     Task<UsuarioResponseDTO> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<UsuarioResponseDTO> CreateAsync(UsuarioCreateDTO dto, CancellationToken ct = default);
-    Task<UsuarioResponseDTO> UpdateAsync(Guid id, UsuarioUpdateDTO dto, CancellationToken ct = default);
-    Task DeleteAsync(Guid id, CancellationToken ct = default);
+    Task<UsuarioResponseDTO> UpdateAsync(Guid id, UsuarioUpdateDTO dto, Guid currentUserId, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, Guid currentUserId, CancellationToken ct = default);
 }

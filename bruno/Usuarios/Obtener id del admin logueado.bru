@@ -1,0 +1,29 @@
+meta {
+  name: Obtener id del admin logueado
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/usuarios
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const admin = res.body.find((u) => u.email === "admin@bibliogest.com");
+    if (admin) {
+      bru.setEnvVar("adminId", admin.id);
+    }
+  }
+}
+
+docs {
+  Guarda en adminId el Id del administrador semilla logueado como tokenAdmin,
+  para usarlo en los requests de auto-baja.
+}
+
+assert {
+  res.status: eq 200
+}

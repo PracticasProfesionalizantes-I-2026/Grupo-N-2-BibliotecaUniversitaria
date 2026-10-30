@@ -1,0 +1,27 @@
+meta {
+  name: Crear prestamo duplicado del mismo lector y libro (409)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/prestamos
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "lectorId": "{{lectorId}}",
+    "libroId": "{{libroId}}"
+  }
+}
+
+docs {
+  Ejecutar justo después de "Crear prestamo (201)" (sin devolverlo todavía):
+  el mismo lector no puede tener dos préstamos activos del mismo libro.
+}
+
+assert {
+  res.status: eq 409
+}

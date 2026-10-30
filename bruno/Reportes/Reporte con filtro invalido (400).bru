@@ -7,13 +7,13 @@ meta {
 get {
   url: {{baseUrl}}/api/reportes/prestamos?desde=2026-10-10&hasta=2026-10-01
   body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 docs {
   Flujo 3a: la fecha desde es posterior a la fecha hasta.
+}
+
+assert {
+  res.status: eq 400
 }

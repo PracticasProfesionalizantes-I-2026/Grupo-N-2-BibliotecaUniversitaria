@@ -7,16 +7,16 @@ meta {
 post {
   url: {{baseUrl}}/api/usuarios
   body: json
-  auth: bearer
+  auth: inherit
 }
 
-auth:bearer {
-  token: {{token}}
+script:pre-request {
+  bru.setEnvVar("usuarioEmail", `nuevo.bibliotecario.${Date.now()}@bibliogest.com`);
 }
 
 body:json {
   {
-    "email": "nuevo.bibliotecario@bibliogest.com",
+    "email": "{{usuarioEmail}}",
     "password": "Clave123",
     "rolUsuario": "Bibliotecario"
   }
@@ -26,4 +26,8 @@ script:post-response {
   if (res.status === 201) {
     bru.setEnvVar("usuarioId", res.body.id);
   }
+}
+
+assert {
+  res.status: eq 201
 }

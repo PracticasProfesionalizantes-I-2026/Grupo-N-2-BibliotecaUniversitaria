@@ -1,0 +1,38 @@
+meta {
+  name: Crear libro con isbn duplicado (409)
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  // Mismo ISBN que "Crear libro (201)" pero con guiones, para probar que
+  // la comparacion se hace sobre el valor normalizado.
+  const isbn = bru.getEnvVar("libroIsbn");
+  bru.setEnvVar("libroIsbnConGuiones", `${isbn.slice(0, 3)}-${isbn.slice(3, 6)}-${isbn.slice(6)}`);
+}
+
+body:json {
+  {
+    "titulo": "El Aleph (otra copia)",
+    "autor": "Jorge Luis Borges",
+    "isbn": "{{libroIsbnConGuiones}}",
+    "ubicacion": "Estante A5",
+    "stock": 1
+  }
+}
+
+docs {
+  Ejecutar después de "Crear libro (201)": mismo ISBN pero con guiones distintos
+  a los guardados. Como el ISBN se normaliza (se le quitan guiones y espacios)
+  antes de comparar, debe responder 409 Conflict igual.
+}
+
+assert {
+  res.status: eq 409
+}

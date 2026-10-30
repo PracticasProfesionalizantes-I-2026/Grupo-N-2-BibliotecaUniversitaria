@@ -1,15 +1,15 @@
 meta {
   name: Registrar devolucion (200)
   type: http
-  seq: 5
+  seq: 8
 }
 
 put {
   url: {{baseUrl}}/api/prestamos/{{prestamoId}}/devolucion
   body: none
-  auth: bearer
+  auth: inherit
 }
 
-auth:bearer {
-  token: {{token}}
+assert {
+  res.status: eq 200
 }
