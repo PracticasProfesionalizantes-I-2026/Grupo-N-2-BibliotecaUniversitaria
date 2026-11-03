@@ -124,4 +124,43 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Theory]
+    [InlineData("no-es-un-email")]
+    [InlineData("falta-arroba.com")]
+    public async Task CreateUsuario_WithInvalidEmail_Returns400BadRequest(string email)
+    {
+        var dto = NuevoUsuarioDto();
+        dto.Email = email;
+
+        var response = await _client.PostAsJsonAsync("/api/usuarios", dto);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateUsuario_WithTooLongEmail_Returns400BadRequest()
+    {
+        var dto = NuevoUsuarioDto();
+        dto.Email = $"{new string('a', 150)}@example.com";
+
+        var response = await _client.PostAsJsonAsync("/api/usuarios", dto);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateUsuario_WithDuplicateEmailDifferentCaseAndSpaces_Returns409Conflict()
+    {
+        var dto = NuevoUsuarioDto();
+        await _client.PostAsJsonAsync("/api/usuarios", dto);
+
+        var dtoDuplicado = NuevoUsuarioDto();
+        dtoDuplicado.Email = $"  {dto.Email.ToUpperInvariant()}  ";
+
+        var response = await _client.PostAsJsonAsync("/api/usuarios", dtoDuplicado);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
 }

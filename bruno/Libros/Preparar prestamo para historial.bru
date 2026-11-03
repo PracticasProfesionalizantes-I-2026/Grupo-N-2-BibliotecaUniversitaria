@@ -1,0 +1,28 @@
+meta {
+  name: Preparar prestamo para historial
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/prestamos
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "lectorId": "{{libroHistLectorId}}",
+    "libroId": "{{libroHistLibroId}}"
+  }
+}
+
+docs {
+  Ejecutar después de "Preparar lector para historial de prestamos" y
+  "Preparar libro para historial de prestamos". Deja a
+  {{libroHistLibroId}} con un préstamo activo para el siguiente request.
+}
+
+assert {
+  res.status: eq 201
+}

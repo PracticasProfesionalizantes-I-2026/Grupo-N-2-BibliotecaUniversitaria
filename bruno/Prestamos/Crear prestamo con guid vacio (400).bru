@@ -1,0 +1,26 @@
+meta {
+  name: Crear prestamo con guid vacio (400)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/prestamos
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "lectorId": "00000000-0000-0000-0000-000000000000",
+    "libroId": "00000000-0000-0000-0000-000000000000"
+  }
+}
+
+docs {
+  LectorId/LibroId vacíos (Guid.Empty) deben responder 400, no 404.
+}
+
+assert {
+  res.status: eq 400
+}

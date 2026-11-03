@@ -7,6 +7,10 @@
 > no puede prestarse) **implementadas**: RN-06 con el campo calculado `Disponible`
 > (`Stock > 0`) en `LibroService`, RN-07 en `PrestamoService.CreateAsync` (ver CU-05,
 > alternativa 5a). La matriz de trazabilidad lista los tests reales.
+> **Actualizado:** además de `disponible` (booleano), la respuesta incluye
+> `disponibilidadTexto`, un mensaje ya armado por `LibroService` (por
+> ejemplo "Disponible (3 ejemplares)" o "Sin stock") para que el frontend
+> no tenga que construirlo.
 
 | Campo | Valor |
 | --- | --- |

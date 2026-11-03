@@ -7,18 +7,22 @@ meta {
 put {
   url: {{baseUrl}}/api/lectores/{{lectorId}}
   body: json
-  auth: bearer
+  auth: inherit
 }
 
-auth:bearer {
-  token: {{token}}
+script:pre-request {
+  bru.setEnvVar("lectorIdentificadorModificado", `ID-M-${Date.now()}`);
 }
 
 body:json {
   {
     "nombre": "Facundo",
     "apellido": "López",
-    "email": "facundo.lopez@example.com",
-    "identificador": "35555112"
+    "email": "{{lectorEmail}}",
+    "identificador": "{{lectorIdentificadorModificado}}"
   }
+}
+
+assert {
+  res.status: eq 200
 }

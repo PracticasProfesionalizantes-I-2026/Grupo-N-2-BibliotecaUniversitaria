@@ -9,12 +9,15 @@ namespace BiblioGest.UnitTests;
 
 public class ReporteServiceTests
 {
+    private static readonly DateTimeOffset Ahora = new(2026, 10, 22, 12, 0, 0, TimeSpan.Zero);
+
     private readonly Mock<ILibroRepository> _libroRepository = new();
     private readonly Mock<ILectorRepository> _lectorRepository = new();
     private readonly Mock<IPrestamoRepository> _prestamoRepository = new();
+    private readonly TimeProvider _timeProvider = new FixedTimeProvider(Ahora);
 
     private ReporteService CrearService() =>
-        new(_libroRepository.Object, _lectorRepository.Object, _prestamoRepository.Object);
+        new(_libroRepository.Object, _lectorRepository.Object, _prestamoRepository.Object, _timeProvider);
 
     private static Prestamo NuevoPrestamo(EstadoPrestamo estado, DateTime fechaPrestamo) => new()
     {
@@ -41,7 +44,7 @@ public class ReporteServiceTests
     [Fact]
     public async Task GetReporteAsync_WithValidType_ReturnsReportData()
     {
-        var hoy = DateTime.UtcNow;
+        var hoy = Ahora.UtcDateTime;
         _libroRepository
             .Setup(r => r.GetAllAsync(null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new Libro { Stock = 2 }, new Libro { Stock = 0 }]);
@@ -52,7 +55,7 @@ public class ReporteServiceTests
             .Setup(r => r.GetPorRangoAsync(null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([NuevoPrestamo(EstadoPrestamo.Activo, hoy), NuevoPrestamo(EstadoPrestamo.Devuelto, hoy.AddDays(-30))]);
         _prestamoRepository
-            .Setup(r => r.GetVencidosAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetVencidosAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([NuevoPrestamo(EstadoPrestamo.Activo, hoy.AddDays(-20))]);
 
         var service = CrearService();
@@ -91,7 +94,7 @@ public class ReporteServiceTests
     public async Task GetReporteAsync_WithNoData_ReturnsEmptyReport()
     {
         _prestamoRepository
-            .Setup(r => r.GetVencidosAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetVencidosAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var service = CrearService();

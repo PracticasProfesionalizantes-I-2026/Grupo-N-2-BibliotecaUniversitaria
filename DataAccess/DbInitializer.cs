@@ -47,7 +47,7 @@ public static class DbInitializer
                 Id = Guid.NewGuid(),
                 Titulo = "Cien Años de Soledad",
                 Autor = "Gabriel García Márquez",
-                Isbn = "978-0307474728",
+                Isbn = "9780307474728",
                 Ubicacion = "Estante A1",
                 Stock = 3
             },
@@ -56,7 +56,7 @@ public static class DbInitializer
                 Id = Guid.NewGuid(),
                 Titulo = "Ficciones",
                 Autor = "Jorge Luis Borges",
-                Isbn = "978-8433914091",
+                Isbn = "9788433914095",
                 Ubicacion = "Estante A2",
                 Stock = 2
             },
@@ -65,7 +65,7 @@ public static class DbInitializer
                 Id = Guid.NewGuid(),
                 Titulo = "Rayuela",
                 Autor = "Julio Cortázar",
-                Isbn = "978-8437604572",
+                Isbn = "9788437604572",
                 Ubicacion = "Estante A3",
                 Stock = 0
             }

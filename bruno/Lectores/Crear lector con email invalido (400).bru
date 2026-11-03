@@ -1,0 +1,24 @@
+meta {
+  name: Crear lector con email invalido (400)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Email",
+    "apellido": "Invalido",
+    "email": "esto-no-es-un-email",
+    "identificador": "99999001"
+  }
+}
+
+assert {
+  res.status: eq 400
+}

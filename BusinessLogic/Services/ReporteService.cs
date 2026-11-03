@@ -1,4 +1,5 @@
 using BiblioGest.BusinessLogic.Interfaces;
+using BiblioGest.BusinessLogic.Mapping;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Prestamos;
@@ -24,16 +25,21 @@ public class ReporteService : IReporteService
     private readonly ILibroRepository _libroRepository;
     private readonly ILectorRepository _lectorRepository;
     private readonly IPrestamoRepository _prestamoRepository;
+    private readonly TimeProvider _timeProvider;
 
     public ReporteService(
         ILibroRepository libroRepository,
         ILectorRepository lectorRepository,
-        IPrestamoRepository prestamoRepository)
+        IPrestamoRepository prestamoRepository,
+        TimeProvider timeProvider)
     {
         _libroRepository = libroRepository;
         _lectorRepository = lectorRepository;
         _prestamoRepository = prestamoRepository;
+        _timeProvider = timeProvider;
     }
+
+    private DateTime AhoraUtc() => _timeProvider.GetUtcNow().UtcDateTime;
 
     public IReadOnlyList<ReporteTipoDTO> GetTipos() => Tipos;
 
@@ -58,10 +64,11 @@ public class ReporteService : IReporteService
 
     private async Task<ReporteResponseDTO> GenerarResumenAsync(CancellationToken ct)
     {
+        var ahoraUtc = AhoraUtc();
         var libros = await _libroRepository.GetAllAsync(null, ct);
         var lectores = await _lectorRepository.GetAllAsync(ct);
         var prestamos = await _prestamoRepository.GetPorRangoAsync(null, null, ct);
-        var vencidos = await _prestamoRepository.GetVencidosAsync(ct);
+        var vencidos = await _prestamoRepository.GetVencidosAsync(ahoraUtc, ct);
 
         var resumen = new ReporteResumenDTO
         {
@@ -78,7 +85,7 @@ public class ReporteService : IReporteService
         return new ReporteResponseDTO
         {
             Tipo = TipoResumen,
-            GeneradoEn = DateTime.UtcNow,
+            GeneradoEn = ahoraUtc,
             Resumen = resumen,
             Mensaje = sinDatos ? MensajeSinDatos : null
         };
@@ -91,40 +98,25 @@ public class ReporteService : IReporteService
 
         var prestamos = await _prestamoRepository.GetPorRangoAsync(desdeDia, hastaExclusivo, ct);
 
-        return CrearReporteDePrestamos(TipoPrestamos, prestamos, desdeDia, hasta?.Date);
+        return CrearReporteDePrestamos(TipoPrestamos, prestamos, desdeDia, hasta?.Date, AhoraUtc());
     }
 
     private async Task<ReporteResponseDTO> GenerarMoraAsync(CancellationToken ct)
     {
-        var vencidos = await _prestamoRepository.GetVencidosAsync(ct);
+        var ahoraUtc = AhoraUtc();
+        var vencidos = await _prestamoRepository.GetVencidosAsync(ahoraUtc, ct);
 
-        return CrearReporteDePrestamos(TipoMora, vencidos, null, null);
+        return CrearReporteDePrestamos(TipoMora, vencidos, null, null, ahoraUtc);
     }
 
     private static ReporteResponseDTO CrearReporteDePrestamos(
-        string tipo, IReadOnlyList<Prestamo> prestamos, DateTime? desde, DateTime? hasta) => new()
+        string tipo, IReadOnlyList<Prestamo> prestamos, DateTime? desde, DateTime? hasta, DateTime ahoraUtc) => new()
     {
         Tipo = tipo,
-        GeneradoEn = DateTime.UtcNow,
+        GeneradoEn = ahoraUtc,
         Desde = desde,
         Hasta = hasta,
-        Prestamos = prestamos.Select(MapToResponseDTO).ToList(),
+        Prestamos = prestamos.Select(p => PrestamoMapper.ToResponseDTO(p, ahoraUtc)).ToList(),
         Mensaje = prestamos.Count == 0 ? MensajeSinDatos : null
-    };
-
-    private static PrestamoResponseDTO MapToResponseDTO(Prestamo prestamo) => new()
-    {
-        Id = prestamo.Id,
-        LectorId = prestamo.LectorId,
-        LectorNombreCompleto = prestamo.Lector is null
-            ? string.Empty
-            : $"{prestamo.Lector.Nombre} {prestamo.Lector.Apellido}",
-        LibroId = prestamo.LibroId,
-        LibroTitulo = prestamo.Libro?.Titulo ?? string.Empty,
-        FechaPrestamo = prestamo.FechaPrestamo,
-        FechaVencimiento = prestamo.FechaVencimiento,
-        FechaDevolucion = prestamo.FechaDevolucion,
-        Estado = prestamo.Estado.ToString(),
-        EnMora = prestamo.Estado == EstadoPrestamo.Activo && prestamo.FechaVencimiento < DateTime.UtcNow
     };
 }

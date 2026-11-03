@@ -7,9 +7,9 @@ meta {
 get {
   url: {{baseUrl}}/api/reportes/resumen
   body: none
-  auth: bearer
+  auth: inherit
 }
 
-auth:bearer {
-  token: {{token}}
+assert {
+  res.status: eq 200
 }

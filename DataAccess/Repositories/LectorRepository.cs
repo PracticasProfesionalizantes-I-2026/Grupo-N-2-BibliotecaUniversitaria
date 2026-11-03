@@ -21,6 +21,9 @@ public class LectorRepository : ILectorRepository
     public Task<Lector?> GetByIdentificadorAsync(string identificador, CancellationToken ct = default) =>
         _context.Lectores.AsNoTracking().FirstOrDefaultAsync(l => l.Identificador == identificador, ct);
 
+    public Task<Lector?> GetByEmailAsync(string email, CancellationToken ct = default) =>
+        _context.Lectores.AsNoTracking().FirstOrDefaultAsync(l => l.Email == email, ct);
+
     public async Task<Lector> CreateAsync(Lector lector, CancellationToken ct = default)
     {
         lector.Id = Guid.NewGuid();

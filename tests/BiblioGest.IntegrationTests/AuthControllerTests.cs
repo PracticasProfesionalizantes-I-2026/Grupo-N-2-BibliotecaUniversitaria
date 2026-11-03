@@ -1,16 +1,19 @@
 using System.Net;
 using System.Net.Http.Json;
 using BiblioGest.Shared.DTOs.Auth;
+using BiblioGest.Shared.DTOs.Usuarios;
 using Xunit;
 
 namespace BiblioGest.IntegrationTests;
 
 public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
 {
+    private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     public AuthControllerTests(CustomWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -116,5 +119,28 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_WithDeactivatedUser_Returns401Unauthorized()
+    {
+        var adminClient = await _factory.CreateAuthenticatedClientAsync();
+        var email = $"{Guid.NewGuid()}@example.com";
+        var crearResponse = await adminClient.PostAsJsonAsync("/api/usuarios", new UsuarioCreateDTO
+        {
+            Email = email,
+            Password = "Clave123",
+            RolUsuario = "Bibliotecario"
+        });
+        var creado = await crearResponse.Content.ReadFromJsonAsync<UsuarioResponseDTO>();
+        await adminClient.DeleteAsync($"/api/usuarios/{creado!.Id}");
+
+        var response = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequestDTO
+        {
+            Email = email,
+            Password = "Clave123"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }

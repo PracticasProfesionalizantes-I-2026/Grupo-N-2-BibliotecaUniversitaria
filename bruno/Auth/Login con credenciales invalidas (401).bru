@@ -16,3 +16,7 @@ body:json {
     "password": "ContraseñaIncorrecta"
   }
 }
+
+assert {
+  res.status: eq 401
+}

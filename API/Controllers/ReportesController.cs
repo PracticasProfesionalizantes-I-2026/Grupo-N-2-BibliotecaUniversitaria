@@ -1,5 +1,4 @@
 using BiblioGest.BusinessLogic.Interfaces;
-using BiblioGest.Shared.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,14 +25,7 @@ public class ReportesController : ControllerBase
     [HttpGet("{tipo}")]
     public async Task<IActionResult> GetReporte(string tipo, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, CancellationToken ct)
     {
-        try
-        {
-            var reporte = await _reporteService.GetReporteAsync(tipo, desde, hasta, ct);
-            return Ok(reporte);
-        }
-        catch (ValidationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var reporte = await _reporteService.GetReporteAsync(tipo, desde, hasta, ct);
+        return Ok(reporte);
     }
 }

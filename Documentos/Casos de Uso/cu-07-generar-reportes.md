@@ -8,6 +8,11 @@
 > (`resumen`, `prestamos` con filtro de fechas y `mora`), sin estadísticas avanzadas.
 > Acceso con cualquier usuario autenticado (`[Authorize]`). La matriz de trazabilidad
 > lista los tests reales.
+> **Actualizado:** los préstamos que aparecen en los reportes `prestamos` y
+> `mora` incluyen los mismos campos calculados que CU-05/CU-06
+> (`estado`, `diasRestantes`, `diasDeAtraso`, `mensaje`), resueltos por
+> `PrestamoMapper` con el `TimeProvider` del service — nunca por el
+> frontend.
 
 | Campo | Valor |
 | --- | --- |

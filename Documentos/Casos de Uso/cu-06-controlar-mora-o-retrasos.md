@@ -8,6 +8,13 @@
 > `LectorTieneMoraAsync`), y un lector en mora no puede pedir otro préstamo (CU-05,
 > alternativa 3b). No se generan multas (RN-16). La matriz de trazabilidad lista los
 > tests reales.
+> **Actualizado:** cada préstamo del listado de mora ahora incluye, ya
+> calculados por `PrestamoMapper` (un único `TimeProvider`, nunca el
+> frontend): `diasDeAtraso`, `diasRestantes` (`null` si está devuelto) y un
+> `mensaje` listo para mostrar (por ejemplo "Atrasado 6 días."). El "ahora"
+> usado para decidir qué está vencido ya no se calcula en el repositorio
+> (`DateTime.UtcNow` disperso); el service lo resuelve una sola vez y se lo
+> pasa a la consulta.
 
 | Campo | Valor |
 | --- | --- |

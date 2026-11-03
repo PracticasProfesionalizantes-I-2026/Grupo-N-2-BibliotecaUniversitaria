@@ -7,4 +7,6 @@ public class LectorResponseDTO
     public string Apellido { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Identificador { get; set; } = string.Empty;
+    public int PrestamosActivos { get; set; }
+    public int MaximoPrestamos { get; set; }
 }

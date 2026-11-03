@@ -1,0 +1,29 @@
+meta {
+  name: Crear libro con texto demasiado largo (400)
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "titulo": "Título demasiado largo AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "autor": "Autor",
+    "isbn": "9780307474728",
+    "ubicacion": "A1",
+    "stock": 1
+  }
+}
+
+docs {
+  El título supera los 200 caracteres máximos: debe responder 400.
+}
+
+assert {
+  res.status: eq 400
+}

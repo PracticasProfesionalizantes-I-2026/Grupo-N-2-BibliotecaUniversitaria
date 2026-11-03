@@ -1,0 +1,29 @@
+meta {
+  name: Crear libro con isbn invalido (400)
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "titulo": "Libro con ISBN inválido",
+    "autor": "Autor de Prueba",
+    "isbn": "1234567890123",
+    "ubicacion": "A1",
+    "stock": 1
+  }
+}
+
+docs {
+  El dígito verificador del ISBN-13 no es correcto: debe responder 400.
+}
+
+assert {
+  res.status: eq 400
+}

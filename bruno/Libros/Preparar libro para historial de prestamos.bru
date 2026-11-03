@@ -1,0 +1,54 @@
+meta {
+  name: Preparar libro para historial de prestamos
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  function generarIsbn13() {
+    const base = [9, 7, 8];
+    for (let i = 0; i < 9; i++) {
+      base.push(Math.floor(Math.random() * 10));
+    }
+    let suma = 0;
+    for (let i = 0; i < 12; i++) {
+      suma += base[i] * (i % 2 === 0 ? 1 : 3);
+    }
+    const digitoVerificador = (10 - (suma % 10)) % 10;
+    return base.join('') + digitoVerificador;
+  }
+  bru.setEnvVar("libroHistIsbn", generarIsbn13());
+}
+
+body:json {
+  {
+    "titulo": "Libro Para Historial De Prestamos",
+    "autor": "Autor De Prueba",
+    "isbn": "{{libroHistIsbn}}",
+    "ubicacion": "Estante H1",
+    "stock": 1
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("libroHistLibroId", res.body.id);
+  }
+}
+
+docs {
+  Libro dedicado para "Eliminar libro con prestamos activos (409)": no se
+  reusa {{libroId}} de esta misma carpeta para no interferir con "Crear
+  libro con isbn duplicado" ni con los requests de la carpeta Prestamos
+  que tambien usan {{libroId}}.
+}
+
+assert {
+  res.status: eq 201
+}

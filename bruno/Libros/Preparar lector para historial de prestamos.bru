@@ -1,0 +1,42 @@
+meta {
+  name: Preparar lector para historial de prestamos
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  const sufijo = Date.now();
+  bru.setEnvVar("libroHistEmail", `historial.libro.${sufijo}@example.com`);
+  bru.setEnvVar("libroHistIdentificador", `ID-LH-${sufijo}`);
+}
+
+body:json {
+  {
+    "nombre": "Historial",
+    "apellido": "ParaBorrado",
+    "email": "{{libroHistEmail}}",
+    "identificador": "{{libroHistIdentificador}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("libroHistLectorId", res.body.id);
+  }
+}
+
+docs {
+  Lector dedicado para "Eliminar libro con prestamos activos (409)": no se
+  reusa {{lectorId}} de la carpeta Lectores para que este request sea
+  autosuficiente y no dependa del orden entre carpetas.
+}
+
+assert {
+  res.status: eq 201
+}

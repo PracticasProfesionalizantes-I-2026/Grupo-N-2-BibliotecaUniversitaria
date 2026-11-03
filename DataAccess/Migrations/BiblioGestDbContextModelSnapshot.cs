@@ -25,21 +25,28 @@ namespace BiblioGest.DataAccess.Migrations
 
                     b.Property<string>("Apellido")
                         .IsRequired()
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
                         .IsRequired()
+                        .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Identificador")
                         .IsRequired()
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.HasIndex("Identificador")
                         .IsUnique();
@@ -55,10 +62,12 @@ namespace BiblioGest.DataAccess.Migrations
 
                     b.Property<string>("Autor")
                         .IsRequired()
+                        .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Isbn")
                         .IsRequired()
+                        .HasMaxLength(13)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Stock")
@@ -66,13 +75,18 @@ namespace BiblioGest.DataAccess.Migrations
 
                     b.Property<string>("Titulo")
                         .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Ubicacion")
                         .IsRequired()
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Isbn")
+                        .IsUnique();
 
                     b.ToTable("Libros");
                 });
@@ -104,9 +118,11 @@ namespace BiblioGest.DataAccess.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LectorId");
-
                     b.HasIndex("LibroId");
+
+                    b.HasIndex("LectorId", "LibroId")
+                        .IsUnique()
+                        .HasFilter("\"Estado\" = 'Activo'");
 
                     b.ToTable("Prestamos");
                 });
@@ -122,6 +138,7 @@ namespace BiblioGest.DataAccess.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
+                        .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")

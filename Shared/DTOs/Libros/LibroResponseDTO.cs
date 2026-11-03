@@ -9,4 +9,5 @@ public class LibroResponseDTO
     public string Ubicacion { get; set; } = string.Empty;
     public int Stock { get; set; }
     public bool Disponible { get; set; }
+    public string DisponibilidadTexto { get; set; } = string.Empty;
 }

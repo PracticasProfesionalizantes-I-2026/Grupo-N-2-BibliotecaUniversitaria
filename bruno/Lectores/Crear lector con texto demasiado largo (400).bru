@@ -1,0 +1,28 @@
+meta {
+  name: Crear lector con texto demasiado largo (400)
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "NombreDemasiadoLargoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "apellido": "Gómez",
+    "email": "nombre.largo@example.com",
+    "identificador": "99999003"
+  }
+}
+
+docs {
+  El nombre supera los 100 caracteres máximos: debe responder 400.
+}
+
+assert {
+  res.status: eq 400
+}

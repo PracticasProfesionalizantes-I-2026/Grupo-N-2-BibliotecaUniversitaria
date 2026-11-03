@@ -7,11 +7,7 @@ meta {
 post {
   url: {{baseUrl}}/api/lectores
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 body:json {
@@ -19,11 +15,16 @@ body:json {
     "nombre": "Otro",
     "apellido": "Lector",
     "email": "otro.lector@example.com",
-    "identificador": "35555111"
+    "identificador": "  {{lectorIdentificador}}  "
   }
 }
 
 docs {
   Ejecutar después de "Crear lector (201)" para reusar el mismo
-  identificador y provocar el 409 Conflict de RN-08.
+  identificador (con espacios de más, que se recortan antes de comparar)
+  y provocar el 409 Conflict de RN-08.
+}
+
+assert {
+  res.status: eq 409
 }
