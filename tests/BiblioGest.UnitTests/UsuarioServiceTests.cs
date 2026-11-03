@@ -270,8 +270,57 @@ namespace BiblioGest.UnitTests
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioAutoBajaException>(() => service.UpdateAsync(id, dto, currentUserId: id));
+            var ex = await Assert.ThrowsAsync<UsuarioAutoModificacionException>(() => service.UpdateAsync(id, dto, usuarioActualId: id));
+            Assert.Equal("No podés desactivar tu propia cuenta ni quitarte el rol de Administrador.", ex.Message);
             _usuarioRepository.Verify(r => r.UpdateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task UpdateUsuarioAsync_WhenAdminRemovesOwnAdminRole_ThrowsConflictException()
+        {
+            var id = Guid.NewGuid();
+            var usuario = UsuarioExistente(id, RolUsuario.Administrador);
+            var dto = new UsuarioUpdateDTO { Email = usuario.Email, RolUsuario = "Bibliotecario" };
+            _usuarioRepository
+                .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.GetByEmailAsync(usuario.Email, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            // Hay otros administradores: lo que lo impide es la auto-modificación, no la regla del último admin.
+            _usuarioRepository
+                .Setup(r => r.CountAdministradoresActivosAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(3);
+
+            var service = CrearService();
+
+            var ex = await Assert.ThrowsAsync<UsuarioAutoModificacionException>(
+                () => service.UpdateAsync(id, dto, usuarioActualId: id));
+            Assert.Equal("No podés desactivar tu propia cuenta ni quitarte el rol de Administrador.", ex.Message);
+            Assert.Equal(RolUsuario.Administrador, usuario.RolUsuario);
+            _usuarioRepository.Verify(r => r.UpdateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task UpdateUsuarioAsync_WhenAdminUpdatesOwnEmailKeepingRoleAndActive_UpdatesUsuario()
+        {
+            var id = Guid.NewGuid();
+            var usuario = UsuarioExistente(id, RolUsuario.Administrador);
+            var dto = new UsuarioUpdateDTO { Email = "nuevo-admin@example.com", RolUsuario = "Administrador", Activo = true };
+            _usuarioRepository
+                .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(usuario);
+            _usuarioRepository
+                .Setup(r => r.GetByEmailAsync(dto.Email, It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Usuario?)null);
+
+            var service = CrearService();
+            var resultado = await service.UpdateAsync(id, dto, usuarioActualId: id);
+
+            Assert.Equal("nuevo-admin@example.com", resultado.Email);
+            Assert.Equal("Administrador", resultado.RolUsuario);
+            Assert.True(resultado.Activo);
+            _usuarioRepository.Verify(r => r.UpdateAsync(usuario, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -293,7 +342,7 @@ namespace BiblioGest.UnitTests
             var service = CrearService();
 
             await Assert.ThrowsAsync<UltimoAdministradorException>(
-                () => service.UpdateAsync(id, dto, currentUserId: Guid.NewGuid()));
+                () => service.UpdateAsync(id, dto, usuarioActualId: Guid.NewGuid()));
         }
 
         [Fact]
@@ -315,7 +364,7 @@ namespace BiblioGest.UnitTests
             var service = CrearService();
 
             await Assert.ThrowsAsync<UltimoAdministradorException>(
-                () => service.UpdateAsync(id, dto, currentUserId: Guid.NewGuid()));
+                () => service.UpdateAsync(id, dto, usuarioActualId: Guid.NewGuid()));
         }
 
         [Fact]
@@ -335,7 +384,7 @@ namespace BiblioGest.UnitTests
                 .ReturnsAsync(2);
 
             var service = CrearService();
-            var resultado = await service.UpdateAsync(id, dto, currentUserId: Guid.NewGuid());
+            var resultado = await service.UpdateAsync(id, dto, usuarioActualId: Guid.NewGuid());
 
             Assert.False(resultado.Activo);
         }
@@ -379,7 +428,8 @@ namespace BiblioGest.UnitTests
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioAutoBajaException>(() => service.DeleteAsync(id, currentUserId: id));
+            var ex = await Assert.ThrowsAsync<UsuarioAutoBajaException>(() => service.DeleteAsync(id, usuarioActualId: id));
+            Assert.Equal("No podés eliminar tu propia cuenta.", ex.Message);
             _usuarioRepository.Verify(r => r.UpdateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
@@ -398,7 +448,7 @@ namespace BiblioGest.UnitTests
             var service = CrearService();
 
             await Assert.ThrowsAsync<UltimoAdministradorException>(
-                () => service.DeleteAsync(id, currentUserId: Guid.NewGuid()));
+                () => service.DeleteAsync(id, usuarioActualId: Guid.NewGuid()));
         }
     }
 }

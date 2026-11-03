@@ -26,6 +26,22 @@ public class PrestamosController : ControllerBase
         return Ok(vencidos);
     }
 
+    // GET /api/prestamos/activos
+    [HttpGet("activos")]
+    public async Task<IActionResult> GetActivos(CancellationToken ct)
+    {
+        var activos = await _prestamoService.GetActivosAsync(ct);
+        return Ok(activos);
+    }
+
+    // GET /api/prestamos/estado-lector/{lectorId}
+    [HttpGet("estado-lector/{lectorId:guid}")]
+    public async Task<IActionResult> GetEstadoLector(Guid lectorId, CancellationToken ct)
+    {
+        var estado = await _prestamoService.GetEstadoLectorAsync(lectorId, ct);
+        return Ok(estado);
+    }
+
     // GET /api/prestamos/{id}
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)

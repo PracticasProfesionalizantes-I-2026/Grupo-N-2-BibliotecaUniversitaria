@@ -37,6 +37,8 @@ public class UsuarioAutoBajaTests : IClassFixture<CustomWebApplicationFactory>, 
         var response = await _client.DeleteAsync($"/api/usuarios/{id}");
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<MensajeRespuesta>();
+        Assert.Equal("No podés eliminar tu propia cuenta.", error!.Message);
     }
 
     [Fact]
@@ -51,6 +53,8 @@ public class UsuarioAutoBajaTests : IClassFixture<CustomWebApplicationFactory>, 
         });
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<MensajeRespuesta>();
+        Assert.Equal("No podés desactivar tu propia cuenta ni quitarte el rol de Administrador.", error!.Message);
     }
 
     [Fact]
@@ -95,4 +99,26 @@ public class UsuarioAutoBajaTests : IClassFixture<CustomWebApplicationFactory>, 
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
+
+    [Fact]
+    public async Task UpdateUsuario_WhenAdminRemovesOwnAdminRole_Returns409ConflictAndKeepsRole()
+    {
+        var id = await ObtenerIdDelAdminLogueadoAsync();
+
+        var response = await _client.PutAsJsonAsync($"/api/usuarios/{id}", new UsuarioUpdateDTO
+        {
+            Email = "admin@bibliogest.com",
+            RolUsuario = "Bibliotecario"
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<MensajeRespuesta>();
+        Assert.Equal("No podés desactivar tu propia cuenta ni quitarte el rol de Administrador.", error!.Message);
+
+        var admin = await _client.GetFromJsonAsync<UsuarioResponseDTO>($"/api/usuarios/{id}");
+        Assert.Equal("Administrador", admin!.RolUsuario);
+        Assert.True(admin.Activo);
+    }
+
+    private sealed record MensajeRespuesta(string Message);
 }

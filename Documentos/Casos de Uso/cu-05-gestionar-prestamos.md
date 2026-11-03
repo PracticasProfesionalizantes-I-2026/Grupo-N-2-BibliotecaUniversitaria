@@ -127,10 +127,10 @@ flujo principal y alternativo._
 
 | Código HTTP | Nombre Técnico | Contexto de Aplicación en el Caso de Uso |
 | --- | --- | --- |
-| `200` | OK | Confirmación de registro de una devolución. |
+| `200` | OK | Confirmación de registro de una devolución; listado de préstamos activos (`GET /api/prestamos/activos`); estado del lector frente a un préstamo (`GET /api/prestamos/estado-lector/{lectorId}`). |
 | `201` | Created | Confirmación de registro de un nuevo préstamo. |
 | `401` | Unauthorized | Petición sin token válido. |
-| `404` | Not Found | El lector o el libro indicado no existen en el sistema. |
+| `404` | Not Found | El lector o el libro indicado no existen en el sistema (también al consultar el estado de un lector inexistente). |
 | `409` | Conflict | Lector con 3 préstamos activos (RN-10), lector en mora, libro sin stock disponible (RN-11), préstamo activo duplicado del mismo libro (RN-13) o devolución de un préstamo ya devuelto. |
 
 ### Matriz de trazabilidad CU-05 → Test
@@ -145,3 +145,6 @@ flujo principal y alternativo._
 | 3c. Préstamo activo duplicado (RN-13, nuevo) | `409 Conflict` | `CreatePrestamoAsync_WhenLectorAlreadyHasActiveLoanOfSameLibro_ThrowsConflictException` | `CreatePrestamo_WhenLectorAlreadyHasActiveLoanOfSameLibro_Returns409Conflict` |
 | 5a. Libro sin stock | `409 Conflict` | `CreatePrestamoAsync_WhenLibroHasNoStock_ThrowsConflictException` | `CreatePrestamo_WithoutStock_Returns409Conflict` |
 | 6a. Registrar devolución | `200 OK` | `RegisterDevolucionAsync_WithValidData_UpdatesStockAndPrestamoState` | `RegisterDevolucion_ReturnsSuccessAndUpdatedPrestamo` |
+| Listar préstamos activos (nuevo) | `200 OK` | `GetPrestamosActivosAsync_ReturnsActiveLoansWithEnMoraCalculated`, `GetPrestamosActivosAsync_WithNoActiveLoans_ReturnsEmptyList` | `GetPrestamosActivos_ReturnsOnlyActiveOrderedByFechaVencimiento` |
+| 3a/3b anticipados: estado del lector (nuevo) | `200 OK` | `GetEstadoLectorAsync_WhenLectorCanBorrow_ReturnsPuedePedirAndExpectedDates`, `GetEstadoLectorAsync_WhenLectorHasThreeActiveLoansAndMora_ReturnsLimiteMotivoFirst`, `GetEstadoLectorAsync_WhenLectorInMora_ReturnsMoraMotivo` | `GetEstadoLector_WhenLectorCanBorrow_ReturnsPuedePedirAndFechasPrevistas`, `GetEstadoLector_WhenLectorHasThreeActiveLoans_ReturnsSameMotivoAsCreate`, `GetEstadoLector_WhenLectorInMora_ReturnsSameMotivoAsCreate` |
+| Estado de lector inexistente (nuevo) | `404 Not Found` | `GetEstadoLectorAsync_WhenLectorDoesNotExist_ThrowsNotFoundException` | `GetEstadoLector_WithUnknownLector_Returns404NotFound` |

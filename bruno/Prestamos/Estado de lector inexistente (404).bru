@@ -1,0 +1,19 @@
+meta {
+  name: Estado de lector inexistente (404)
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/prestamos/estado-lector/11111111-1111-1111-1111-111111111111
+  body: none
+  auth: inherit
+}
+
+docs {
+  Si el lector no existe, la API responde 404 (LectorNotFoundException).
+}
+
+assert {
+  res.status: eq 404
+}

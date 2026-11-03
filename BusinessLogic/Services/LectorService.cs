@@ -1,4 +1,5 @@
 using BiblioGest.BusinessLogic.Interfaces;
+using BiblioGest.BusinessLogic.Reglas;
 using BiblioGest.BusinessLogic.Validation;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
@@ -26,13 +27,17 @@ public class LectorService : ILectorService
     public async Task<IReadOnlyList<LectorResponseDTO>> GetAllAsync(CancellationToken ct = default)
     {
         var lectores = await _lectorRepository.GetAllAsync(ct);
-        return lectores.Select(MapToResponseDTO).ToList();
+        var activosPorLector = await _prestamoRepository.CountActivosAgrupadosPorLectorAsync(ct);
+        return lectores
+            .Select(l => MapToResponseDTO(l, activosPorLector.GetValueOrDefault(l.Id)))
+            .ToList();
     }
 
     public async Task<LectorResponseDTO> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var lector = await _lectorRepository.GetByIdAsync(id, ct) ?? throw new LectorNotFoundException(id);
-        return MapToResponseDTO(lector);
+        var prestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(id, ct);
+        return MapToResponseDTO(lector, prestamosActivos);
     }
 
     public async Task<LectorResponseDTO> CreateAsync(LectorCreateDTO dto, CancellationToken ct = default)
@@ -50,7 +55,7 @@ public class LectorService : ILectorService
         };
 
         var creado = await _lectorRepository.CreateAsync(lector, ct);
-        return MapToResponseDTO(creado);
+        return MapToResponseDTO(creado, prestamosActivos: 0);
     }
 
     public async Task<LectorResponseDTO> UpdateAsync(Guid id, LectorUpdateDTO dto, CancellationToken ct = default)
@@ -67,7 +72,8 @@ public class LectorService : ILectorService
         lector.Identificador = identificador;
 
         await _lectorRepository.UpdateAsync(lector, ct);
-        return MapToResponseDTO(lector);
+        var prestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(id, ct);
+        return MapToResponseDTO(lector, prestamosActivos);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
@@ -141,12 +147,14 @@ public class LectorService : ILectorService
         }
     }
 
-    private static LectorResponseDTO MapToResponseDTO(Lector lector) => new()
+    private static LectorResponseDTO MapToResponseDTO(Lector lector, int prestamosActivos) => new()
     {
         Id = lector.Id,
         Nombre = lector.Nombre,
         Apellido = lector.Apellido,
         Email = lector.Email,
-        Identificador = lector.Identificador
+        Identificador = lector.Identificador,
+        PrestamosActivos = prestamosActivos,
+        MaximoPrestamos = ReglasPrestamo.MaximoPrestamosActivosPorLector
     };
 }

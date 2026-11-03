@@ -213,4 +213,33 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetLector_ReturnsPrestamosActivosAndMaximoCalculatedByApi()
+    {
+        var lectorResponse = await _client.PostAsJsonAsync("/api/lectores", NuevoLectorDto());
+        var lector = await lectorResponse.Content.ReadFromJsonAsync<LectorResponseDTO>();
+        Assert.Equal(0, lector!.PrestamosActivos);
+        Assert.Equal(3, lector.MaximoPrestamos);
+
+        var libroResponse = await _client.PostAsJsonAsync("/api/libros", new LibroCreateDTO
+        {
+            Titulo = $"Libro {Guid.NewGuid()}",
+            Autor = "Autor",
+            Isbn = IsbnTestHelper.NuevoIsbnValido(),
+            Ubicacion = "Estante Z",
+            Stock = 1
+        });
+        var libro = await libroResponse.Content.ReadFromJsonAsync<LibroResponseDTO>();
+        await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro!.Id });
+
+        var porId = await _client.GetFromJsonAsync<LectorResponseDTO>($"/api/lectores/{lector.Id}");
+        var listado = await _client.GetFromJsonAsync<List<LectorResponseDTO>>("/api/lectores");
+
+        Assert.Equal(1, porId!.PrestamosActivos);
+        Assert.Equal(3, porId.MaximoPrestamos);
+        var enListado = listado!.Single(l => l.Id == lector.Id);
+        Assert.Equal(1, enListado.PrestamosActivos);
+        Assert.Equal(3, enListado.MaximoPrestamos);
+    }
 }

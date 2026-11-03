@@ -137,3 +137,4 @@ flujo principal y alternativo._
 | Email duplicado (nuevo) | `409 Conflict` | `CreateLectorAsync_WhenEmailAlreadyExists_ThrowsConflictException` | `CreateLector_WithDuplicateEmailDifferentCaseAndSpaces_Returns409Conflict` |
 | Texto demasiado largo (nuevo) | `400 Bad Request` | `CreateLectorAsync_WithTooLongTitulo_ThrowsValidationException` | `CreateLector_WithTooLongNombre_Returns400BadRequest` |
 | Id inexistente | `404 Not Found` | `GetLectorByIdAsync_WhenLectorDoesNotExist_ThrowsNotFoundException` | `GetLector_WithUnknownId_Returns404NotFound` |
+| Préstamos activos y máximo del lector (nuevo) | `200 OK` | `GetAllLectoresAsync_ReturnsPrestamosActivosFromSingleGroupedQuery`, `GetLectorByIdAsync_ReturnsPrestamosActivosAndMaximo` | `GetLector_ReturnsPrestamosActivosAndMaximoCalculatedByApi` |

@@ -24,4 +24,5 @@ docs {
 
 assert {
   res.status: eq 409
+  res.body.message: eq "No podés desactivar tu propia cuenta ni quitarte el rol de Administrador."
 }

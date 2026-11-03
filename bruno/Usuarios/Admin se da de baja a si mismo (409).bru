@@ -17,4 +17,5 @@ docs {
 
 assert {
   res.status: eq 409
+  res.body.message: eq "No podés eliminar tu propia cuenta."
 }

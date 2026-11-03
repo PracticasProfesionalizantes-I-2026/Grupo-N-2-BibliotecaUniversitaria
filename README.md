@@ -45,6 +45,7 @@ BusinessLogic/      → BiblioGest.BusinessLogic
   Services/           AuthService, LibroService, LectorService, PrestamoService, ReporteService, UsuarioService, PasswordHasher
   Validation/         EmailValidator, IsbnValidator (formato + normalización)
   Mapping/            PrestamoMapper (estado/días/mensaje calculados a partir de un TimeProvider)
+  Reglas/             ReglasPrestamo (máximo de préstamos activos y días de préstamo)
 DataAccess/         → BiblioGest.DataAccess (EF Core + SQLite)
   Entities/           Libro, Lector, Prestamo, EstadoPrestamo, Usuario, RolUsuario
   Repositories/       ILibroRepository/LibroRepository, etc.
@@ -111,7 +112,7 @@ dos préstamos activos del mismo libro a la vez (índice único filtrado por
 | Libro/Lector/Préstamo inexistente | `LibroNotFoundException` / `LectorNotFoundException` / `PrestamoNotFoundException` | 404 |
 | `LectorId`/`LibroId` vacíos (`Guid.Empty`) al crear un préstamo | `PrestamoInvalidoException` | 400 |
 | Eliminar libro/lector con préstamos en su historial (activos o ya devueltos) | `LibroConHistorialPrestamosException` / `LectorConHistorialPrestamosException` | 409 |
-| Lector con 3 préstamos activos | `LimitePrestamosActivosException` | 409 |
+| Lector con 3 préstamos activos (`ReglasPrestamo.MaximoPrestamosActivosPorLector`) | `LimitePrestamosActivosException` | 409 |
 | Lector con un préstamo activo del mismo libro | `PrestamoActivoDuplicadoException` | 409 |
 | Libro sin stock disponible | `StockInsuficienteException` | 409 |
 | Lector con préstamos vencidos (mora) | `LectorEnMoraException` | 409 |
@@ -120,7 +121,8 @@ dos préstamos activos del mismo libro a la vez (índice único filtrado por
 | Usuario sin email/email inválido, contraseña < 6 caracteres o rol inexistente (RN-20, RN-21) | `UsuarioInvalidoException` | 400 |
 | Usuario inexistente | `UsuarioNotFoundException` | 404 |
 | Email de usuario duplicado (sin distinguir mayúsculas/espacios) | `UsuarioDuplicadoException` | 409 |
-| Un administrador se da de baja o se desactiva a sí mismo | `UsuarioAutoBajaException` | 409 |
+| El usuario autenticado intenta eliminar su propia cuenta ("No podés eliminar tu propia cuenta.") | `UsuarioAutoBajaException` | 409 |
+| El usuario autenticado intenta desactivarse o quitarse el rol Administrador ("No podés desactivar tu propia cuenta ni quitarte el rol de Administrador.") | `UsuarioAutoModificacionException` | 409 |
 | Desactivar o cambiar el rol del último administrador activo | `UltimoAdministradorException` | 409 |
 | Reporte inexistente o filtro de fechas inválido (`desde` > `hasta`) | `ReporteInvalidoException` | 400 |
 | Usuario sin rol Administrador en `/api/usuarios` (RN-19) | `[Authorize(Roles)]` | 403 |
@@ -280,9 +282,14 @@ Ejemplo `POST /api/lectores`:
   "nombre": "Facundo",
   "apellido": "López",
   "email": "facundo.lopez@example.com",
-  "identificador": "35555111"
+  "identificador": "35555111",
+  "prestamosActivos": 0,
+  "maximoPrestamos": 3
 }
 ```
+
+`prestamosActivos` y `maximoPrestamos` los calcula `LectorService` (en el
+listado, con una sola consulta agrupada por lector para evitar N+1).
 
 ### Préstamos
 
@@ -292,6 +299,8 @@ Ejemplo `POST /api/lectores`:
 | GET | `/api/prestamos/{id}` | Obtener un préstamo | 200 | 404 |
 | PUT | `/api/prestamos/{id}/devolucion` | Registrar devolución | 200 | 404, 409 |
 | GET | `/api/prestamos/mora` | Listar préstamos vencidos | 200 | — |
+| GET | `/api/prestamos/activos` | Listar préstamos activos (incluye vencidos), por `fechaVencimiento` ascendente | 200 | — |
+| GET | `/api/prestamos/estado-lector/{lectorId}` | Estado del lector frente a un nuevo préstamo (RN-10, mora) | 200 | 404 |
 
 Ejemplo `POST /api/prestamos`:
 
@@ -324,6 +333,27 @@ Ejemplo `POST /api/prestamos`:
 `diasRestantes` es `null` una vez devuelto. Todo lo calcula `PrestamoMapper`
 en el service (nunca el frontend).
 
+Ejemplo `GET /api/prestamos/estado-lector/{lectorId}` (lector con 3 préstamos activos):
+
+```json
+{
+  "prestamosActivos": 3,
+  "maximoPrestamos": 3,
+  "enMora": false,
+  "puedePedir": false,
+  "motivo": "El lector con Id 'b1a2c3d4-e5f6-7890-abcd-ef1234567890' ya tiene 3 préstamos activos y no puede solicitar otro.",
+  "fechaPrestamo": "2026-11-02T13:00:00Z",
+  "fechaVencimiento": "2026-11-16T13:00:00Z"
+}
+```
+
+`motivo` usa el mismo texto que el 409 de `POST /api/prestamos` y se evalúa en
+el mismo orden (primero el límite de 3 activos, después la mora); es `null`
+cuando `puedePedir` es `true`. Las fechas son las que tendría el préstamo si
+se registrara ahora (hoy + 14 días). El máximo (3) y los días (14) salen de
+`BusinessLogic/Reglas/ReglasPrestamo.cs`, compartido por `PrestamoService` y
+`LectorService`.
+
 ### Reportes
 
 | Método | Ruta | Descripción | Éxito | Errores |
@@ -344,7 +374,7 @@ Si no hay datos, el reporte vuelve con `200`, la lista vacía y
 | GET | `/api/usuarios/{id}` | Obtener un usuario | 200 | 401, 403, 404 |
 | POST | `/api/usuarios` | Crear usuario | 201 | 400, 401, 403, 409 |
 | PUT | `/api/usuarios/{id}` | Modificar usuario (contraseña opcional) | 200 | 400, 401, 403, 404, 409 |
-| DELETE | `/api/usuarios/{id}` | Baja lógica (`activo = false`) | 200 | 401, 403, 404 |
+| DELETE | `/api/usuarios/{id}` | Baja lógica (`activo = false`) | 200 | 401, 403, 404, 409 |
 
 Ejemplo `POST /api/usuarios`:
 
@@ -364,6 +394,11 @@ Ejemplo `POST /api/usuarios`:
   "activo": true
 }
 ```
+
+El Id del usuario autenticado se toma del claim `NameIdentifier` del JWT:
+nadie puede eliminarse a sí mismo ni, en el `PUT`, desactivarse o quitarse el
+rol Administrador (409). Tampoco se puede desactivar ni cambiar el rol del
+último administrador activo (409).
 
 ## Colección de Bruno
 
@@ -398,7 +433,9 @@ protegido reutiliza ese token vía `auth: inherit`.
 
 La colección corre de punta a punta sin intervención manual y se puede
 ejecutar varias veces seguidas sin reiniciar la base (verificado con el
-CLI de Bruno, 3 corridas consecutivas, 58/58 en las 3):
+CLI de Bruno, 3 corridas consecutivas, 58/58 en las 3; con los endpoints
+de préstamos activos, estado del lector y auto-modificación del
+administrador la colección pasó a 62 requests, 62/62 en la app de Bruno):
 
 - `Libros/Eliminar libro con prestamos activos (409)` no depende de que
   la carpeta `Prestamos` haya corrido antes: usa 3 requests previos en su

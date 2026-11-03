@@ -42,17 +42,17 @@ public class UsuariosController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UsuarioUpdateDTO dto, CancellationToken ct)
     {
-        var actualizado = await _usuarioService.UpdateAsync(id, dto, CurrentUserId(), ct);
+        var actualizado = await _usuarioService.UpdateAsync(id, dto, UsuarioActualId(), ct);
         return Ok(actualizado);
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        await _usuarioService.DeleteAsync(id, CurrentUserId(), ct);
+        await _usuarioService.DeleteAsync(id, UsuarioActualId(), ct);
         return Ok(new { message = "Usuario dado de baja correctamente." });
     }
 
-    private Guid CurrentUserId() =>
+    private Guid UsuarioActualId() =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

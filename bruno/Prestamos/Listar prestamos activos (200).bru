@@ -1,0 +1,25 @@
+meta {
+  name: Listar prestamos activos (200)
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/prestamos/activos
+  body: none
+  auth: inherit
+}
+
+docs {
+  CU-05. Devuelve los préstamos con estado Activo (incluye los vencidos,
+  que siguen activos hasta su devolución), ordenados por fechaVencimiento
+  ascendente. Cada préstamo trae enMora, estado, diasRestantes,
+  diasDeAtraso y mensaje ya calculados por la API. Con los datos de
+  prueba del DbInitializer incluye al menos el préstamo vencido de
+  "Rayuela".
+}
+
+assert {
+  res.status: eq 200
+  res.body.length: gt 0
+}

@@ -269,4 +269,40 @@ public class LectorServiceTests
         await Assert.ThrowsAsync<LectorEmailDuplicadoException>(() => service.UpdateAsync(id, dto));
         _lectorRepository.Verify(r => r.UpdateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task GetAllLectoresAsync_ReturnsPrestamosActivosFromSingleGroupedQuery()
+    {
+        var conPrestamos = new Lector { Id = Guid.NewGuid(), Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Identificador = "1" };
+        var sinPrestamos = new Lector { Id = Guid.NewGuid(), Nombre = "Luis", Apellido = "Pérez", Email = "l@l.com", Identificador = "2" };
+        _lectorRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Lector> { conPrestamos, sinPrestamos });
+        _prestamoRepository.Setup(r => r.CountActivosAgrupadosPorLectorAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, int> { [conPrestamos.Id] = 2 });
+
+        var service = CrearService();
+        var resultado = await service.GetAllAsync();
+
+        Assert.Equal(2, resultado.Single(l => l.Id == conPrestamos.Id).PrestamosActivos);
+        Assert.Equal(0, resultado.Single(l => l.Id == sinPrestamos.Id).PrestamosActivos);
+        Assert.All(resultado, l => Assert.Equal(3, l.MaximoPrestamos));
+        // Sin N+1: una sola consulta agrupada, ningún conteo por lector.
+        _prestamoRepository.Verify(r => r.CountActivosAgrupadosPorLectorAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _prestamoRepository.Verify(r => r.CountActivosPorLectorAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetLectorByIdAsync_ReturnsPrestamosActivosAndMaximo()
+    {
+        var id = Guid.NewGuid();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Identificador = "1" };
+        _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+
+        var service = CrearService();
+        var resultado = await service.GetByIdAsync(id);
+
+        Assert.Equal(2, resultado.PrestamosActivos);
+        Assert.Equal(3, resultado.MaximoPrestamos);
+    }
 }

@@ -10,6 +10,12 @@ get {
   auth: inherit
 }
 
+docs {
+  La respuesta incluye prestamosActivos y maximoPrestamos (3), calculados
+  por la API (CU-04).
+}
+
 assert {
   res.status: eq 200
+  res.body.maximoPrestamos: eq 3
 }

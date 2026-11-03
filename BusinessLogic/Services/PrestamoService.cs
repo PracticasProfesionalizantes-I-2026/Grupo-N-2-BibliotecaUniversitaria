@@ -1,5 +1,6 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.BusinessLogic.Mapping;
+using BiblioGest.BusinessLogic.Reglas;
 using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
@@ -10,9 +11,6 @@ namespace BiblioGest.BusinessLogic.Services;
 
 public class PrestamoService : IPrestamoService
 {
-    private const int MaximoPrestamosActivosPorLector = 3;
-    private const int DiasDePrestamo = 14;
-
     private readonly IPrestamoRepository _prestamoRepository;
     private readonly ILibroRepository _libroRepository;
     private readonly ILectorRepository _lectorRepository;
@@ -52,9 +50,9 @@ public class PrestamoService : IPrestamoService
             ?? throw new LibroNotFoundException(dto.LibroId);
 
         var prestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(dto.LectorId, ct);
-        if (prestamosActivos >= MaximoPrestamosActivosPorLector)
+        if (prestamosActivos >= ReglasPrestamo.MaximoPrestamosActivosPorLector)
         {
-            throw new LimitePrestamosActivosException(dto.LectorId);
+            throw new LimitePrestamosActivosException(dto.LectorId, ReglasPrestamo.MaximoPrestamosActivosPorLector);
         }
 
         var ahoraUtc = AhoraUtc();
@@ -79,7 +77,7 @@ public class PrestamoService : IPrestamoService
             LectorId = lector.Id,
             LibroId = libro.Id,
             FechaPrestamo = ahoraUtc,
-            FechaVencimiento = ahoraUtc.AddDays(DiasDePrestamo),
+            FechaVencimiento = ahoraUtc.AddDays(ReglasPrestamo.DiasDePrestamo),
             Estado = EstadoPrestamo.Activo
         };
 
@@ -130,6 +128,45 @@ public class PrestamoService : IPrestamoService
         var ahoraUtc = AhoraUtc();
         var vencidos = await _prestamoRepository.GetVencidosAsync(ahoraUtc, ct);
         return vencidos.Select(p => PrestamoMapper.ToResponseDTO(p, ahoraUtc)).ToList();
+    }
+
+    public async Task<IReadOnlyList<PrestamoResponseDTO>> GetActivosAsync(CancellationToken ct = default)
+    {
+        var ahoraUtc = AhoraUtc();
+        var activos = await _prestamoRepository.GetActivosAsync(ct);
+        return activos.Select(p => PrestamoMapper.ToResponseDTO(p, ahoraUtc)).ToList();
+    }
+
+    // Anticipa el resultado de CreateAsync para un lector: mismas reglas, mismo orden
+    // (primero el límite de RN-10, después la mora) y mismos textos que las excepciones.
+    public async Task<EstadoLectorPrestamoDTO> GetEstadoLectorAsync(Guid lectorId, CancellationToken ct = default)
+    {
+        _ = await _lectorRepository.GetByIdAsync(lectorId, ct) ?? throw new LectorNotFoundException(lectorId);
+
+        var ahoraUtc = AhoraUtc();
+        var prestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(lectorId, ct);
+        var enMora = await _prestamoRepository.LectorTieneMoraAsync(lectorId, ahoraUtc, ct);
+
+        string? motivo = null;
+        if (prestamosActivos >= ReglasPrestamo.MaximoPrestamosActivosPorLector)
+        {
+            motivo = LimitePrestamosActivosException.CrearMensaje(lectorId, ReglasPrestamo.MaximoPrestamosActivosPorLector);
+        }
+        else if (enMora)
+        {
+            motivo = LectorEnMoraException.CrearMensaje(lectorId);
+        }
+
+        return new EstadoLectorPrestamoDTO
+        {
+            PrestamosActivos = prestamosActivos,
+            MaximoPrestamos = ReglasPrestamo.MaximoPrestamosActivosPorLector,
+            EnMora = enMora,
+            PuedePedir = motivo is null,
+            Motivo = motivo,
+            FechaPrestamo = ahoraUtc,
+            FechaVencimiento = ahoraUtc.AddDays(ReglasPrestamo.DiasDePrestamo)
+        };
     }
 
     private DateTime AhoraUtc() => _timeProvider.GetUtcNow().UtcDateTime;

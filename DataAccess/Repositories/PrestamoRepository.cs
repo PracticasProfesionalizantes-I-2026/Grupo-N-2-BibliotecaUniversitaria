@@ -38,6 +38,16 @@ public class PrestamoRepository : IPrestamoRepository
             .AsNoTracking()
             .CountAsync(p => p.LectorId == lectorId && p.Estado == EstadoPrestamo.Activo, ct);
 
+    // Un solo GROUP BY para todos los lectores (evita N+1 al listar lectores).
+    // Los lectores sin préstamos activos no aparecen en el diccionario.
+    public async Task<IReadOnlyDictionary<Guid, int>> CountActivosAgrupadosPorLectorAsync(CancellationToken ct = default) =>
+        await _context.Prestamos
+            .AsNoTracking()
+            .Where(p => p.Estado == EstadoPrestamo.Activo)
+            .GroupBy(p => p.LectorId)
+            .Select(g => new { LectorId = g.Key, Cantidad = g.Count() })
+            .ToDictionaryAsync(x => x.LectorId, x => x.Cantidad, ct);
+
     public Task<bool> TienePrestamosPorLibroAsync(Guid libroId, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
@@ -60,6 +70,15 @@ public class PrestamoRepository : IPrestamoRepository
                 p.LectorId == lectorId &&
                 p.Estado == EstadoPrestamo.Activo &&
                 p.FechaVencimiento < ahoraUtc, ct);
+
+    public async Task<IReadOnlyList<Prestamo>> GetActivosAsync(CancellationToken ct = default) =>
+        await _context.Prestamos
+            .AsNoTracking()
+            .Include(p => p.Libro)
+            .Include(p => p.Lector)
+            .Where(p => p.Estado == EstadoPrestamo.Activo)
+            .OrderBy(p => p.FechaVencimiento)
+            .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Prestamo>> GetVencidosAsync(DateTime ahoraUtc, CancellationToken ct = default) =>
         await _context.Prestamos

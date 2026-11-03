@@ -8,4 +8,6 @@ public interface IPrestamoService
     Task<PrestamoResponseDTO> CreateAsync(PrestamoCreateDTO dto, CancellationToken ct = default);
     Task<PrestamoResponseDTO> RegistrarDevolucionAsync(Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<PrestamoResponseDTO>> GetVencidosAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<PrestamoResponseDTO>> GetActivosAsync(CancellationToken ct = default);
+    Task<EstadoLectorPrestamoDTO> GetEstadoLectorAsync(Guid lectorId, CancellationToken ct = default);
 }

@@ -37,13 +37,17 @@ dotnet ef database update
 ## Convención de capas (no romper)
 
 - `Controller` nunca accede a datos directamente ni contiene lógica de
-  negocio. Solo recibe el request, llama al service correspondiente y
-  mapea excepciones a códigos HTTP con `try/catch` explícito.
+  negocio. Solo recibe el request y llama al service correspondiente; no
+  lleva `try/catch`: `API/Middleware/ExceptionMiddleware` mapea las
+  categorías de excepción a 400/404/409/401.
 - `Service` (en `BusinessLogic/`) contiene toda la validación y lógica de
   negocio. Nunca escribe LINQ-to-entities ni usa el `DbContext`
   directamente — solo llama a los repositorios (`DataAccess/Repositories`)
   que recibe por constructor (inyección de dependencias, interfaces).
-  Mapea entidades a DTOs con un método privado `MapToResponseDTO`.
+  Mapea entidades a DTOs con un método privado `MapToResponseDTO`, salvo
+  préstamos, que usan el mapper compartido `BusinessLogic/Mapping/PrestamoMapper`.
+  Los parámetros de préstamo (máximo 3 activos, 14 días) viven en
+  `BusinessLogic/Reglas/ReglasPrestamo`: no duplicarlos.
 - `Repository` (en `DataAccess/`) es el único lugar que habla con el
   `DbContext`. Usa `AsNoTracking()` en toda lectura, y asigna el `Guid` del
   Id dentro de `CreateAsync` (nunca lo recibe del caller).
@@ -65,10 +69,13 @@ dotnet ef database update
 | Lector: nombre/apellido/email/identificador obligatorios | `LectorService.CreateAsync/UpdateAsync` |
 | Lector: identificador (DNI/legajo) único | `LectorService.CreateAsync/UpdateAsync` |
 | Lector: no se elimina con préstamos activos | `LectorService.DeleteAsync` |
-| Préstamo: máximo 3 activos por lector | `PrestamoService.CreateAsync` |
+| Préstamo: máximo 3 activos por lector (constante en `ReglasPrestamo`) | `PrestamoService.CreateAsync` |
 | Préstamo: no se presta un libro sin stock | `PrestamoService.CreateAsync` |
 | Préstamo: lector en mora no puede pedir otro | `PrestamoService.CreateAsync` |
-| Préstamo: vencimiento a 14 días | `PrestamoService.CreateAsync` |
+| Préstamo: vencimiento a 14 días (constante en `ReglasPrestamo`) | `PrestamoService.CreateAsync` |
+| Préstamo: listar activos (incluye vencidos) por vencimiento ascendente, con `EnMora` calculado | `PrestamoService.GetActivosAsync` / `PrestamoRepository.GetActivosAsync` |
+| Préstamo: estado del lector (activos, máximo, mora, `PuedePedir`, `Motivo`, fechas previstas); mismo orden y textos que `CreateAsync` (límite → mora); lector inexistente → 404 | `PrestamoService.GetEstadoLectorAsync` |
+| Lector: `PrestamosActivos` y `MaximoPrestamos` en la respuesta; en el listado, un único conteo agrupado (sin N+1) | `LectorService.GetAllAsync/GetByIdAsync` + `PrestamoRepository.CountActivosAgrupadosPorLectorAsync` |
 | Préstamo: no se registra dos veces la devolución (409) | `PrestamoService.RegistrarDevolucionAsync` |
 | Préstamo: "vencido" se calcula en la consulta, no se persiste | `PrestamoRepository.GetVencidosAsync` / `LectorTieneMoraAsync` |
 | Login: credenciales inválidas o usuario inactivo → 401 (email sin distinguir mayúsculas) | `AuthService.LoginAsync` |
@@ -77,6 +84,9 @@ dotnet ef database update
 | Usuario: contraseña ≥ 6 caracteres, guardada con hash PBKDF2 (RN-21) | `UsuarioService` + `IPasswordHasher` |
 | Usuario: email único | `UsuarioService.CreateAsync/UpdateAsync` |
 | Usuario: baja lógica (`Activo = false`) | `UsuarioService.DeleteAsync` |
+| Usuario: nadie puede eliminarse a sí mismo (409, `UsuarioAutoBajaException`) | `UsuarioService.DeleteAsync` (`usuarioActualId` del claim `NameIdentifier`) |
+| Usuario: nadie puede desactivarse ni quitarse el rol Administrador a sí mismo (409, `UsuarioAutoModificacionException`) | `UsuarioService.UpdateAsync` (`usuarioActualId` del claim `NameIdentifier`) |
+| Usuario: no se desactiva ni se cambia el rol del último administrador activo (409) | `UsuarioService.UpdateAsync/DeleteAsync` |
 | Reportes: solo básicos — resumen, préstamos por fechas, mora (RN-17/RN-18) | `ReporteService.GetReporteAsync` |
 | Reportes: tipo inexistente o `desde` > `hasta` → 400 | `ReporteService.GetReporteAsync` |
 | Reportes: sin datos → 200 con lista vacía y mensaje | `ReporteService` |

@@ -43,7 +43,7 @@ public class UsuarioService : IUsuarioService
         var creado = await _usuarioRepository.CreateAsync(usuario, ct);
         return MapToResponseDTO(creado);
     }
-    public async Task<UsuarioResponseDTO> UpdateAsync(Guid id, UsuarioUpdateDTO dto, Guid currentUserId, CancellationToken ct = default)
+    public async Task<UsuarioResponseDTO> UpdateAsync(Guid id, UsuarioUpdateDTO dto, Guid usuarioActualId, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
         var email = ValidarEmail(dto.Email);
@@ -53,9 +53,11 @@ public class UsuarioService : IUsuarioService
         var seDesactiva = dto.Activo.HasValue && !dto.Activo.Value && usuario.Activo;
         var dejaDeSerAdministrador = usuario.RolUsuario == RolUsuario.Administrador && nuevoRol != RolUsuario.Administrador;
 
-        if (id == currentUserId && seDesactiva)
+        // El usuario autenticado no puede desactivarse ni quitarse el rol Administrador
+        // a sí mismo (se chequea antes que la regla del último administrador).
+        if (id == usuarioActualId && (dto.Activo == false || dejaDeSerAdministrador))
         {
-            throw new UsuarioAutoBajaException();
+            throw new UsuarioAutoModificacionException();
         }
 
         if (usuario.RolUsuario == RolUsuario.Administrador && usuario.Activo && (seDesactiva || dejaDeSerAdministrador))
@@ -81,11 +83,11 @@ public class UsuarioService : IUsuarioService
         await _usuarioRepository.UpdateAsync(usuario, ct);
         return MapToResponseDTO(usuario);
     }
-    public async Task DeleteAsync(Guid id, Guid currentUserId, CancellationToken ct = default)
+    public async Task DeleteAsync(Guid id, Guid usuarioActualId, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
 
-        if (id == currentUserId)
+        if (id == usuarioActualId)
         {
             throw new UsuarioAutoBajaException();
         }

@@ -1,9 +1,10 @@
 namespace BiblioGest.Shared.Exceptions;
 
+// El usuario autenticado intenta eliminar su propia cuenta (DELETE /api/usuarios/{id}).
 public class UsuarioAutoBajaException : ConflictException
 {
     public UsuarioAutoBajaException()
-        : base("Un administrador no puede darse de baja ni desactivarse a sí mismo.")
+        : base("No podés eliminar tu propia cuenta.")
     {
     }
 }
