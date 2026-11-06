@@ -1,0 +1,15 @@
+meta {
+  name: Obtener reserva por Id (200)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/reservas/{{reservaId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  Muestra el estado actual de la reserva (EnCola, Asignada, Concretada, Vencida o Cancelada).
+}

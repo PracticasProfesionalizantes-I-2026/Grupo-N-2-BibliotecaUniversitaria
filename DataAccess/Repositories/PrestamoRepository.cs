@@ -12,7 +12,7 @@ public class PrestamoRepository : IPrestamoRepository
         _context = context;
     }
 
-    public Task<Prestamo?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+    public Task<Prestamo?> GetByIdAsync(int id, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
             .Include(p => p.Libro)
@@ -21,7 +21,6 @@ public class PrestamoRepository : IPrestamoRepository
 
     public async Task<Prestamo> CreateAsync(Prestamo prestamo, CancellationToken ct = default)
     {
-        prestamo.Id = Guid.NewGuid();
         _context.Prestamos.Add(prestamo);
         await _context.SaveChangesAsync(ct);
         return prestamo;
@@ -33,43 +32,48 @@ public class PrestamoRepository : IPrestamoRepository
         await _context.SaveChangesAsync(ct);
     }
 
-    public Task<int> CountActivosPorLectorAsync(Guid lectorId, CancellationToken ct = default) =>
+    public Task<int> CountActivosPorLectorAsync(int lectorId, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
             .CountAsync(p => p.LectorId == lectorId && p.Estado == EstadoPrestamo.Activo, ct);
 
-    // Un solo GROUP BY para todos los lectores (evita N+1 al listar lectores).
-    // Los lectores sin préstamos activos no aparecen en el diccionario.
-    public async Task<IReadOnlyDictionary<Guid, int>> CountActivosAgrupadosPorLectorAsync(CancellationToken ct = default) =>
-        await _context.Prestamos
-            .AsNoTracking()
-            .Where(p => p.Estado == EstadoPrestamo.Activo)
-            .GroupBy(p => p.LectorId)
-            .Select(g => new { LectorId = g.Key, Cantidad = g.Count() })
-            .ToDictionaryAsync(x => x.LectorId, x => x.Cantidad, ct);
-
-    public Task<bool> TienePrestamosPorLibroAsync(Guid libroId, CancellationToken ct = default) =>
+    public Task<bool> TieneActivosPorLibroAsync(int libroId, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
-            .AnyAsync(p => p.LibroId == libroId, ct);
+            .AnyAsync(p => p.LibroId == libroId && (p.Estado == EstadoPrestamo.Activo || p.Estado == EstadoPrestamo.Extraviado), ct);
 
-    public Task<bool> TienePrestamosPorLectorAsync(Guid lectorId, CancellationToken ct = default) =>
+    public Task<bool> TieneActivosPorLectorAsync(int lectorId, CancellationToken ct = default) =>
+        _context.Prestamos
+            .AsNoTracking()
+            .AnyAsync(p => p.LectorId == lectorId && (p.Estado == EstadoPrestamo.Activo || p.Estado == EstadoPrestamo.Extraviado), ct);
+
+    public Task<bool> TienePrestamosPorLectorAsync(int lectorId, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
             .AnyAsync(p => p.LectorId == lectorId, ct);
 
-    public Task<bool> ExistePrestamoActivoAsync(Guid lectorId, Guid libroId, CancellationToken ct = default) =>
+    public Task<bool> TienePrestamosPorLibroAsync(int libroId, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
-            .AnyAsync(p => p.LectorId == lectorId && p.LibroId == libroId && p.Estado == EstadoPrestamo.Activo, ct);
+            .AnyAsync(p => p.LibroId == libroId, ct);
 
-    public Task<bool> LectorTieneMoraAsync(Guid lectorId, DateTime ahoraUtc, CancellationToken ct = default) =>
+    public Task<bool> LectorTieneMoraAsync(int lectorId, CancellationToken ct = default) =>
         _context.Prestamos
             .AsNoTracking()
             .AnyAsync(p =>
                 p.LectorId == lectorId &&
                 p.Estado == EstadoPrestamo.Activo &&
-                p.FechaVencimiento < ahoraUtc, ct);
+                p.FechaVencimiento < DateTime.UtcNow, ct);
+
+    public Task<bool> LectorTieneExtraviadosAsync(int lectorId, CancellationToken ct = default) =>
+        _context.Prestamos
+            .AsNoTracking()
+            .AnyAsync(p => p.LectorId == lectorId && p.Estado == EstadoPrestamo.Extraviado, ct);
+
+    public Task<bool> ExistePrestamoActivoAsync(int lectorId, int libroId, CancellationToken ct = default) =>
+        _context.Prestamos
+            .AsNoTracking()
+            .AnyAsync(p => p.LectorId == lectorId && p.LibroId == libroId && p.Estado == EstadoPrestamo.Activo, ct);
 
     public async Task<IReadOnlyList<Prestamo>> GetActivosAsync(CancellationToken ct = default) =>
         await _context.Prestamos
@@ -80,12 +84,12 @@ public class PrestamoRepository : IPrestamoRepository
             .OrderBy(p => p.FechaVencimiento)
             .ToListAsync(ct);
 
-    public async Task<IReadOnlyList<Prestamo>> GetVencidosAsync(DateTime ahoraUtc, CancellationToken ct = default) =>
+    public async Task<IReadOnlyList<Prestamo>> GetVencidosAsync(CancellationToken ct = default) =>
         await _context.Prestamos
             .AsNoTracking()
             .Include(p => p.Libro)
             .Include(p => p.Lector)
-            .Where(p => p.Estado == EstadoPrestamo.Activo && p.FechaVencimiento < ahoraUtc)
+            .Where(p => p.Estado == EstadoPrestamo.Activo && p.FechaVencimiento < DateTime.UtcNow)
             .OrderBy(p => p.FechaVencimiento)
             .ToListAsync(ct);
 

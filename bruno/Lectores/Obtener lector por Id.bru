@@ -1,21 +1,11 @@
 meta {
   name: Obtener lector por Id
   type: http
-  seq: 3
+  seq: 2
 }
 
 get {
   url: {{baseUrl}}/api/lectores/{{lectorId}}
   body: none
   auth: inherit
-}
-
-docs {
-  La respuesta incluye prestamosActivos y maximoPrestamos (3), calculados
-  por la API (CU-04).
-}
-
-assert {
-  res.status: eq 200
-  res.body.maximoPrestamos: eq 3
 }

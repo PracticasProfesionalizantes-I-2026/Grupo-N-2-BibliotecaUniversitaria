@@ -1,7 +1,7 @@
 meta {
   name: Estado del lector para un prestamo (200)
   type: http
-  seq: 12
+  seq: 18
 }
 
 get {
@@ -11,17 +11,7 @@ get {
 }
 
 docs {
-  RN-10 y CU-05 3a/3b. Anticipa si el lector puede pedir un préstamo:
-  prestamosActivos, maximoPrestamos (3), enMora, puedePedir, motivo (mismo
-  texto que el 409 de POST /api/prestamos, o null) y las fechas previstas
-  (fechaPrestamo = ahora, fechaVencimiento = ahora + 14 días).
-  Usa el lectorId de "Lectores/Crear lector (201)"; para ese momento su
-  préstamo ya fue devuelto en "Registrar devolucion (200)", así que puede pedir.
-}
-
-assert {
-  res.status: eq 200
-  res.body.maximoPrestamos: eq 3
-  res.body.puedePedir: eq true
-  res.body.motivo: isNull
+  Dice si el lector puede pedir un préstamo y, si no, el motivo (mismo mensaje que
+  daría POST /api/prestamos): límite de 3, suspensión, libro extraviado o mora.
+  Lo calcula la API para que el frontend solo lo muestre.
 }

@@ -16,10 +16,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {
-        // Por defecto, un error de model binding (campo null, body vacío, JSON
-        // inválido) devuelve un ProblemDetails en inglés que no pasa por
-        // ExceptionMiddleware. Lo reemplazamos para que toda la API responda
-        // siempre el mismo formato { message } en español.
         options.InvalidModelStateResponseFactory = context =>
         {
             var entradas = context.ModelState
@@ -59,16 +55,17 @@ builder.Services.AddOpenApi(options =>
 
 var connectionString = builder.Configuration.GetConnectionString("BiblioGest") ?? "Data Source=bibliogest.db";
 builder.Services.AddDbContext<BiblioGestDbContext>(options => options.UseSqlite(connectionString));
-builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ILibroRepository, LibroRepository>();
 builder.Services.AddScoped<ILectorRepository, LectorRepository>();
 builder.Services.AddScoped<IPrestamoRepository, PrestamoRepository>();
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 
 builder.Services.AddScoped<ILibroService, LibroService>();
 builder.Services.AddScoped<ILectorService, LectorService>();
+builder.Services.AddScoped<IColaDeReservas, ColaDeReservas>();
+builder.Services.AddScoped<IReservaService, ReservaService>();
 builder.Services.AddScoped<IPrestamoService, PrestamoService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
@@ -95,14 +92,10 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 
-    // Sin esto, un 401/403 resuelto por el propio middleware de JWT (sin
-    // token, token invalido, vencido, o rol insuficiente) devuelve el body
-    // vacio por defecto de ASP.NET, sin pasar por ExceptionMiddleware.
     options.Events = new JwtBearerEvents
     {
         OnChallenge = async context =>
         {
-            // Evita que ASP.NET tambien escriba su respuesta 401 por defecto.
             context.HandleResponse();
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             context.Response.ContentType = "application/json";

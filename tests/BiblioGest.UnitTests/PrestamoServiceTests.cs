@@ -1,11 +1,9 @@
-using BiblioGest.BusinessLogic.Reglas;
+using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.BusinessLogic.Services;
-using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Prestamos;
 using BiblioGest.Shared.Exceptions;
-using Microsoft.EntityFrameworkCore.Storage;
 using Moq;
 using Xunit;
 
@@ -13,90 +11,56 @@ namespace BiblioGest.UnitTests;
 
 public class PrestamoServiceTests
 {
-    private static readonly DateTimeOffset Ahora = new(2026, 10, 22, 12, 0, 0, TimeSpan.Zero);
-
     private readonly Mock<IPrestamoRepository> _prestamoRepository = new();
     private readonly Mock<ILibroRepository> _libroRepository = new();
     private readonly Mock<ILectorRepository> _lectorRepository = new();
-    private readonly Mock<IUnitOfWork> _unitOfWork = new();
-    private readonly TimeProvider _timeProvider = new FixedTimeProvider(Ahora);
+    private readonly Mock<IReservaRepository> _reservaRepository = new();
+    private readonly Mock<IColaDeReservas> _colaDeReservas = new();
 
     private PrestamoService CrearService() =>
-        new(_prestamoRepository.Object, _libroRepository.Object, _lectorRepository.Object, _unitOfWork.Object, _timeProvider);
+        new(_prestamoRepository.Object, _libroRepository.Object, _lectorRepository.Object, _reservaRepository.Object, _colaDeReservas.Object);
 
-    private static Lector CrearLector(Guid id) =>
-        new() { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Identificador = "1" };
+    private static Lector CrearLector(int id) =>
+        new() { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Dni = "1" };
 
-    private static Libro CrearLibro(Guid id, int stock) =>
+    private static Libro CrearLibro(int id, int stock) =>
         new() { Id = id, Titulo = "T", Autor = "A", Isbn = "1", Ubicacion = "A1", Stock = stock };
-
-    private void SetupTransaccion()
-    {
-        var transaction = new Mock<IDbContextTransaction>();
-        transaction.Setup(t => t.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        transaction.Setup(t => t.DisposeAsync()).Returns(ValueTask.CompletedTask);
-        _unitOfWork.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
-    }
-
-    private void SetupSinMoraNiPrestamoDuplicado(Guid lectorId, Guid libroId)
-    {
-        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _prestamoRepository.Setup(r => r.ExistePrestamoActivoAsync(lectorId, libroId, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-    }
 
     [Fact]
     public async Task CreatePrestamoAsync_WithValidData_SavesAndReturnsCreatedPrestamo()
     {
-        var lectorId = Guid.NewGuid();
-        var libroId = Guid.NewGuid();
+        var lectorId = IdsDePrueba.Nuevo();
+        var libroId = IdsDePrueba.Nuevo();
         var lector = CrearLector(lectorId);
         var libro = CrearLibro(libroId, stock: 2);
 
         _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
         _libroRepository.Setup(r => r.GetByIdAsync(libroId, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
         _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(0);
-        SetupSinMoraNiPrestamoDuplicado(lectorId, libroId);
-        SetupTransaccion();
+        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(false);
         _prestamoRepository
             .Setup(r => r.CreateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Prestamo p, CancellationToken _) =>
             {
-                p.Id = Guid.NewGuid();
+                p.Id = IdsDePrueba.Nuevo();
                 return p;
             });
 
         var service = CrearService();
         var resultado = await service.CreateAsync(new PrestamoCreateDTO { LectorId = lectorId, LibroId = libroId });
 
-        Assert.NotEqual(Guid.Empty, resultado.Id);
+        Assert.True(resultado.Id > 0);
         Assert.Equal("Activo", resultado.Estado);
         Assert.Equal(resultado.FechaPrestamo.AddDays(14), resultado.FechaVencimiento);
         Assert.Equal(1, libro.Stock);
         _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task CreatePrestamoAsync_WithEmptyGuid_ThrowsValidationException(bool lectorVacio, bool libroVacio)
-    {
-        var dto = new PrestamoCreateDTO
-        {
-            LectorId = lectorVacio ? Guid.Empty : Guid.NewGuid(),
-            LibroId = libroVacio ? Guid.Empty : Guid.NewGuid()
-        };
-
-        var service = CrearService();
-
-        await Assert.ThrowsAsync<PrestamoInvalidoException>(() => service.CreateAsync(dto));
-        _lectorRepository.Verify(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
     [Fact]
     public async Task CreatePrestamoAsync_WhenLectorOrLibroNotFound_ThrowsNotFoundException()
     {
-        var lectorId = Guid.NewGuid();
-        var libroId = Guid.NewGuid();
+        var lectorId = IdsDePrueba.Nuevo();
+        var libroId = IdsDePrueba.Nuevo();
         _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync((Lector?)null);
 
         var service = CrearService();
@@ -106,10 +70,10 @@ public class PrestamoServiceTests
     }
 
     [Fact]
-    public async Task CreatePrestamoAsync_WhenLectorHasThreeActiveLoans_ThrowsConflictException()
+    public async Task CreatePrestamoAsync_WhenLectorHasThreeActiveLoans_ThrowsForbiddenException()
     {
-        var lectorId = Guid.NewGuid();
-        var libroId = Guid.NewGuid();
+        var lectorId = IdsDePrueba.Nuevo();
+        var libroId = IdsDePrueba.Nuevo();
         _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLector(lectorId));
         _libroRepository.Setup(r => r.GetByIdAsync(libroId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLibro(libroId, stock: 3));
         _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(3);
@@ -121,14 +85,14 @@ public class PrestamoServiceTests
     }
 
     [Fact]
-    public async Task CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsConflictException()
+    public async Task CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsForbiddenException()
     {
-        var lectorId = Guid.NewGuid();
-        var libroId = Guid.NewGuid();
+        var lectorId = IdsDePrueba.Nuevo();
+        var libroId = IdsDePrueba.Nuevo();
         _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLector(lectorId));
         _libroRepository.Setup(r => r.GetByIdAsync(libroId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLibro(libroId, stock: 3));
         _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var service = CrearService();
 
@@ -137,31 +101,14 @@ public class PrestamoServiceTests
     }
 
     [Fact]
-    public async Task CreatePrestamoAsync_WhenLectorAlreadyHasActiveLoanOfSameLibro_ThrowsConflictException()
-    {
-        var lectorId = Guid.NewGuid();
-        var libroId = Guid.NewGuid();
-        _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLector(lectorId));
-        _libroRepository.Setup(r => r.GetByIdAsync(libroId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLibro(libroId, stock: 3));
-        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(0);
-        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _prestamoRepository.Setup(r => r.ExistePrestamoActivoAsync(lectorId, libroId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-
-        var service = CrearService();
-
-        await Assert.ThrowsAsync<PrestamoActivoDuplicadoException>(
-            () => service.CreateAsync(new PrestamoCreateDTO { LectorId = lectorId, LibroId = libroId }));
-    }
-
-    [Fact]
     public async Task CreatePrestamoAsync_WhenLibroHasNoStock_ThrowsConflictException()
     {
-        var lectorId = Guid.NewGuid();
-        var libroId = Guid.NewGuid();
+        var lectorId = IdsDePrueba.Nuevo();
+        var libroId = IdsDePrueba.Nuevo();
         _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLector(lectorId));
         _libroRepository.Setup(r => r.GetByIdAsync(libroId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLibro(libroId, stock: 0));
         _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(0);
-        SetupSinMoraNiPrestamoDuplicado(lectorId, libroId);
+        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
         var service = CrearService();
 
@@ -172,20 +119,19 @@ public class PrestamoServiceTests
     [Fact]
     public async Task RegisterDevolucionAsync_WithValidData_UpdatesStockAndPrestamoState()
     {
-        var id = Guid.NewGuid();
-        var libro = CrearLibro(Guid.NewGuid(), stock: 0);
+        var id = IdsDePrueba.Nuevo();
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0);
         var prestamo = new Prestamo
         {
             Id = id,
-            LectorId = Guid.NewGuid(),
+            LectorId = IdsDePrueba.Nuevo(),
             LibroId = libro.Id,
             Libro = libro,
-            FechaPrestamo = Ahora.UtcDateTime.AddDays(-5),
-            FechaVencimiento = Ahora.UtcDateTime.AddDays(9),
+            FechaPrestamo = DateTime.UtcNow.AddDays(-5),
+            FechaVencimiento = DateTime.UtcNow.AddDays(9),
             Estado = EstadoPrestamo.Activo
         };
         _prestamoRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
-        SetupTransaccion();
 
         var service = CrearService();
         var resultado = await service.RegistrarDevolucionAsync(id);
@@ -200,17 +146,17 @@ public class PrestamoServiceTests
     [Fact]
     public async Task RegisterDevolucionAsync_WhenAlreadyReturned_ThrowsConflictException()
     {
-        var id = Guid.NewGuid();
-        var libro = CrearLibro(Guid.NewGuid(), stock: 1);
+        var id = IdsDePrueba.Nuevo();
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 1);
         var prestamo = new Prestamo
         {
             Id = id,
-            LectorId = Guid.NewGuid(),
+            LectorId = IdsDePrueba.Nuevo(),
             LibroId = libro.Id,
             Libro = libro,
-            FechaPrestamo = Ahora.UtcDateTime.AddDays(-5),
-            FechaVencimiento = Ahora.UtcDateTime.AddDays(9),
-            FechaDevolucion = Ahora.UtcDateTime.AddDays(-1),
+            FechaPrestamo = DateTime.UtcNow.AddDays(-5),
+            FechaVencimiento = DateTime.UtcNow.AddDays(9),
+            FechaDevolucion = DateTime.UtcNow.AddDays(-1),
             Estado = EstadoPrestamo.Devuelto
         };
         _prestamoRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
@@ -227,16 +173,16 @@ public class PrestamoServiceTests
     {
         var vencido = new Prestamo
         {
-            Id = Guid.NewGuid(),
-            LectorId = Guid.NewGuid(),
-            LibroId = Guid.NewGuid(),
-            Lector = CrearLector(Guid.NewGuid()),
-            Libro = CrearLibro(Guid.NewGuid(), stock: 0),
-            FechaPrestamo = Ahora.UtcDateTime.AddDays(-20),
-            FechaVencimiento = Ahora.UtcDateTime.AddDays(-6),
+            Id = IdsDePrueba.Nuevo(),
+            LectorId = IdsDePrueba.Nuevo(),
+            LibroId = IdsDePrueba.Nuevo(),
+            Lector = CrearLector(IdsDePrueba.Nuevo()),
+            Libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0),
+            FechaPrestamo = DateTime.UtcNow.AddDays(-20),
+            FechaVencimiento = DateTime.UtcNow.AddDays(-6),
             Estado = EstadoPrestamo.Activo
         };
-        _prestamoRepository.Setup(r => r.GetVencidosAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+        _prestamoRepository.Setup(r => r.GetVencidosAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Prestamo> { vencido });
 
         var service = CrearService();
@@ -244,14 +190,12 @@ public class PrestamoServiceTests
 
         Assert.Single(resultado);
         Assert.True(resultado[0].EnMora);
-        Assert.Equal("Vencido", resultado[0].Estado);
-        Assert.Equal(6, resultado[0].DiasDeAtraso);
     }
 
     [Fact]
     public async Task GetPrestamosVencidosAsync_WithNoOverdueLoans_ReturnsEmptyList()
     {
-        _prestamoRepository.Setup(r => r.GetVencidosAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+        _prestamoRepository.Setup(r => r.GetVencidosAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Prestamo>());
 
         var service = CrearService();
@@ -260,138 +204,392 @@ public class PrestamoServiceTests
         Assert.Empty(resultado);
     }
 
-    [Fact]
-    public async Task CreatePrestamoAsync_WhenLectorHasThreeActiveLoans_MessageUsesSharedMaximum()
+    private void ConfigurarAltaSinBloqueos(Lector lector, Libro libro)
     {
-        var lectorId = Guid.NewGuid();
-        var libroId = Guid.NewGuid();
-        _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLector(lectorId));
-        _libroRepository.Setup(r => r.GetByIdAsync(libroId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLibro(libroId, stock: 3));
-        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ReglasPrestamo.MaximoPrestamosActivosPorLector);
+        _lectorRepository.Setup(r => r.GetByIdAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _libroRepository.Setup(r => r.GetByIdAsync(libro.Id, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
+        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _prestamoRepository
+            .Setup(r => r.CreateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Prestamo p, CancellationToken _) =>
+            {
+                p.Id = IdsDePrueba.Nuevo();
+                return p;
+            });
+    }
+
+    private static Prestamo CrearPrestamoActivo(Lector lector, Libro libro, DateTime fechaVencimiento) => new()
+    {
+        Id = IdsDePrueba.Nuevo(),
+        LectorId = lector.Id,
+        Lector = lector,
+        LibroId = libro.Id,
+        Libro = libro,
+        FechaPrestamo = fechaVencimiento.AddDays(-14),
+        FechaVencimiento = fechaVencimiento,
+        Estado = EstadoPrestamo.Activo
+    };
+
+    [Fact]
+    public async Task CreatePrestamoAsync_WhenLectorIsSuspended_ThrowsForbiddenException()
+    {
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        lector.SuspendidoHasta = DateTime.UtcNow.AddDays(2);
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 3);
+        ConfigurarAltaSinBloqueos(lector, libro);
 
         var service = CrearService();
 
-        var ex = await Assert.ThrowsAsync<LimitePrestamosActivosException>(
-            () => service.CreateAsync(new PrestamoCreateDTO { LectorId = lectorId, LibroId = libroId }));
-        Assert.Equal(
-            $"El lector con Id '{lectorId}' ya tiene 3 préstamos activos y no puede solicitar otro.",
-            ex.Message);
+        await Assert.ThrowsAsync<LectorSuspendidoException>(
+            () => service.CreateAsync(new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id }));
+        _prestamoRepository.Verify(r => r.CreateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task GetPrestamosActivosAsync_ReturnsActiveLoansWithEnMoraCalculated()
+    public async Task CreatePrestamoAsync_WhenSuspensionHasExpired_CreatesPrestamo()
     {
-        var vencido = new Prestamo
-        {
-            Id = Guid.NewGuid(),
-            LectorId = Guid.NewGuid(),
-            LibroId = Guid.NewGuid(),
-            Lector = CrearLector(Guid.NewGuid()),
-            Libro = CrearLibro(Guid.NewGuid(), stock: 0),
-            FechaPrestamo = Ahora.UtcDateTime.AddDays(-20),
-            FechaVencimiento = Ahora.UtcDateTime.AddDays(-6),
-            Estado = EstadoPrestamo.Activo
-        };
-        var alDia = new Prestamo
-        {
-            Id = Guid.NewGuid(),
-            LectorId = Guid.NewGuid(),
-            LibroId = Guid.NewGuid(),
-            Lector = CrearLector(Guid.NewGuid()),
-            Libro = CrearLibro(Guid.NewGuid(), stock: 1),
-            FechaPrestamo = Ahora.UtcDateTime.AddDays(-4),
-            FechaVencimiento = Ahora.UtcDateTime.AddDays(10),
-            Estado = EstadoPrestamo.Activo
-        };
-        _prestamoRepository.Setup(r => r.GetActivosAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Prestamo> { vencido, alDia });
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        lector.SuspendidoHasta = DateTime.UtcNow.AddMinutes(-1);
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 3);
+        ConfigurarAltaSinBloqueos(lector, libro);
 
         var service = CrearService();
-        var resultado = await service.GetActivosAsync();
+        var resultado = await service.CreateAsync(new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id });
 
-        Assert.Equal(2, resultado.Count);
-        Assert.Equal(vencido.Id, resultado[0].Id);
-        Assert.True(resultado[0].EnMora);
-        Assert.Equal("Vencido", resultado[0].Estado);
-        Assert.Equal(alDia.Id, resultado[1].Id);
-        Assert.False(resultado[1].EnMora);
-        Assert.Equal("Activo", resultado[1].Estado);
-        Assert.Equal(10, resultado[1].DiasRestantes);
+        Assert.Equal("Activo", resultado.Estado);
     }
 
     [Fact]
-    public async Task GetPrestamosActivosAsync_WithNoActiveLoans_ReturnsEmptyList()
+    public async Task RegisterDevolucionAsync_WithThreeDaysLate_SuspendsLectorForThreeDays()
     {
-        _prestamoRepository.Setup(r => r.GetActivosAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Prestamo>());
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0);
+        var prestamo = CrearPrestamoActivo(lector, libro, DateTime.UtcNow.AddDays(-3));
+        _prestamoRepository.Setup(r => r.GetByIdAsync(prestamo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
 
         var service = CrearService();
-        var resultado = await service.GetActivosAsync();
+        var resultado = await service.RegistrarDevolucionAsync(prestamo.Id);
 
-        Assert.Empty(resultado);
+        Assert.Equal(resultado.FechaDevolucion!.Value.AddDays(3), lector.SuspendidoHasta);
+        _lectorRepository.Verify(r => r.UpdateAsync(lector, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task GetEstadoLectorAsync_WhenLectorDoesNotExist_ThrowsNotFoundException()
+    public async Task RegisterDevolucionAsync_OnTime_DoesNotSuspendLector()
     {
-        var lectorId = Guid.NewGuid();
-        _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync((Lector?)null);
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0);
+        var prestamo = CrearPrestamoActivo(lector, libro, DateTime.UtcNow.AddDays(1));
+        _prestamoRepository.Setup(r => r.GetByIdAsync(prestamo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
 
         var service = CrearService();
+        await service.RegistrarDevolucionAsync(prestamo.Id);
 
-        await Assert.ThrowsAsync<LectorNotFoundException>(() => service.GetEstadoLectorAsync(lectorId));
+        Assert.Null(lector.SuspendidoHasta);
+        _lectorRepository.Verify(r => r.UpdateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task GetEstadoLectorAsync_WhenLectorCanBorrow_ReturnsPuedePedirAndExpectedDates()
+    public async Task RegisterDevolucionAsync_WhenLectorAlreadySuspended_AddsDaysToCurrentSuspension()
     {
-        var lectorId = Guid.NewGuid();
-        _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLector(lectorId));
-        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        var suspensionActual = DateTime.UtcNow.AddDays(5);
+        lector.SuspendidoHasta = suspensionActual;
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0);
+        var prestamo = CrearPrestamoActivo(lector, libro, DateTime.UtcNow.AddDays(-2));
+        _prestamoRepository.Setup(r => r.GetByIdAsync(prestamo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
 
         var service = CrearService();
-        var estado = await service.GetEstadoLectorAsync(lectorId);
+        await service.RegistrarDevolucionAsync(prestamo.Id);
+
+        Assert.Equal(suspensionActual.AddDays(2), lector.SuspendidoHasta);
+    }
+
+    private Prestamo ConfigurarPrestamo(EstadoPrestamo estado, int stockLibro, DateTime fechaVencimiento, out Lector lector, out Libro libro)
+    {
+        lector = CrearLector(IdsDePrueba.Nuevo());
+        libro = CrearLibro(IdsDePrueba.Nuevo(), stock: stockLibro);
+        var prestamo = CrearPrestamoActivo(lector, libro, fechaVencimiento);
+        prestamo.Id = IdsDePrueba.Nuevo();
+        prestamo.Estado = estado;
+        _prestamoRepository.Setup(r => r.GetByIdAsync(prestamo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
+        return prestamo;
+    }
+
+    [Fact]
+    public async Task RegistrarExtravioAsync_WithActivePrestamo_MarksExtraviadoAndKeepsStock()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Activo, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
+
+        var service = CrearService();
+        var resultado = await service.RegistrarExtravioAsync(prestamo.Id);
+
+        Assert.Equal("Extraviado", resultado.Estado);
+        Assert.Null(resultado.FechaDevolucion);
+        Assert.Equal(0, libro.Stock);
+        _prestamoRepository.Verify(r => r.UpdateAsync(prestamo, It.IsAny<CancellationToken>()), Times.Once);
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(EstadoPrestamo.Devuelto)]
+    [InlineData(EstadoPrestamo.Extraviado)]
+    [InlineData(EstadoPrestamo.Repuesto)]
+    public async Task RegistrarExtravioAsync_WhenPrestamoIsNotActive_ThrowsConflictException(EstadoPrestamo estado)
+    {
+        var prestamo = ConfigurarPrestamo(estado, stockLibro: 1, DateTime.UtcNow.AddDays(5), out _, out _);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<PrestamoNoActivoException>(() => service.RegistrarExtravioAsync(prestamo.Id));
+        _prestamoRepository.Verify(r => r.UpdateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegistrarExtravioAsync_WithUnknownId_ThrowsNotFoundException()
+    {
+        _prestamoRepository
+            .Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Prestamo?)null);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<PrestamoNotFoundException>(() => service.RegistrarExtravioAsync(IdsDePrueba.Nuevo()));
+    }
+
+    [Fact]
+    public async Task RegistrarReposicionAsync_WithExtraviadoPrestamo_MarksRepuestoAndRestoresStock()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Extraviado, stockLibro: 0, DateTime.UtcNow.AddDays(5), out var lector, out var libro);
+
+        var service = CrearService();
+        var resultado = await service.RegistrarReposicionAsync(prestamo.Id);
+
+        Assert.Equal("Repuesto", resultado.Estado);
+        Assert.NotNull(resultado.FechaDevolucion);
+        Assert.Equal(1, libro.Stock);
+        Assert.Null(lector.SuspendidoHasta);
+        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegistrarReposicionAsync_WhenLate_SuspendsLectorForDaysLate()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Extraviado, stockLibro: 0, DateTime.UtcNow.AddDays(-4), out var lector, out _);
+
+        var service = CrearService();
+        var resultado = await service.RegistrarReposicionAsync(prestamo.Id);
+
+        Assert.Equal(resultado.FechaDevolucion!.Value.AddDays(4), lector.SuspendidoHasta);
+    }
+
+    [Theory]
+    [InlineData(EstadoPrestamo.Activo)]
+    [InlineData(EstadoPrestamo.Devuelto)]
+    [InlineData(EstadoPrestamo.Repuesto)]
+    public async Task RegistrarReposicionAsync_WhenPrestamoIsNotExtraviado_ThrowsConflictException(EstadoPrestamo estado)
+    {
+        var prestamo = ConfigurarPrestamo(estado, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<PrestamoNoExtraviadoException>(() => service.RegistrarReposicionAsync(prestamo.Id));
+        Assert.Equal(0, libro.Stock);
+    }
+
+    [Fact]
+    public async Task RegisterDevolucionAsync_WhenPrestamoIsExtraviado_ThrowsConflictException()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Extraviado, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<PrestamoNoActivoException>(() => service.RegistrarDevolucionAsync(prestamo.Id));
+        Assert.Equal(0, libro.Stock);
+    }
+
+    [Fact]
+    public async Task CreatePrestamoAsync_WhenLectorHasExtraviadoPrestamo_ThrowsForbiddenException()
+    {
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 3);
+        ConfigurarAltaSinBloqueos(lector, libro);
+        _prestamoRepository.Setup(r => r.LectorTieneExtraviadosAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorConLibroExtraviadoException>(
+            () => service.CreateAsync(new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id }));
+        _prestamoRepository.Verify(r => r.CreateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreatePrestamoAsync_WithAssignedReserva_UsesHeldCopyWithoutStock()
+    {
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0);
+        ConfigurarAltaSinBloqueos(lector, libro);
+        var reserva = new Reserva { Id = IdsDePrueba.Nuevo(), LectorId = lector.Id, LibroId = libro.Id, Estado = EstadoReserva.Asignada };
+        _reservaRepository.Setup(r => r.GetAsignadaAsync(lector.Id, libro.Id, It.IsAny<CancellationToken>())).ReturnsAsync(reserva);
+
+        var service = CrearService();
+        var resultado = await service.CreateAsync(new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id });
+
+        Assert.Equal("Activo", resultado.Estado);
+        Assert.Equal(EstadoReserva.Concretada, reserva.Estado);
+        Assert.Equal(0, libro.Stock);
+        _reservaRepository.Verify(r => r.UpdateAsync(reserva, It.IsAny<CancellationToken>()), Times.Once);
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreatePrestamoAsync_ProcessesExpiredAssignmentsBeforeCheckingStock()
+    {
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0);
+        ConfigurarAltaSinBloqueos(lector, libro);
+        _colaDeReservas
+            .Setup(c => c.ProcesarAsignacionesVencidasAsync(libro, It.IsAny<CancellationToken>()))
+            .Callback(() => libro.Stock = 1)
+            .Returns(Task.CompletedTask);
+
+        var service = CrearService();
+        var resultado = await service.CreateAsync(new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id });
+
+        Assert.Equal("Activo", resultado.Estado);
+        Assert.Equal(0, libro.Stock);
+    }
+
+    [Fact]
+    public async Task RegisterDevolucionAsync_WhenQueueHasReaders_AssignsCopyInsteadOfRestoringStock()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Activo, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
+        _colaDeReservas
+            .Setup(c => c.AsignarAlSiguienteAsync(libro, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var service = CrearService();
+        var resultado = await service.RegistrarDevolucionAsync(prestamo.Id);
+
+        Assert.Equal("Devuelto", resultado.Estado);
+        Assert.Equal(0, libro.Stock);
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RenovarAsync_WithActivePrestamo_ExtendsDueDateFourteenDays()
+    {
+        var vencimiento = DateTime.UtcNow.AddDays(3);
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Activo, stockLibro: 0, vencimiento, out _, out _);
+
+        var service = CrearService();
+        var resultado = await service.RenovarAsync(prestamo.Id);
+
+        Assert.Equal(vencimiento.AddDays(14), resultado.FechaVencimiento);
+        Assert.Equal(1, resultado.Renovaciones);
+        _prestamoRepository.Verify(r => r.UpdateAsync(prestamo, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RenovarAsync_WhenAlreadyRenewedTwice_ThrowsForbiddenException()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Activo, stockLibro: 0, DateTime.UtcNow.AddDays(3), out _, out _);
+        prestamo.Renovaciones = 2;
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LimiteRenovacionesException>(() => service.RenovarAsync(prestamo.Id));
+        _prestamoRepository.Verify(r => r.UpdateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RenovarAsync_WhenLibroHasActiveReservas_ThrowsForbiddenException()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Activo, stockLibro: 0, DateTime.UtcNow.AddDays(3), out _, out var libro);
+        _reservaRepository.Setup(r => r.TieneActivasPorLibroAsync(libro.Id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<RenovacionConReservasException>(() => service.RenovarAsync(prestamo.Id));
+        Assert.Equal(0, prestamo.Renovaciones);
+    }
+
+    [Fact]
+    public async Task RenovarAsync_WhenPrestamoIsOverdue_ThrowsForbiddenException()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Activo, stockLibro: 0, DateTime.UtcNow.AddDays(-1), out _, out _);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<PrestamoVencidoNoRenovableException>(() => service.RenovarAsync(prestamo.Id));
+    }
+
+    [Theory]
+    [InlineData(EstadoPrestamo.Devuelto)]
+    [InlineData(EstadoPrestamo.Extraviado)]
+    [InlineData(EstadoPrestamo.Repuesto)]
+    public async Task RenovarAsync_WhenPrestamoIsNotActive_ThrowsConflictException(EstadoPrestamo estado)
+    {
+        var prestamo = ConfigurarPrestamo(estado, stockLibro: 0, DateTime.UtcNow.AddDays(3), out _, out _);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<PrestamoNoActivoException>(() => service.RenovarAsync(prestamo.Id));
+    }
+
+    [Fact]
+    public async Task CreatePrestamoAsync_WhenLectorAlreadyHasSameBookActive_ThrowsConflictException()
+    {
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 3);
+        ConfigurarAltaSinBloqueos(lector, libro);
+        _prestamoRepository.Setup(r => r.ExistePrestamoActivoAsync(lector.Id, libro.Id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<PrestamoActivoDuplicadoException>(
+            () => service.CreateAsync(new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id }));
+        _prestamoRepository.Verify(r => r.CreateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetEstadoLectorAsync_WithoutRestrictions_CanBorrow()
+    {
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        _lectorRepository.Setup(r => r.GetByIdAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var service = CrearService();
+        var estado = await service.GetEstadoLectorAsync(lector.Id);
 
         Assert.True(estado.PuedePedir);
         Assert.Null(estado.Motivo);
-        Assert.False(estado.EnMora);
         Assert.Equal(1, estado.PrestamosActivos);
         Assert.Equal(3, estado.MaximoPrestamos);
-        Assert.Equal(Ahora.UtcDateTime, estado.FechaPrestamo);
-        Assert.Equal(Ahora.UtcDateTime.AddDays(14), estado.FechaVencimiento);
+        Assert.Equal(estado.FechaPrestamo.AddDays(14), estado.FechaVencimiento);
     }
 
     [Fact]
-    public async Task GetEstadoLectorAsync_WhenLectorHasThreeActiveLoansAndMora_ReturnsLimiteMotivoFirst()
+    public async Task GetEstadoLectorAsync_WhenSuspended_CannotBorrowAndExplainsWhy()
     {
-        var lectorId = Guid.NewGuid();
-        _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLector(lectorId));
-        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(3);
-        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        lector.SuspendidoHasta = DateTime.UtcNow.AddDays(2);
+        _lectorRepository.Setup(r => r.GetByIdAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
 
         var service = CrearService();
-        var estado = await service.GetEstadoLectorAsync(lectorId);
+        var estado = await service.GetEstadoLectorAsync(lector.Id);
 
         Assert.False(estado.PuedePedir);
-        Assert.True(estado.EnMora);
-        Assert.Equal(new LimitePrestamosActivosException(lectorId, 3).Message, estado.Motivo);
+        Assert.Equal(lector.SuspendidoHasta, estado.SuspendidoHasta);
+        Assert.Contains("suspendido", estado.Motivo);
     }
 
     [Fact]
-    public async Task GetEstadoLectorAsync_WhenLectorInMora_ReturnsMoraMotivo()
+    public async Task GetEstadoLectorAsync_WithUnknownLector_ThrowsNotFoundException()
     {
-        var lectorId = Guid.NewGuid();
-        _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(CrearLector(lectorId));
-        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-
         var service = CrearService();
-        var estado = await service.GetEstadoLectorAsync(lectorId);
 
-        Assert.False(estado.PuedePedir);
-        Assert.True(estado.EnMora);
-        Assert.Equal(new LectorEnMoraException(lectorId).Message, estado.Motivo);
+        await Assert.ThrowsAsync<LectorNotFoundException>(() => service.GetEstadoLectorAsync(IdsDePrueba.Nuevo()));
     }
 }

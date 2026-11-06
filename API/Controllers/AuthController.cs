@@ -1,5 +1,6 @@
 ﻿using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.Shared.DTOs.Auth;
+using BiblioGest.Shared.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BiblioGest.Api.Controllers;
@@ -19,7 +20,14 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDTO dto, CancellationToken ct)
     {
-        var response = await _authService.LoginAsync(dto, ct);
-        return Ok(response);
+        try
+        {
+            var response = await _authService.LoginAsync(dto, ct);
+            return Ok(response);
+        }
+        catch (UnauthorizedException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
     }
 }

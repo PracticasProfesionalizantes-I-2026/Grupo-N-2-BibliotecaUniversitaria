@@ -1,0 +1,25 @@
+meta {
+  name: Crear libro con ISBN duplicado (409)
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "titulo": "Cien años de soledad (otra edición)",
+    "autor": "Gabriel García Márquez",
+    "isbn": "9780307474728",
+    "ubicacion": "C5-2",
+    "stock": 2
+  }
+}
+
+docs {
+  El ISBN 978-0307474728 ya está cargado en los datos de prueba (se compara sin guiones). Para sumar ejemplares se modifica el stock del libro existente.
+}

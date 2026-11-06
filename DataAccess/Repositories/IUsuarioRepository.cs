@@ -4,7 +4,7 @@ namespace BiblioGest.DataAccess.Repositories
     public interface IUsuarioRepository
     {
         Task<IReadOnlyList<Usuario>> GetAllAsync(CancellationToken ct = default);
-        Task<Usuario?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<Usuario?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<Usuario?> GetByEmailAsync(string email, CancellationToken ct = default);
         Task<int> CountAdministradoresActivosAsync(CancellationToken ct = default);
         Task<Usuario> CreateAsync(Usuario usuario, CancellationToken ct = default);

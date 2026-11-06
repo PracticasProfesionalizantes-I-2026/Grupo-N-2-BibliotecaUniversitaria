@@ -1,7 +1,7 @@
 meta {
   name: Listar prestamos en mora (200)
   type: http
-  seq: 10
+  seq: 7
 }
 
 get {
@@ -10,12 +10,15 @@ get {
   auth: inherit
 }
 
-docs {
-  Con los datos de prueba del DbInitializer ya debería devolver al menos
-  el préstamo vencido de "Rayuela". Cada préstamo incluye diasDeAtraso y
-  mensaje ya calculados por la API.
+script:post-response {
+  if (res.status === 200 && res.body.length > 0) {
+    bru.setEnvVar("prestamoMoraId", res.body[0].id);
+    bru.setEnvVar("lectorMoraId", res.body[0].lectorId);
+  }
 }
 
-assert {
-  res.status: eq 200
+docs {
+  Con los datos de prueba del DbInitializer ya debería devolver al menos
+  el préstamo vencido de "Rayuela" (lectora Ana Gómez, 6 días de atraso).
+  Guarda prestamoMoraId y lectorMoraId para los requests de mora y suspensión.
 }

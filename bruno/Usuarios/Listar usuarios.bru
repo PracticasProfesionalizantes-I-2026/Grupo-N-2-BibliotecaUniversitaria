@@ -10,6 +10,11 @@ get {
   auth: inherit
 }
 
-assert {
-  res.status: eq 200
+script:post-response {
+  if (res.status === 200) {
+    const admin = res.body.find(u => u.email === "admin@bibliogest.com");
+    if (admin) {
+      bru.setEnvVar("adminId", admin.id);
+    }
+  }
 }

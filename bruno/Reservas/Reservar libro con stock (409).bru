@@ -1,0 +1,22 @@
+meta {
+  name: Reservar libro con stock (409)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/reservas
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "lectorId": {{lectorReservaId}},
+    "libroId": 1
+  }
+}
+
+docs {
+  El libro 1 de los datos de prueba tiene stock: no se reserva, se presta directo (409).
+}

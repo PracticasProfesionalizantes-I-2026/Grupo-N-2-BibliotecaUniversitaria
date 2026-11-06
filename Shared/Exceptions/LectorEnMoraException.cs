@@ -1,13 +1,9 @@
 namespace BiblioGest.Shared.Exceptions;
 
-public class LectorEnMoraException : ConflictException
+public class LectorEnMoraException : ForbiddenException
 {
-    public LectorEnMoraException(Guid lectorId)
-        : base(CrearMensaje(lectorId))
+    public LectorEnMoraException(int lectorId)
+        : base($"El lector con Id {lectorId} tiene préstamos vencidos y no puede solicitar otro hasta regularizar su situación.")
     {
     }
-
-    // Expuesto para que el estado del lector informe el mismo motivo sin lanzar la excepción.
-    public static string CrearMensaje(Guid lectorId) =>
-        $"El lector con Id '{lectorId}' tiene préstamos vencidos y no puede solicitar otro hasta regularizar su situación.";
 }

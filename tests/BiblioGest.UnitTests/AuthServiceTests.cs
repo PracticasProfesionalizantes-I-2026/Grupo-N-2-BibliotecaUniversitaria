@@ -34,7 +34,7 @@ public class AuthServiceTests
     {
         var usuario = new Usuario
         {
-            Id = Guid.NewGuid(),
+            Id = IdsDePrueba.Nuevo(),
             Email = "ana@example.com",
             PasswordHash = "hash-cualquiera",
             RolUsuario = RolUsuario.Bibliotecario,
@@ -63,7 +63,7 @@ public class AuthServiceTests
     {
         var usuario = new Usuario
         {
-            Id = Guid.NewGuid(),
+            Id = IdsDePrueba.Nuevo(),
             Email = "ana@example.com",
             PasswordHash = "hash-cualquiera",
             RolUsuario = RolUsuario.Bibliotecario,
@@ -103,7 +103,7 @@ public class AuthServiceTests
     {
         var usuario = new Usuario
         {
-            Id = Guid.NewGuid(),
+            Id = IdsDePrueba.Nuevo(),
             Email = "ana@example.com",
             PasswordHash = "hash-cualquiera",
             RolUsuario = RolUsuario.Bibliotecario,
@@ -128,7 +128,7 @@ public class AuthServiceTests
     {
         var usuario = new Usuario
         {
-            Id = Guid.NewGuid(),
+            Id = IdsDePrueba.Nuevo(),
             Email = "ana@example.com",
             PasswordHash = "hash-cualquiera",
             RolUsuario = RolUsuario.Bibliotecario,

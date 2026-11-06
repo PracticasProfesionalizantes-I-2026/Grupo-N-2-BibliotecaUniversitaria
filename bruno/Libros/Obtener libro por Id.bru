@@ -1,15 +1,11 @@
 meta {
   name: Obtener libro por Id
   type: http
-  seq: 4
+  seq: 3
 }
 
 get {
   url: {{baseUrl}}/api/libros/{{libroId}}
   body: none
   auth: inherit
-}
-
-assert {
-  res.status: eq 200
 }

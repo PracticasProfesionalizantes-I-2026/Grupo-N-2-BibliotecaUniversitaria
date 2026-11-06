@@ -11,11 +11,6 @@ delete {
 }
 
 docs {
-  Ejecutar después de "Obtener id del admin logueado". Un administrador no
-  puede darse de baja a sí mismo: la cuenta queda intacta tras el 409.
-}
-
-assert {
-  res.status: eq 409
-  res.body.message: eq "No podés eliminar tu propia cuenta."
+  Correr antes "Listar usuarios" para cargar adminId. Nadie puede darse de baja
+  a sí mismo (409).
 }

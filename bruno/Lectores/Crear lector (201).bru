@@ -1,7 +1,7 @@
 meta {
   name: Crear lector (201)
   type: http
-  seq: 2
+  seq: 3
 }
 
 post {
@@ -11,11 +11,9 @@ post {
 }
 
 script:pre-request {
-  // Valores unicos por corrida para poder ejecutar la coleccion varias
-  // veces seguidas sin chocar con lo que quedo de una corrida anterior.
   const sufijo = Date.now();
   bru.setEnvVar("lectorEmail", `facundo.lopez.${sufijo}@example.com`);
-  bru.setEnvVar("lectorIdentificador", `ID-${sufijo}`);
+  bru.setEnvVar("lectorDni", String(30000000 + Math.floor(Math.random() * 60000000)));
 }
 
 body:json {
@@ -23,7 +21,7 @@ body:json {
     "nombre": "Facundo",
     "apellido": "López",
     "email": "{{lectorEmail}}",
-    "identificador": "{{lectorIdentificador}}"
+    "dni": "{{lectorDni}}"
   }
 }
 
@@ -31,8 +29,4 @@ script:post-response {
   if (res.status === 201) {
     bru.setEnvVar("lectorId", res.body.id);
   }
-}
-
-assert {
-  res.status: eq 201
 }

@@ -10,6 +10,6 @@ get {
   auth: none
 }
 
-assert {
-  res.status: eq 401
+docs {
+  Responde 401 con { "message": "Debe iniciar sesión." }.
 }

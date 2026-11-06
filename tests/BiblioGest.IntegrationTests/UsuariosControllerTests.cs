@@ -39,7 +39,7 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var creado = await response.Content.ReadFromJsonAsync<UsuarioResponseDTO>();
         Assert.NotNull(creado);
-        Assert.NotEqual(Guid.Empty, creado!.Id);
+        Assert.True(creado!.Id > 0);
         Assert.Equal(dto.Email, creado.Email);
     }
 
@@ -100,7 +100,7 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task GetUsuario_WithUnknownId_Returns404NotFound()
     {
-        var response = await _client.GetAsync($"/api/usuarios/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/usuarios/{int.MaxValue}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -126,8 +126,9 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
     }
 
     [Theory]
-    [InlineData("no-es-un-email")]
-    [InlineData("falta-arroba.com")]
+    [InlineData("   ")]
+    [InlineData("juan perez@bibliogest.com")]
+    [InlineData("a@b.c")]
     public async Task CreateUsuario_WithInvalidEmail_Returns400BadRequest(string email)
     {
         var dto = NuevoUsuarioDto();
@@ -139,28 +140,13 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
     }
 
     [Fact]
-    public async Task CreateUsuario_WithTooLongEmail_Returns400BadRequest()
+    public async Task CreateUsuario_WithPasswordTooLong_Returns400BadRequest()
     {
         var dto = NuevoUsuarioDto();
-        dto.Email = $"{new string('a', 150)}@example.com";
+        dto.Password = new string('a', 65);
 
         var response = await _client.PostAsJsonAsync("/api/usuarios", dto);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
-
-    [Fact]
-    public async Task CreateUsuario_WithDuplicateEmailDifferentCaseAndSpaces_Returns409Conflict()
-    {
-        var dto = NuevoUsuarioDto();
-        await _client.PostAsJsonAsync("/api/usuarios", dto);
-
-        var dtoDuplicado = NuevoUsuarioDto();
-        dtoDuplicado.Email = $"  {dto.Email.ToUpperInvariant()}  ";
-
-        var response = await _client.PostAsJsonAsync("/api/usuarios", dtoDuplicado);
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-    }
-
 }

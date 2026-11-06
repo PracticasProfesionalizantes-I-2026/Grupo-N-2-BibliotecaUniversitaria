@@ -1,0 +1,16 @@
+meta {
+  name: Cancelar reserva (200)
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/api/reservas/{{reservaId}}/cancelacion
+  body: none
+  auth: inherit
+}
+
+docs {
+  Cancela una reserva EnCola o Asignada. Si estaba Asignada, el ejemplar pasa al
+  siguiente de la cola o vuelve al stock. Si ya no está activa responde 409.
+}

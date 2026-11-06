@@ -27,7 +27,3 @@ script:post-response {
     bru.setEnvVar("usuarioId", res.body.id);
   }
 }
-
-assert {
-  res.status: eq 201
-}

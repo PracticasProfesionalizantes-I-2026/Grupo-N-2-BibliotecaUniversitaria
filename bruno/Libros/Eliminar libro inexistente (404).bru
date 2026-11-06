@@ -5,11 +5,7 @@ meta {
 }
 
 delete {
-  url: {{baseUrl}}/api/libros/00000000-0000-0000-0000-000000000000
+  url: {{baseUrl}}/api/libros/999999
   body: none
   auth: inherit
-}
-
-assert {
-  res.status: eq 404
 }

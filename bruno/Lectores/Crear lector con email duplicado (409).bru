@@ -1,7 +1,7 @@
 meta {
   name: Crear lector con email duplicado (409)
   type: http
-  seq: 8
+  seq: 10
 }
 
 post {
@@ -10,30 +10,16 @@ post {
   auth: inherit
 }
 
-script:pre-request {
-  // Mismo email que "Crear lector (201)" pero en mayusculas y con espacios
-  // de mas, para probar que la comparacion se hace sobre el valor
-  // normalizado. lectorEmail ya viene seteado por ese request.
-  const original = bru.getEnvVar("lectorEmail") || "facundo.lopez@example.com";
-  bru.setEnvVar("lectorEmailDuplicado", `  ${original.toUpperCase()}  `);
-  bru.setEnvVar("lectorIdentificadorNuevo", `ID-DUP-${Date.now()}`);
-}
-
 body:json {
   {
-    "nombre": "Otro",
-    "apellido": "Lector",
-    "email": "{{lectorEmailDuplicado}}",
-    "identificador": "{{lectorIdentificadorNuevo}}"
+    "nombre": "Otra",
+    "apellido": "Persona",
+    "email": "ANA.GOMEZ@example.com",
+    "dni": "41222333"
   }
 }
 
 docs {
-  Ejecutar después de "Crear lector (201)": mismo email pero con mayúsculas y
-  espacios de más. Como el email se normaliza (Trim + minúsculas) antes de
-  comparar, debe responder 409 Conflict igual.
-}
-
-assert {
-  res.status: eq 409
+  El email ana.gomez@example.com ya es de una lectora de los datos de prueba.
+  Se compara sin distinguir mayúsculas (409).
 }

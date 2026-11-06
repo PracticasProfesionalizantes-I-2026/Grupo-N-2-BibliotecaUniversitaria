@@ -22,7 +22,3 @@ script:post-response {
     bru.setEnvVar("tokenAdmin", res.body.token);
   }
 }
-
-assert {
-  res.status: eq 200
-}

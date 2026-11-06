@@ -85,4 +85,12 @@ public class ReportesControllerTests : IClassFixture<CustomWebApplicationFactory
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetReporte_WithRangeLongerThanOneYear_Returns400BadRequest()
+    {
+        var response = await _client.GetAsync("/api/reportes/prestamos?desde=2025-01-01&hasta=2026-06-30");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

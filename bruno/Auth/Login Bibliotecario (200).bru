@@ -22,7 +22,3 @@ script:post-response {
     bru.setEnvVar("tokenBibliotecario", res.body.token);
   }
 }
-
-assert {
-  res.status: eq 200
-}

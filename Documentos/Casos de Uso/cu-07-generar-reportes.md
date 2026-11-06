@@ -8,11 +8,6 @@
 > (`resumen`, `prestamos` con filtro de fechas y `mora`), sin estadísticas avanzadas.
 > Acceso con cualquier usuario autenticado (`[Authorize]`). La matriz de trazabilidad
 > lista los tests reales.
-> **Actualizado:** los préstamos que aparecen en los reportes `prestamos` y
-> `mora` incluyen los mismos campos calculados que CU-05/CU-06
-> (`estado`, `diasRestantes`, `diasDeAtraso`, `mensaje`), resueltos por
-> `PrestamoMapper` con el `TimeProvider` del service — nunca por el
-> frontend.
 
 | Campo | Valor |
 | --- | --- |
@@ -82,7 +77,7 @@ flujo principal y alternativo._
 | Tipo | Ruta | Contenido | Filtros |
 | --- | --- | --- | --- |
 | — | `GET /api/reportes` | Lista de reportes disponibles | — |
-| `resumen` | `GET /api/reportes/resumen` | Total de libros, libros sin stock, total de lectores y préstamos activos/devueltos/vencidos | — |
+| `resumen` | `GET /api/reportes/resumen` | Total de libros, libros sin stock, total de lectores y préstamos activos/devueltos/extraviados/repuestos/vencidos | — |
 | `prestamos` | `GET /api/reportes/prestamos?desde=&hasta=` | Préstamos realizados en el rango (por fecha de préstamo, ambos días incluidos) | `desde`, `hasta` (opcionales) |
 | `mora` | `GET /api/reportes/mora` | Préstamos activos vencidos | — |
 
@@ -91,7 +86,7 @@ flujo principal y alternativo._
 | Código HTTP | Nombre Técnico | Contexto de Aplicación en el Caso de Uso |
 | --- | --- | --- |
 | `200` | OK | Reporte generado con éxito (incluyendo el caso de resultado vacío, con `mensaje` "No hay datos disponibles para el reporte."). |
-| `400` | Bad Request | Filtro inválido (`desde` posterior a `hasta`, o fecha con formato inválido) o tipo de reporte inexistente. |
+| `400` | Bad Request | Filtro inválido (`desde` posterior a `hasta`, rango mayor a un año o fecha con formato inválido) o tipo de reporte inexistente. |
 | `401` | Unauthorized | Petición sin token válido. |
 
 ### Matriz de trazabilidad CU-07 → Test
@@ -102,4 +97,5 @@ flujo principal y alternativo._
 | Flujo principal | `200 OK` | `GetReporteAsync_WithValidType_ReturnsReportData`, `GetReporteAsync_Prestamos_WithRange_PassesDatesToRepository` | `GetReporte_ReturnsSuccessAndData`, `GetReporte_Mora_ReturnsPrestamosVencidos` |
 | 5a. No existen datos suficientes | `200 OK` | `GetReporteAsync_WithNoData_ReturnsEmptyReport` | `GetReporte_WithNoData_Returns200OKEmpty` |
 | 3a. Filtro inválido | `400 Bad Request` | `GetReporteAsync_WithInvalidFilter_ThrowsValidationException`, `GetReporteAsync_WithUnknownType_ThrowsValidationException` | `GetReporte_WithInvalidFilter_Returns400BadRequest`, `GetReporte_WithUnknownType_Returns400BadRequest` |
+| 3b. Rango de fechas mayor a un año | `400 Bad Request` | `GetReporteAsync_WithRangeLongerThanOneYear_ThrowsReporteInvalidoException` | `GetReporte_WithRangeLongerThanOneYear_Returns400BadRequest` |
 | Sin autenticación | `401 Unauthorized` | — (lo resuelve `[Authorize]` en Presentación) | `GetReporte_WithoutToken_Returns401Unauthorized` |

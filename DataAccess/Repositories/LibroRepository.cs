@@ -27,15 +27,16 @@ public class LibroRepository : ILibroRepository
         return await query.OrderBy(l => l.Titulo).ToListAsync(ct);
     }
 
-    public Task<Libro?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+    public Task<Libro?> GetByIdAsync(int id, CancellationToken ct = default) =>
         _context.Libros.AsNoTracking().FirstOrDefaultAsync(l => l.Id == id, ct);
 
-    public Task<Libro?> GetByIsbnAsync(string isbn, CancellationToken ct = default) =>
-        _context.Libros.AsNoTracking().FirstOrDefaultAsync(l => l.Isbn == isbn, ct);
+    public Task<bool> ExisteIsbnAsync(string isbnSinGuiones, int? excluirLibroId, CancellationToken ct = default) =>
+        _context.Libros.AsNoTracking().AnyAsync(l =>
+            l.Isbn.Replace("-", "").ToUpper() == isbnSinGuiones &&
+            (excluirLibroId == null || l.Id != excluirLibroId), ct);
 
     public async Task<Libro> CreateAsync(Libro libro, CancellationToken ct = default)
     {
-        libro.Id = Guid.NewGuid();
         _context.Libros.Add(libro);
         await _context.SaveChangesAsync(ct);
         return libro;

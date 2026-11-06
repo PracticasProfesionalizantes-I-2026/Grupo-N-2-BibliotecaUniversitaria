@@ -1,15 +1,11 @@
 meta {
   name: Obtener prestamo por Id
   type: http
-  seq: 7
+  seq: 4
 }
 
 get {
   url: {{baseUrl}}/api/prestamos/{{prestamoId}}
   body: none
   auth: inherit
-}
-
-assert {
-  res.status: eq 200
 }

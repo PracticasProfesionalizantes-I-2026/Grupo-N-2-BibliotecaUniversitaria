@@ -1,0 +1,15 @@
+meta {
+  name: Reporte con rango mayor a un año (400)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/reportes/prestamos?desde=2025-01-01&hasta=2026-06-30
+  body: none
+  auth: inherit
+}
+
+docs {
+  El rango entre desde y hasta no puede superar un año.
+}

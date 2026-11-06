@@ -1,5 +1,6 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.Shared.DTOs.Prestamos;
+using BiblioGest.Shared.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,7 +27,6 @@ public class PrestamosController : ControllerBase
         return Ok(vencidos);
     }
 
-    // GET /api/prestamos/activos
     [HttpGet("activos")]
     public async Task<IActionResult> GetActivos(CancellationToken ct)
     {
@@ -34,35 +34,132 @@ public class PrestamosController : ControllerBase
         return Ok(activos);
     }
 
-    // GET /api/prestamos/estado-lector/{lectorId}
-    [HttpGet("estado-lector/{lectorId:guid}")]
-    public async Task<IActionResult> GetEstadoLector(Guid lectorId, CancellationToken ct)
+    [HttpGet("estado-lector/{lectorId:int}")]
+    public async Task<IActionResult> GetEstadoLector(int lectorId, CancellationToken ct)
     {
-        var estado = await _prestamoService.GetEstadoLectorAsync(lectorId, ct);
-        return Ok(estado);
+        try
+        {
+            var estado = await _prestamoService.GetEstadoLectorAsync(lectorId, ct);
+            return Ok(estado);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 
     // GET /api/prestamos/{id}
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
-        var prestamo = await _prestamoService.GetByIdAsync(id, ct);
-        return Ok(prestamo);
+        try
+        {
+            var prestamo = await _prestamoService.GetByIdAsync(id, ct);
+            return Ok(prestamo);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 
     // POST /api/prestamos
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PrestamoCreateDTO dto, CancellationToken ct)
     {
-        var creado = await _prestamoService.CreateAsync(dto, ct);
-        return CreatedAtAction(nameof(GetById), new { id = creado.Id }, creado);
+        try
+        {
+            var creado = await _prestamoService.CreateAsync(dto, ct);
+            return CreatedAtAction(nameof(GetById), new { id = creado.Id }, creado);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ForbiddenException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     // PUT /api/prestamos/{id}/devolucion
-    [HttpPut("{id:guid}/devolucion")]
-    public async Task<IActionResult> RegistrarDevolucion(Guid id, CancellationToken ct)
+    [HttpPut("{id:int}/devolucion")]
+    public async Task<IActionResult> RegistrarDevolucion(int id, CancellationToken ct)
     {
-        var actualizado = await _prestamoService.RegistrarDevolucionAsync(id, ct);
-        return Ok(actualizado);
+        try
+        {
+            var actualizado = await _prestamoService.RegistrarDevolucionAsync(id, ct);
+            return Ok(actualizado);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:int}/extravio")]
+    public async Task<IActionResult> RegistrarExtravio(int id, CancellationToken ct)
+    {
+        try
+        {
+            var actualizado = await _prestamoService.RegistrarExtravioAsync(id, ct);
+            return Ok(actualizado);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:int}/reposicion")]
+    public async Task<IActionResult> RegistrarReposicion(int id, CancellationToken ct)
+    {
+        try
+        {
+            var actualizado = await _prestamoService.RegistrarReposicionAsync(id, ct);
+            return Ok(actualizado);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:int}/renovacion")]
+    public async Task<IActionResult> Renovar(int id, CancellationToken ct)
+    {
+        try
+        {
+            var renovado = await _prestamoService.RenovarAsync(id, ct);
+            return Ok(renovado);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ForbiddenException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 }

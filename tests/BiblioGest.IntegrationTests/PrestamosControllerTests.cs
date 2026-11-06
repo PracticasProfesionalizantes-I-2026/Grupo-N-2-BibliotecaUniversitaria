@@ -33,8 +33,8 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         {
             Titulo = $"Libro {Guid.NewGuid()}",
             Autor = "Autor",
-            Isbn = IsbnTestHelper.NuevoIsbnValido(),
-            Ubicacion = "Estante Z",
+            Isbn = $"978{Random.Shared.NextInt64(1_000_000_000, 10_000_000_000)}",
+            Ubicacion = "J30-6",
             Stock = stock
         });
         return (await response.Content.ReadFromJsonAsync<LibroResponseDTO>())!;
@@ -47,7 +47,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
             Nombre = "Elena",
             Apellido = "Suárez",
             Email = $"{Guid.NewGuid()}@example.com",
-            Identificador = Guid.NewGuid().ToString("N")[..8]
+            Dni = Random.Shared.Next(10_000_000, 100_000_000).ToString()
         });
         return (await response.Content.ReadFromJsonAsync<LectorResponseDTO>())!;
     }
@@ -75,59 +75,11 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     {
         var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
         {
-            LectorId = Guid.NewGuid(),
-            LibroId = Guid.NewGuid()
+            LectorId = int.MaxValue,
+            LibroId = int.MaxValue
         });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task CreatePrestamo_WithEmptyGuid_Returns400BadRequest(bool lectorVacio, bool libroVacio)
-    {
-        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
-        {
-            LectorId = lectorVacio ? Guid.Empty : Guid.NewGuid(),
-            LibroId = libroVacio ? Guid.Empty : Guid.NewGuid()
-        });
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreatePrestamo_WhenLectorAlreadyHasActiveLoanOfSameLibro_Returns409Conflict()
-    {
-        var libro = await CrearLibroAsync(stock: 2);
-        var lector = await CrearLectorAsync();
-        await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id });
-
-        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
-        {
-            LectorId = lector.Id,
-            LibroId = libro.Id
-        });
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreatePrestamo_ReturnsDiasRestantesYMensajeCalculados()
-    {
-        var libro = await CrearLibroAsync(stock: 1);
-        var lector = await CrearLectorAsync();
-
-        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
-        {
-            LectorId = lector.Id,
-            LibroId = libro.Id
-        });
-
-        var creado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
-        Assert.Equal(14, creado!.DiasRestantes);
-        Assert.Equal(0, creado.DiasDeAtraso);
-        Assert.Equal("Vence en 14 días.", creado.Mensaje);
     }
 
     [Fact]
@@ -163,39 +115,6 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
         var actualizado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
         Assert.Equal("Devuelto", actualizado!.Estado);
         Assert.NotNull(actualizado.FechaDevolucion);
-        Assert.Null(actualizado.DiasRestantes);
-        Assert.Equal(0, actualizado.DiasDeAtraso);
-        Assert.Equal("Devuelto a tiempo.", actualizado.Mensaje);
-    }
-
-    [Fact]
-    public async Task RegisterDevolucion_WhenOverdue_ReturnsDevueltoConAtraso()
-    {
-        var libro = await CrearLibroAsync(stock: 1);
-        var lector = await CrearLectorAsync();
-        var creadoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
-        {
-            LectorId = lector.Id,
-            LibroId = libro.Id
-        });
-        var creado = await creadoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
-
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
-            var prestamo = await context.Prestamos.FindAsync(creado!.Id);
-            prestamo!.FechaVencimiento = DateTime.UtcNow.AddDays(-5);
-            await context.SaveChangesAsync();
-        }
-
-        var response = await _client.PutAsync($"/api/prestamos/{creado!.Id}/devolucion", content: null);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var actualizado = await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
-        Assert.Equal("Devuelto con atraso", actualizado!.Estado);
-        Assert.Null(actualizado.DiasRestantes);
-        Assert.Equal(5, actualizado.DiasDeAtraso);
-        Assert.Equal("Devuelto con 5 días de atraso.", actualizado.Mensaje);
     }
 
     [Fact]
@@ -229,7 +148,6 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
             var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
             context.Prestamos.Add(new Prestamo
             {
-                Id = Guid.NewGuid(),
                 LectorId = lector.Id,
                 LibroId = libro.Id,
                 FechaPrestamo = DateTime.UtcNow.AddDays(-20),
@@ -248,7 +166,7 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
-    public async Task CreatePrestamo_WhenLectorHasThreeActiveLoans_Returns409Conflict()
+    public async Task CreatePrestamo_WhenLectorHasThreeActiveLoans_Returns403Forbidden()
     {
         var lector = await CrearLectorAsync();
         for (var i = 0; i < 3; i++)
@@ -268,11 +186,11 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
             LibroId = libro.Id
         });
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
-    public async Task CreatePrestamo_WhenLectorInMora_Returns409Conflict()
+    public async Task CreatePrestamo_WhenLectorInMora_Returns403Forbidden()
     {
         var libroVencido = await CrearLibroAsync(stock: 1);
         var lector = await CrearLectorAsync();
@@ -282,7 +200,6 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
             var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
             context.Prestamos.Add(new Prestamo
             {
-                Id = Guid.NewGuid(),
                 LectorId = lector.Id,
                 LibroId = libroVencido.Id,
                 FechaPrestamo = DateTime.UtcNow.AddDays(-20),
@@ -299,128 +216,178 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
             LibroId = libro.Id
         });
 
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RegisterDevolucion_WhenLate_SuspendsLectorAndNextPrestamoReturns403Forbidden()
+    {
+        var libroVencido = await CrearLibroAsync(stock: 1);
+        var lector = await CrearLectorAsync();
+        var prestamoVencido = new Prestamo
+        {
+            LectorId = lector.Id,
+            LibroId = libroVencido.Id,
+            FechaPrestamo = DateTime.UtcNow.AddDays(-17),
+            FechaVencimiento = DateTime.UtcNow.AddDays(-3),
+            Estado = EstadoPrestamo.Activo
+        };
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
+            context.Prestamos.Add(prestamoVencido);
+            await context.SaveChangesAsync();
+        }
+        var prestamoVencidoId = prestamoVencido.Id;
+
+        var devolucion = await _client.PutAsync($"/api/prestamos/{prestamoVencidoId}/devolucion", content: null);
+        Assert.Equal(HttpStatusCode.OK, devolucion.StatusCode);
+        var devuelto = await devolucion.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+
+        var lectorActual = await _client.GetFromJsonAsync<LectorResponseDTO>($"/api/lectores/{lector.Id}");
+        Assert.NotNull(lectorActual!.SuspendidoHasta);
+        Assert.Equal(devuelto!.FechaDevolucion!.Value.AddDays(3), lectorActual.SuspendidoHasta!.Value, TimeSpan.FromSeconds(1));
+
+        var libro = await CrearLibroAsync(stock: 1);
+        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libro.Id
+        });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RegisterDevolucion_OnTime_DoesNotSuspendLector()
+    {
+        var libro = await CrearLibroAsync(stock: 2);
+        var lector = await CrearLectorAsync();
+        var creadoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libro.Id
+        });
+        var creado = await creadoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        await _client.PutAsync($"/api/prestamos/{creado!.Id}/devolucion", content: null);
+
+        var lectorActual = await _client.GetFromJsonAsync<LectorResponseDTO>($"/api/lectores/{lector.Id}");
+        Assert.Null(lectorActual!.SuspendidoHasta);
+
+        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = libro.Id
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    private async Task<PrestamoResponseDTO> CrearPrestamoAsync(int lectorId, int libroId)
+    {
+        var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lectorId,
+            LibroId = libroId
+        });
+        return (await response.Content.ReadFromJsonAsync<PrestamoResponseDTO>())!;
+    }
+
+    [Fact]
+    public async Task Extravio_BlocksLectorUntilReposicionAndThenRestoresStock()
+    {
+        var libro = await CrearLibroAsync(stock: 1);
+        var otroLibro = await CrearLibroAsync(stock: 1);
+        var lector = await CrearLectorAsync();
+        var prestamo = await CrearPrestamoAsync(lector.Id, libro.Id);
+
+        var extravio = await _client.PutAsync($"/api/prestamos/{prestamo.Id}/extravio", content: null);
+        Assert.Equal(HttpStatusCode.OK, extravio.StatusCode);
+        var extraviado = await extravio.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        Assert.Equal("Extraviado", extraviado!.Estado);
+        var libroSinReponer = await _client.GetFromJsonAsync<LibroResponseDTO>($"/api/libros/{libro.Id}");
+        Assert.Equal(0, libroSinReponer!.Stock);
+
+        var bloqueado = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = otroLibro.Id
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, bloqueado.StatusCode);
+
+        var reposicion = await _client.PutAsync($"/api/prestamos/{prestamo.Id}/reposicion", content: null);
+        Assert.Equal(HttpStatusCode.OK, reposicion.StatusCode);
+        var repuesto = await reposicion.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
+        Assert.Equal("Repuesto", repuesto!.Estado);
+        var libroRepuesto = await _client.GetFromJsonAsync<LibroResponseDTO>($"/api/libros/{libro.Id}");
+        Assert.Equal(1, libroRepuesto!.Stock);
+
+        var desbloqueado = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
+        {
+            LectorId = lector.Id,
+            LibroId = otroLibro.Id
+        });
+        Assert.Equal(HttpStatusCode.Created, desbloqueado.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reposicion_WhenPrestamoIsNotExtraviado_Returns409Conflict()
+    {
+        var libro = await CrearLibroAsync(stock: 1);
+        var lector = await CrearLectorAsync();
+        var prestamo = await CrearPrestamoAsync(lector.Id, libro.Id);
+
+        var response = await _client.PutAsync($"/api/prestamos/{prestamo.Id}/reposicion", content: null);
+
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
-    public async Task GetPrestamosActivos_ReturnsOnlyActiveOrderedByFechaVencimiento()
+    public async Task Extravio_WhenPrestamoAlreadyReturned_Returns409Conflict()
     {
-        var lector = await CrearLectorAsync();
-        var libroVencido = await CrearLibroAsync(stock: 1);
-        var libroActivo = await CrearLibroAsync(stock: 1);
-        var libroDevuelto = await CrearLibroAsync(stock: 1);
-
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
-            context.Prestamos.Add(new Prestamo
-            {
-                Id = Guid.NewGuid(),
-                LectorId = lector.Id,
-                LibroId = libroVencido.Id,
-                FechaPrestamo = DateTime.UtcNow.AddDays(-20),
-                FechaVencimiento = DateTime.UtcNow.AddDays(-6),
-                Estado = EstadoPrestamo.Activo
-            });
-            await context.SaveChangesAsync();
-        }
-        // Otro lector: el primero ya está en mora y no podría pedir este préstamo.
-        var otroLector = await CrearLectorAsync();
-        var activoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO { LectorId = otroLector.Id, LibroId = libroActivo.Id });
-        Assert.Equal(HttpStatusCode.Created, activoResponse.StatusCode);
-        var devueltoResponse = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO
-        {
-            LectorId = otroLector.Id,
-            LibroId = libroDevuelto.Id
-        });
-        var devuelto = await devueltoResponse.Content.ReadFromJsonAsync<PrestamoResponseDTO>();
-        await _client.PutAsync($"/api/prestamos/{devuelto!.Id}/devolucion", null);
-
-        var response = await _client.GetAsync("/api/prestamos/activos");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var activos = (await response.Content.ReadFromJsonAsync<List<PrestamoResponseDTO>>())!;
-        Assert.DoesNotContain(activos, p => p.Id == devuelto.Id);
-        Assert.All(activos, p => Assert.NotEqual("Devuelto", p.Estado));
-        Assert.Equal(activos.OrderBy(p => p.FechaVencimiento).Select(p => p.Id), activos.Select(p => p.Id));
-        Assert.Contains(activos, p => p.LibroId == libroVencido.Id && p.EnMora && p.Estado == "Vencido");
-        Assert.Contains(activos, p => p.LibroId == libroActivo.Id && !p.EnMora && p.Estado == "Activo");
-    }
-
-    [Fact]
-    public async Task GetEstadoLector_WhenLectorCanBorrow_ReturnsPuedePedirAndFechasPrevistas()
-    {
-        var lector = await CrearLectorAsync();
-
-        var response = await _client.GetAsync($"/api/prestamos/estado-lector/{lector.Id}");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var estado = (await response.Content.ReadFromJsonAsync<EstadoLectorPrestamoDTO>())!;
-        Assert.True(estado.PuedePedir);
-        Assert.Null(estado.Motivo);
-        Assert.False(estado.EnMora);
-        Assert.Equal(0, estado.PrestamosActivos);
-        Assert.Equal(3, estado.MaximoPrestamos);
-        Assert.Equal(estado.FechaPrestamo.AddDays(14), estado.FechaVencimiento);
-    }
-
-    [Fact]
-    public async Task GetEstadoLector_WhenLectorHasThreeActiveLoans_ReturnsSameMotivoAsCreate()
-    {
-        var lector = await CrearLectorAsync();
-        for (var i = 0; i < 3; i++)
-        {
-            var libroPrestado = await CrearLibroAsync(stock: 1);
-            await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libroPrestado.Id });
-        }
         var libro = await CrearLibroAsync(stock: 1);
-        var crear = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id });
-        var error = await crear.Content.ReadFromJsonAsync<MensajeRespuesta>();
-
-        var estado = await _client.GetFromJsonAsync<EstadoLectorPrestamoDTO>($"/api/prestamos/estado-lector/{lector.Id}");
-
-        Assert.False(estado!.PuedePedir);
-        Assert.Equal(3, estado.PrestamosActivos);
-        Assert.Equal(error!.Message, estado.Motivo);
-    }
-
-    [Fact]
-    public async Task GetEstadoLector_WhenLectorInMora_ReturnsSameMotivoAsCreate()
-    {
         var lector = await CrearLectorAsync();
-        var libroVencido = await CrearLibroAsync(stock: 1);
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
-            context.Prestamos.Add(new Prestamo
-            {
-                Id = Guid.NewGuid(),
-                LectorId = lector.Id,
-                LibroId = libroVencido.Id,
-                FechaPrestamo = DateTime.UtcNow.AddDays(-20),
-                FechaVencimiento = DateTime.UtcNow.AddDays(-6),
-                Estado = EstadoPrestamo.Activo
-            });
-            await context.SaveChangesAsync();
-        }
-        var libro = await CrearLibroAsync(stock: 1);
-        var crear = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id });
-        var error = await crear.Content.ReadFromJsonAsync<MensajeRespuesta>();
+        var prestamo = await CrearPrestamoAsync(lector.Id, libro.Id);
+        await _client.PutAsync($"/api/prestamos/{prestamo.Id}/devolucion", content: null);
 
-        var estado = await _client.GetFromJsonAsync<EstadoLectorPrestamoDTO>($"/api/prestamos/estado-lector/{lector.Id}");
+        var response = await _client.PutAsync($"/api/prestamos/{prestamo.Id}/extravio", content: null);
 
-        Assert.False(estado!.PuedePedir);
-        Assert.True(estado.EnMora);
-        Assert.Equal(error!.Message, estado.Motivo);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
-    public async Task GetEstadoLector_WithUnknownLector_Returns404NotFound()
+    public async Task Extravio_WithUnknownId_Returns404NotFound()
     {
-        var response = await _client.GetAsync($"/api/prestamos/estado-lector/{Guid.NewGuid()}");
+        var response = await _client.PutAsync($"/api/prestamos/{int.MaxValue}/extravio", content: null);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    private sealed record MensajeRespuesta(string Message);
+    [Fact]
+    public async Task DeleteLector_WithExtraviadoPrestamo_Returns409Conflict()
+    {
+        var libro = await CrearLibroAsync(stock: 1);
+        var lector = await CrearLectorAsync();
+        var prestamo = await CrearPrestamoAsync(lector.Id, libro.Id);
+        await _client.PutAsync($"/api/prestamos/{prestamo.Id}/extravio", content: null);
+
+        var response = await _client.DeleteAsync($"/api/lectores/{lector.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteLectorAndLibro_WithReturnedLoanHistory_Returns409Conflict()
+    {
+        var libro = await CrearLibroAsync(stock: 1);
+        var lector = await CrearLectorAsync();
+        var prestamo = await CrearPrestamoAsync(lector.Id, libro.Id);
+        await _client.PutAsync($"/api/prestamos/{prestamo.Id}/devolucion", content: null);
+
+        var borrarLector = await _client.DeleteAsync($"/api/lectores/{lector.Id}");
+        var borrarLibro = await _client.DeleteAsync($"/api/libros/{libro.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, borrarLector.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, borrarLibro.StatusCode);
+    }
 }

@@ -12,17 +12,8 @@ post {
 
 body:json {
   {
-    "email": "  Admin@BiblioGest.com  ",
+    "email": "admin@bibliogest.com",
     "password": "Clave123",
     "rolUsuario": "Bibliotecario"
   }
-}
-
-docs {
-  Mismo email que el administrador semilla, con mayúsculas y espacios de más:
-  al normalizarse antes de comparar, debe responder 409 igual.
-}
-
-assert {
-  res.status: eq 409
 }

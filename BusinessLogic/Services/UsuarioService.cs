@@ -1,5 +1,5 @@
+﻿using System.Text.RegularExpressions;
 using BiblioGest.BusinessLogic.Interfaces;
-using BiblioGest.BusinessLogic.Validation;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Usuarios;
@@ -9,8 +9,10 @@ namespace BiblioGest.BusinessLogic.Services;
 
 public class UsuarioService : IUsuarioService
 {
-    private const int EmailMaxLength = 150;
-
+    private const int LargoMaximoContraseña = 64;
+    private const int LargoMinimoEmail = 6;
+    private const int LargoMaximoEmail = 100;
+    private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
     private readonly IUsuarioRepository _usuarioRepository;
     private readonly IPasswordHasher _passwordHasher;
     public UsuarioService(IUsuarioRepository usuarioRepository, IPasswordHasher passwordHasher)
@@ -23,7 +25,7 @@ public class UsuarioService : IUsuarioService
         var usuarios = await _usuarioRepository.GetAllAsync(ct);
         return usuarios.Select(MapToResponseDTO).ToList();
     }
-    public async Task<UsuarioResponseDTO> GetByIdAsync(Guid id, CancellationToken ct = default)
+    public async Task<UsuarioResponseDTO> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
         return MapToResponseDTO(usuario);
@@ -31,30 +33,28 @@ public class UsuarioService : IUsuarioService
     }
     public async Task<UsuarioResponseDTO> CreateAsync(UsuarioCreateDTO dto, CancellationToken ct = default)
     {
-        var email = ValidarEmail(dto.Email);
+        ValidarEmail(dto.Email);
         ValidarContraseña(dto.Password);
-        await ValidarEmailUnicoAsync(email, usuarioIdActual: null, ct);
+        await ValidarEmailUnicoAsync(dto.Email, usuarioIdActual: null, ct);
         var usuario = new Usuario
         {
-            Email = email,
+            Email = dto.Email.Trim().ToLowerInvariant(),
             PasswordHash = _passwordHasher.Hash(dto.Password),
             RolUsuario = ParseRol(dto.RolUsuario)
         };
         var creado = await _usuarioRepository.CreateAsync(usuario, ct);
         return MapToResponseDTO(creado);
     }
-    public async Task<UsuarioResponseDTO> UpdateAsync(Guid id, UsuarioUpdateDTO dto, Guid usuarioActualId, CancellationToken ct = default)
+    public async Task<UsuarioResponseDTO> UpdateAsync(int id, UsuarioUpdateDTO dto, int usuarioActualId, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
-        var email = ValidarEmail(dto.Email);
-        await ValidarEmailUnicoAsync(email, usuarioIdActual: id, ct);
+        ValidarEmail(dto.Email);
+        await ValidarEmailUnicoAsync(dto.Email, usuarioIdActual: id, ct);
 
         var nuevoRol = string.IsNullOrWhiteSpace(dto.RolUsuario) ? usuario.RolUsuario : ParseRol(dto.RolUsuario);
-        var seDesactiva = dto.Activo.HasValue && !dto.Activo.Value && usuario.Activo;
+        var seDesactiva = dto.Activo == false && usuario.Activo;
         var dejaDeSerAdministrador = usuario.RolUsuario == RolUsuario.Administrador && nuevoRol != RolUsuario.Administrador;
 
-        // El usuario autenticado no puede desactivarse ni quitarse el rol Administrador
-        // a sí mismo (se chequea antes que la regla del último administrador).
         if (id == usuarioActualId && (dto.Activo == false || dejaDeSerAdministrador))
         {
             throw new UsuarioAutoModificacionException();
@@ -62,14 +62,10 @@ public class UsuarioService : IUsuarioService
 
         if (usuario.RolUsuario == RolUsuario.Administrador && usuario.Activo && (seDesactiva || dejaDeSerAdministrador))
         {
-            var administradoresActivos = await _usuarioRepository.CountAdministradoresActivosAsync(ct);
-            if (administradoresActivos <= 1)
-            {
-                throw new UltimoAdministradorException();
-            }
+            await ValidarQueNoEsElUltimoAdministradorAsync(ct);
         }
 
-        usuario.Email = email;
+        usuario.Email = dto.Email.Trim().ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(dto.Password))
         {
             ValidarContraseña(dto.Password);
@@ -83,7 +79,7 @@ public class UsuarioService : IUsuarioService
         await _usuarioRepository.UpdateAsync(usuario, ct);
         return MapToResponseDTO(usuario);
     }
-    public async Task DeleteAsync(Guid id, Guid usuarioActualId, CancellationToken ct = default)
+    public async Task DeleteAsync(int id, int usuarioActualId, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
 
@@ -96,15 +92,19 @@ public class UsuarioService : IUsuarioService
         {
             if (usuario.RolUsuario == RolUsuario.Administrador)
             {
-                var administradoresActivos = await _usuarioRepository.CountAdministradoresActivosAsync(ct);
-                if (administradoresActivos <= 1)
-                {
-                    throw new UltimoAdministradorException();
-                }
+                await ValidarQueNoEsElUltimoAdministradorAsync(ct);
             }
 
             usuario.Activo = false;
             await _usuarioRepository.UpdateAsync(usuario, ct);
+        }
+    }
+    private async Task ValidarQueNoEsElUltimoAdministradorAsync(CancellationToken ct)
+    {
+        var administradoresActivos = await _usuarioRepository.CountAdministradoresActivosAsync(ct);
+        if (administradoresActivos <= 1)
+        {
+            throw new UltimoAdministradorException();
         }
     }
     private static void ValidarContraseña(string password)
@@ -114,8 +114,14 @@ public class UsuarioService : IUsuarioService
             throw new UsuarioInvalidoException(
                 "Contraseña es obligatoria y debe tener al menos 6 caracteres.");
         }
+
+        if (password.Length > LargoMaximoContraseña)
+        {
+            throw new UsuarioInvalidoException(
+                $"La contraseña no puede superar los {LargoMaximoContraseña} caracteres.");
+        }
     }
-    private static string ValidarEmail(string email)
+    private static void ValidarEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
         {
@@ -123,23 +129,22 @@ public class UsuarioService : IUsuarioService
                 "Email es obligatorio.");
         }
 
-        var emailNormalizado = email.Trim().ToLowerInvariant();
-
-        if (emailNormalizado.Length > EmailMaxLength)
+        var largo = email.Trim().Length;
+        if (largo < LargoMinimoEmail || largo > LargoMaximoEmail)
         {
-            throw new UsuarioInvalidoException($"El email no puede superar los {EmailMaxLength} caracteres.");
+            throw new UsuarioInvalidoException(
+                $"El email debe tener entre {LargoMinimoEmail} y {LargoMaximoEmail} caracteres.");
         }
 
-        if (!EmailValidator.EsFormatoValido(emailNormalizado))
+        if (!EmailRegex.IsMatch(email.Trim()))
         {
-            throw new UsuarioInvalidoException("El email no tiene un formato válido.");
+            throw new UsuarioInvalidoException(
+                "El email no tiene un formato válido (ejemplo: nombre@dominio.com).");
         }
-
-        return emailNormalizado;
     }
-    private async Task ValidarEmailUnicoAsync(string email, Guid? usuarioIdActual, CancellationToken ct)
+    private async Task ValidarEmailUnicoAsync(string email, int? usuarioIdActual, CancellationToken ct)
     {
-        var existente = await _usuarioRepository.GetByEmailAsync(email, ct);
+        var existente = await _usuarioRepository.GetByEmailAsync(email.Trim().ToLowerInvariant(), ct);
         if (existente is not null && existente.Id != usuarioIdActual)
         {
             throw new UsuarioDuplicadoException("El email ya existe.");
@@ -161,3 +166,7 @@ public class UsuarioService : IUsuarioService
         throw new UsuarioInvalidoException("Rol del usuario inválido.");
     }
 }
+
+
+
+

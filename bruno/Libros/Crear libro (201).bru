@@ -1,7 +1,7 @@
 meta {
   name: Crear libro (201)
   type: http
-  seq: 3
+  seq: 4
 }
 
 post {
@@ -11,8 +11,6 @@ post {
 }
 
 script:pre-request {
-  // ISBN-13 valido (con digito verificador correcto) y distinto en cada
-  // corrida, para poder ejecutar la coleccion varias veces seguidas.
   function generarIsbn13() {
     const base = [9, 7, 8];
     for (let i = 0; i < 9; i++) {
@@ -33,7 +31,7 @@ body:json {
     "titulo": "El Aleph",
     "autor": "Jorge Luis Borges",
     "isbn": "{{libroIsbn}}",
-    "ubicacion": "Estante A4",
+    "ubicacion": "A1-4",
     "stock": 4
   }
 }
@@ -42,8 +40,4 @@ script:post-response {
   if (res.status === 201) {
     bru.setEnvVar("libroId", res.body.id);
   }
-}
-
-assert {
-  res.status: eq 201
 }

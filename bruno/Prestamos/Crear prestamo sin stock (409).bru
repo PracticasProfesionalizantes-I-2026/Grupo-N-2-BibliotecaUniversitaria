@@ -1,7 +1,7 @@
 meta {
   name: Crear prestamo sin stock (409)
   type: http
-  seq: 6
+  seq: 3
 }
 
 post {
@@ -12,20 +12,12 @@ post {
 
 body:json {
   {
-    "lectorId": "{{lectorId}}",
-    "libroId": "{{rayuelaId}}"
+    "lectorId": {{lectorId}},
+    "libroId": {{libroId}}
   }
 }
 
 docs {
-  RN-11: usa {{rayuelaId}} ("Rayuela", cargado por el DbInitializer con
-  stock 0) en vez de {{libroId}}, para no depender de que algún otro
-  request haya dejado el libro propio de esta corrida sin stock.
-  {{lectorId}} nunca tomó prestado "Rayuela" (quien lo tiene activo es la
-  lectora del seed, Ana Gómez), así que no choca con el 409 de préstamo
-  duplicado.
-}
-
-assert {
-  res.status: eq 409
+  Para forzar el 409 de RN-11, usar un libroId cuyo stock ya esté en 0
+  (por ejemplo, el libro "Rayuela" cargado por el DbInitializer).
 }

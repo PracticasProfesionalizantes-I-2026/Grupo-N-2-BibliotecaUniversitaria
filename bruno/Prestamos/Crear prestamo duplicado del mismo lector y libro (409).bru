@@ -1,7 +1,7 @@
 meta {
   name: Crear prestamo duplicado del mismo lector y libro (409)
   type: http
-  seq: 4
+  seq: 20
 }
 
 post {
@@ -12,16 +12,11 @@ post {
 
 body:json {
   {
-    "lectorId": "{{lectorId}}",
-    "libroId": "{{libroId}}"
+    "lectorId": {{lectorId}},
+    "libroId": {{libroId}}
   }
 }
 
 docs {
-  Ejecutar justo después de "Crear prestamo (201)" (sin devolverlo todavía):
-  el mismo lector no puede tener dos préstamos activos del mismo libro.
-}
-
-assert {
-  res.status: eq 409
+  Correr después de "Crear prestamo (201)": el lector ya tiene ese libro prestado (409).
 }

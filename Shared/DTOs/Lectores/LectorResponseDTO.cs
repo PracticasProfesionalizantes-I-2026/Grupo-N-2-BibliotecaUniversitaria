@@ -2,11 +2,10 @@ namespace BiblioGest.Shared.DTOs.Lectores;
 
 public class LectorResponseDTO
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; }
     public string Nombre { get; set; } = string.Empty;
     public string Apellido { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
-    public string Identificador { get; set; } = string.Empty;
-    public int PrestamosActivos { get; set; }
-    public int MaximoPrestamos { get; set; }
+    public string Dni { get; set; } = string.Empty;
+    public DateTime? SuspendidoHasta { get; set; }
 }

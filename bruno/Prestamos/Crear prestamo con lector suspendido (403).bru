@@ -1,0 +1,23 @@
+meta {
+  name: Crear prestamo con lector suspendido (403)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/prestamos
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "lectorId": {{lectorMoraId}},
+    "libroId": {{libroId}}
+  }
+}
+
+docs {
+  Correr después de "Registrar devolucion con atraso (200)". El lector ya no
+  tiene préstamos vencidos pero sigue suspendido: el mensaje indica hasta cuándo (403).
+}

@@ -1,6 +1,5 @@
+using System.Text.RegularExpressions;
 using BiblioGest.BusinessLogic.Interfaces;
-using BiblioGest.BusinessLogic.Reglas;
-using BiblioGest.BusinessLogic.Validation;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Lectores;
@@ -10,151 +9,169 @@ namespace BiblioGest.BusinessLogic.Services;
 
 public class LectorService : ILectorService
 {
-    private const int NombreMaxLength = 100;
-    private const int ApellidoMaxLength = 100;
-    private const int EmailMaxLength = 150;
-    private const int IdentificadorMaxLength = 20;
+    private const int LargoMinimoNombre = 2;
+    private const int LargoMaximoNombre = 50;
+    private const int LargoMinimoEmail = 6;
+    private const int LargoMaximoEmail = 100;
+    private static readonly Regex NombreRegex = new(@"^\p{L}+(?:[ '\-]\p{L}+)*$");
+    private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+    private static readonly Regex DniRegex = new(@"^\d{7,8}$");
 
     private readonly ILectorRepository _lectorRepository;
     private readonly IPrestamoRepository _prestamoRepository;
+    private readonly IReservaRepository _reservaRepository;
 
-    public LectorService(ILectorRepository lectorRepository, IPrestamoRepository prestamoRepository)
+    public LectorService(ILectorRepository lectorRepository, IPrestamoRepository prestamoRepository, IReservaRepository reservaRepository)
     {
         _lectorRepository = lectorRepository;
         _prestamoRepository = prestamoRepository;
+        _reservaRepository = reservaRepository;
     }
 
     public async Task<IReadOnlyList<LectorResponseDTO>> GetAllAsync(CancellationToken ct = default)
     {
         var lectores = await _lectorRepository.GetAllAsync(ct);
-        var activosPorLector = await _prestamoRepository.CountActivosAgrupadosPorLectorAsync(ct);
-        return lectores
-            .Select(l => MapToResponseDTO(l, activosPorLector.GetValueOrDefault(l.Id)))
-            .ToList();
+        return lectores.Select(MapToResponseDTO).ToList();
     }
 
-    public async Task<LectorResponseDTO> GetByIdAsync(Guid id, CancellationToken ct = default)
+    public async Task<LectorResponseDTO> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var lector = await _lectorRepository.GetByIdAsync(id, ct) ?? throw new LectorNotFoundException(id);
-        var prestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(id, ct);
-        return MapToResponseDTO(lector, prestamosActivos);
+        return MapToResponseDTO(lector);
     }
 
     public async Task<LectorResponseDTO> CreateAsync(LectorCreateDTO dto, CancellationToken ct = default)
     {
-        var (email, identificador) = ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Identificador);
-        await ValidarIdentificadorUnicoAsync(identificador, lectorIdActual: null, ct);
-        await ValidarEmailUnicoAsync(email, lectorIdActual: null, ct);
+        ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Dni);
+        await ValidarDniUnicoAsync(dto.Dni, lectorIdActual: null, ct);
+        await ValidarEmailUnicoAsync(dto.Email, lectorIdActual: null, ct);
 
         var lector = new Lector
         {
             Nombre = dto.Nombre.Trim(),
             Apellido = dto.Apellido.Trim(),
-            Email = email,
-            Identificador = identificador
+            Email = NormalizarEmail(dto.Email),
+            Dni = dto.Dni.Trim()
         };
 
         var creado = await _lectorRepository.CreateAsync(lector, ct);
-        return MapToResponseDTO(creado, prestamosActivos: 0);
+        return MapToResponseDTO(creado);
     }
 
-    public async Task<LectorResponseDTO> UpdateAsync(Guid id, LectorUpdateDTO dto, CancellationToken ct = default)
+    public async Task<LectorResponseDTO> UpdateAsync(int id, LectorUpdateDTO dto, CancellationToken ct = default)
     {
         var lector = await _lectorRepository.GetByIdAsync(id, ct) ?? throw new LectorNotFoundException(id);
 
-        var (email, identificador) = ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Identificador);
-        await ValidarIdentificadorUnicoAsync(identificador, lectorIdActual: id, ct);
-        await ValidarEmailUnicoAsync(email, lectorIdActual: id, ct);
+        ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Dni);
+        await ValidarDniUnicoAsync(dto.Dni, lectorIdActual: id, ct);
+        await ValidarEmailUnicoAsync(dto.Email, lectorIdActual: id, ct);
 
         lector.Nombre = dto.Nombre.Trim();
         lector.Apellido = dto.Apellido.Trim();
-        lector.Email = email;
-        lector.Identificador = identificador;
+        lector.Email = NormalizarEmail(dto.Email);
+        lector.Dni = dto.Dni.Trim();
 
         await _lectorRepository.UpdateAsync(lector, ct);
-        var prestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(id, ct);
-        return MapToResponseDTO(lector, prestamosActivos);
+        return MapToResponseDTO(lector);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteAsync(int id, CancellationToken ct = default)
     {
         var lector = await _lectorRepository.GetByIdAsync(id, ct) ?? throw new LectorNotFoundException(id);
 
+        if (await _prestamoRepository.TieneActivosPorLectorAsync(id, ct))
+        {
+            throw new LectorConPrestamosActivosException(id);
+        }
+
+        if (await _reservaRepository.TieneActivasPorLectorAsync(id, ct))
+        {
+            throw new LectorConReservasActivasException(id);
+        }
+
         if (await _prestamoRepository.TienePrestamosPorLectorAsync(id, ct))
         {
-            throw new LectorConHistorialPrestamosException(id);
+            throw new LectorConHistorialException(id);
         }
 
         await _lectorRepository.DeleteAsync(lector, ct);
     }
 
-    private static (string Email, string Identificador) ValidarDatos(string nombre, string apellido, string email, string identificador)
+    private static void ValidarDatos(string nombre, string apellido, string email, string dni)
     {
         if (string.IsNullOrWhiteSpace(nombre) ||
             string.IsNullOrWhiteSpace(apellido) ||
             string.IsNullOrWhiteSpace(email) ||
-            string.IsNullOrWhiteSpace(identificador))
+            string.IsNullOrWhiteSpace(dni))
         {
             throw new LectorInvalidoException(
-                "Nombre, apellido, email e identificador (DNI o legajo) son obligatorios.");
+                "Nombre, apellido, email y DNI son obligatorios.");
         }
 
-        if (nombre.Trim().Length > NombreMaxLength)
+        if (!LargoValido(nombre, LargoMinimoNombre, LargoMaximoNombre) ||
+            !LargoValido(apellido, LargoMinimoNombre, LargoMaximoNombre))
         {
-            throw new LectorInvalidoException($"El nombre no puede superar los {NombreMaxLength} caracteres.");
+            throw new LectorInvalidoException(
+                $"El nombre y el apellido deben tener entre {LargoMinimoNombre} y {LargoMaximoNombre} caracteres.");
         }
 
-        if (apellido.Trim().Length > ApellidoMaxLength)
+        if (!NombreRegex.IsMatch(nombre.Trim()) || !NombreRegex.IsMatch(apellido.Trim()))
         {
-            throw new LectorInvalidoException($"El apellido no puede superar los {ApellidoMaxLength} caracteres.");
+            throw new LectorInvalidoException(
+                "El nombre y el apellido solo pueden tener letras, separadas por un único espacio, apóstrofo o guion (ejemplo: María José).");
         }
 
-        var emailNormalizado = email.Trim().ToLowerInvariant();
-        if (emailNormalizado.Length > EmailMaxLength)
+        if (!LargoValido(email, LargoMinimoEmail, LargoMaximoEmail))
         {
-            throw new LectorInvalidoException($"El email no puede superar los {EmailMaxLength} caracteres.");
+            throw new LectorInvalidoException(
+                $"El email debe tener entre {LargoMinimoEmail} y {LargoMaximoEmail} caracteres.");
         }
 
-        if (!EmailValidator.EsFormatoValido(emailNormalizado))
+        if (!EmailRegex.IsMatch(email.Trim()))
         {
-            throw new LectorInvalidoException("El email no tiene un formato válido.");
+            throw new LectorInvalidoException("El email no tiene un formato válido (ejemplo: nombre@dominio.com).");
         }
 
-        var identificadorNormalizado = identificador.Trim().ToUpperInvariant();
-        if (identificadorNormalizado.Length > IdentificadorMaxLength)
+        if (!DniRegex.IsMatch(dni.Trim()))
         {
-            throw new LectorInvalidoException($"El identificador no puede superar los {IdentificadorMaxLength} caracteres.");
+            throw new LectorInvalidoException(
+                "El DNI debe tener 7 u 8 dígitos, sin puntos ni espacios (ejemplo: 30111222).");
         }
-
-        return (emailNormalizado, identificadorNormalizado);
     }
 
-    private async Task ValidarIdentificadorUnicoAsync(string identificador, Guid? lectorIdActual, CancellationToken ct)
+    private static bool LargoValido(string valor, int minimo, int maximo)
     {
-        var existente = await _lectorRepository.GetByIdentificadorAsync(identificador, ct);
+        var largo = valor.Trim().Length;
+        return largo >= minimo && largo <= maximo;
+    }
+
+    private async Task ValidarEmailUnicoAsync(string email, int? lectorIdActual, CancellationToken ct)
+    {
+        var existente = await _lectorRepository.GetByEmailAsync(NormalizarEmail(email), ct);
         if (existente is not null && existente.Id != lectorIdActual)
         {
-            throw new IdentificadorDuplicadoException(identificador);
+            throw new LectorEmailDuplicadoException(NormalizarEmail(email));
         }
     }
 
-    private async Task ValidarEmailUnicoAsync(string email, Guid? lectorIdActual, CancellationToken ct)
+    private static string NormalizarEmail(string email) => email.Trim().ToLowerInvariant();
+
+    private async Task ValidarDniUnicoAsync(string dni, int? lectorIdActual, CancellationToken ct)
     {
-        var existente = await _lectorRepository.GetByEmailAsync(email, ct);
+        var existente = await _lectorRepository.GetByDniAsync(dni.Trim(), ct);
         if (existente is not null && existente.Id != lectorIdActual)
         {
-            throw new LectorEmailDuplicadoException(email);
+            throw new DniDuplicadoException(dni.Trim());
         }
     }
 
-    private static LectorResponseDTO MapToResponseDTO(Lector lector, int prestamosActivos) => new()
+    private static LectorResponseDTO MapToResponseDTO(Lector lector) => new()
     {
         Id = lector.Id,
         Nombre = lector.Nombre,
         Apellido = lector.Apellido,
         Email = lector.Email,
-        Identificador = lector.Identificador,
-        PrestamosActivos = prestamosActivos,
-        MaximoPrestamos = ReglasPrestamo.MaximoPrestamosActivosPorLector
+        Dni = lector.Dni,
+        SuspendidoHasta = lector.SuspendidoHasta
     };
 }

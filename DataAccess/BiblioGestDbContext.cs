@@ -12,28 +12,28 @@ public class BiblioGestDbContext : DbContext
     public DbSet<Libro> Libros => Set<Libro>();
     public DbSet<Lector> Lectores => Set<Lector>();
     public DbSet<Prestamo> Prestamos => Set<Prestamo>();
-    public DbSet<Usuario> Usuarios => Set<Usuario>();   
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<Reserva> Reservas => Set<Reserva>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Libro>(entity =>
         {
             entity.HasKey(l => l.Id);
-            entity.Property(l => l.Titulo).IsRequired().HasMaxLength(200);
-            entity.Property(l => l.Autor).IsRequired().HasMaxLength(150);
-            entity.Property(l => l.Isbn).IsRequired().HasMaxLength(13);
-            entity.Property(l => l.Ubicacion).IsRequired().HasMaxLength(50);
-            entity.HasIndex(l => l.Isbn).IsUnique();
+            entity.Property(l => l.Titulo).IsRequired();
+            entity.Property(l => l.Autor).IsRequired();
+            entity.Property(l => l.Isbn).IsRequired();
+            entity.Property(l => l.Ubicacion).IsRequired();
         });
 
         modelBuilder.Entity<Lector>(entity =>
         {
             entity.HasKey(l => l.Id);
-            entity.Property(l => l.Nombre).IsRequired().HasMaxLength(100);
-            entity.Property(l => l.Apellido).IsRequired().HasMaxLength(100);
-            entity.Property(l => l.Email).IsRequired().HasMaxLength(150);
-            entity.Property(l => l.Identificador).IsRequired().HasMaxLength(20);
-            entity.HasIndex(l => l.Identificador).IsUnique();
+            entity.Property(l => l.Nombre).IsRequired();
+            entity.Property(l => l.Apellido).IsRequired();
+            entity.Property(l => l.Email).IsRequired();
+            entity.Property(l => l.Dni).IsRequired();
+            entity.HasIndex(l => l.Dni).IsUnique();
             entity.HasIndex(l => l.Email).IsUnique();
         });
 
@@ -53,22 +53,35 @@ public class BiblioGestDbContext : DbContext
 
             entity.Property(p => p.Estado)
                 .HasConversion<string>();
-
-            // Un lector no puede tener dos préstamos activos del mismo libro (RN de duplicados).
-            entity.HasIndex(p => new { p.LectorId, p.LibroId })
-                .IsUnique()
-                .HasFilter("\"Estado\" = 'Activo'");
         });
 
         modelBuilder.Entity<Usuario>(entity =>
         {
             entity.HasKey(u => u.Id);
-            entity.Property(u => u.Email).IsRequired().HasMaxLength(150);
+            entity.Property(u => u.Email).IsRequired();
             entity.HasIndex(u => u.Email).IsUnique();
             entity.Property(u => u.PasswordHash).IsRequired();
             entity.Property(u => u.RolUsuario)
                 .HasConversion<string>();
             entity.Property(u => u.Activo);
+        });
+
+        modelBuilder.Entity<Reserva>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.HasOne(r => r.Lector)
+                .WithMany()
+                .HasForeignKey(r => r.LectorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.Libro)
+                .WithMany()
+                .HasForeignKey(r => r.LibroId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(r => r.Estado)
+                .HasConversion<string>();
         });
 
         base.OnModelCreating(modelBuilder);

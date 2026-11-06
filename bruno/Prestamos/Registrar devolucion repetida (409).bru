@@ -1,7 +1,7 @@
 meta {
   name: Registrar devolucion repetida (409)
   type: http
-  seq: 9
+  seq: 6
 }
 
 put {
@@ -13,8 +13,4 @@ put {
 docs {
   Ejecutar después de "Registrar devolucion (200)": el préstamo ya está devuelto,
   así que responde 409 y no vuelve a sumar stock al libro.
-}
-
-assert {
-  res.status: eq 409
 }

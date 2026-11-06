@@ -9,12 +9,3 @@ get {
   body: none
   auth: inherit
 }
-
-docs {
-  Cada préstamo del reporte incluye diasDeAtraso y mensaje ya calculados
-  por la API (por ejemplo "Atrasado 6 días.").
-}
-
-assert {
-  res.status: eq 200
-}

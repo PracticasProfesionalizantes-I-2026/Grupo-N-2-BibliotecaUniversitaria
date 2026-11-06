@@ -19,36 +19,35 @@ namespace BiblioGest.DataAccess.Migrations
 
             modelBuilder.Entity("BiblioGest.DataAccess.Entities.Lector", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Apellido")
                         .IsRequired()
-                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Dni")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Identificador")
-                        .IsRequired()
-                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("SuspendidoHasta")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email")
+                    b.HasIndex("Dni")
                         .IsUnique();
 
-                    b.HasIndex("Identificador")
+                    b.HasIndex("Email")
                         .IsUnique();
 
                     b.ToTable("Lectores");
@@ -56,18 +55,16 @@ namespace BiblioGest.DataAccess.Migrations
 
             modelBuilder.Entity("BiblioGest.DataAccess.Entities.Libro", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Autor")
                         .IsRequired()
-                        .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Isbn")
                         .IsRequired()
-                        .HasMaxLength(13)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Stock")
@@ -75,27 +72,22 @@ namespace BiblioGest.DataAccess.Migrations
 
                     b.Property<string>("Titulo")
                         .IsRequired()
-                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Ubicacion")
                         .IsRequired()
-                        .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Isbn")
-                        .IsUnique();
 
                     b.ToTable("Libros");
                 });
 
             modelBuilder.Entity("BiblioGest.DataAccess.Entities.Prestamo", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Estado")
                         .IsRequired()
@@ -110,35 +102,69 @@ namespace BiblioGest.DataAccess.Migrations
                     b.Property<DateTime>("FechaVencimiento")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("LectorId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("LectorId")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<Guid>("LibroId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("LibroId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Renovaciones")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LibroId");
+                    b.HasIndex("LectorId");
 
-                    b.HasIndex("LectorId", "LibroId")
-                        .IsUnique()
-                        .HasFilter("\"Estado\" = 'Activo'");
+                    b.HasIndex("LibroId");
 
                     b.ToTable("Prestamos");
                 });
 
+            modelBuilder.Entity("BiblioGest.DataAccess.Entities.Reserva", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaAsignacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaLimiteRetiro")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaReserva")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LectorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LibroId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LectorId");
+
+                    b.HasIndex("LibroId");
+
+                    b.ToTable("Reservas");
+                });
+
             modelBuilder.Entity("BiblioGest.DataAccess.Entities.Usuario", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("Activo")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
@@ -169,6 +195,25 @@ namespace BiblioGest.DataAccess.Migrations
                         .WithMany("Prestamos")
                         .HasForeignKey("LibroId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Lector");
+
+                    b.Navigation("Libro");
+                });
+
+            modelBuilder.Entity("BiblioGest.DataAccess.Entities.Reserva", b =>
+                {
+                    b.HasOne("BiblioGest.DataAccess.Entities.Lector", "Lector")
+                        .WithMany()
+                        .HasForeignKey("LectorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BiblioGest.DataAccess.Entities.Libro", "Libro")
+                        .WithMany()
+                        .HasForeignKey("LibroId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Lector");

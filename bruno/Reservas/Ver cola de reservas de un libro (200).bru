@@ -1,0 +1,17 @@
+meta {
+  name: Ver cola de reservas de un libro (200)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/reservas?libroId={{libroSinStockId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  Lista las reservas activas (EnCola y Asignada) del libro, en orden de llegada.
+  Después de "Registrar devolucion con atraso (200)" (préstamo de Rayuela de Ana),
+  la reserva de Bruno aparece Asignada con fechaLimiteRetiro = devolución + 24 h.
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Crear lector con DNI duplicado (409)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Otro",
+    "apellido": "Lector",
+    "email": "otro.lector@example.com",
+    "dni": "{{lectorDni}}"
+  }
+}
+
+docs {
+  Ejecutar después de "Crear lector (201)" para reusar el mismo
+  DNI y provocar el 409 Conflict de RN-08.
+}

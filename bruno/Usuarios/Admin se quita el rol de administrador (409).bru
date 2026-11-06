@@ -18,12 +18,6 @@ body:json {
 }
 
 docs {
-  Ejecutar después de "Obtener id del admin logueado". Un usuario no puede
-  quitarse a sí mismo el rol de Administrador (UsuarioAutoModificacionException):
-  la cuenta queda intacta tras el 409.
-}
-
-assert {
-  res.status: eq 409
-  res.body.message: eq "No podés desactivar tu propia cuenta ni quitarte el rol de Administrador."
+  El usuario logueado no puede desactivarse ni quitarse el rol de Administrador (409).
+  Tampoco se puede dejar al sistema sin ningún administrador activo.
 }

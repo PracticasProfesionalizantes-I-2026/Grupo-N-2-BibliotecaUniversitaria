@@ -12,162 +12,74 @@ public class LectorServiceTests
 {
     private readonly Mock<ILectorRepository> _lectorRepository = new();
     private readonly Mock<IPrestamoRepository> _prestamoRepository = new();
+    private readonly Mock<IReservaRepository> _reservaRepository = new();
 
-    private LectorService CrearService() => new(_lectorRepository.Object, _prestamoRepository.Object);
-
-    private static LectorCreateDTO NuevoLectorDto() => new()
-    {
-        Nombre = "Ana",
-        Apellido = "Gómez",
-        Email = "ana@example.com",
-        Identificador = "30111222"
-    };
-
-    private void SetupSinDuplicados()
-    {
-        _lectorRepository
-            .Setup(r => r.GetByIdentificadorAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Lector?)null);
-        _lectorRepository
-            .Setup(r => r.GetByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Lector?)null);
-    }
+    private LectorService CrearService() => new(_lectorRepository.Object, _prestamoRepository.Object, _reservaRepository.Object);
 
     [Fact]
     public async Task CreateLectorAsync_WithValidData_SavesAndReturnsCreatedLector()
     {
-        var dto = NuevoLectorDto();
-        SetupSinDuplicados();
-        _lectorRepository
-            .Setup(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Lector l, CancellationToken _) =>
-            {
-                l.Id = Guid.NewGuid();
-                return l;
-            });
-
-        var service = CrearService();
-        var resultado = await service.CreateAsync(dto);
-
-        Assert.NotEqual(Guid.Empty, resultado.Id);
-        Assert.Equal(dto.Identificador, resultado.Identificador);
-    }
-
-    [Theory]
-    [InlineData("", "Gómez", "a@a.com", "1")]
-    [InlineData("Ana", "", "a@a.com", "1")]
-    [InlineData("Ana", "Gómez", "", "1")]
-    [InlineData("Ana", "Gómez", "a@a.com", "")]
-    [InlineData("   ", "Gómez", "a@a.com", "1")]
-    public async Task CreateLectorAsync_WithMissingOrBlankField_ThrowsValidationException(
-        string nombre, string apellido, string email, string identificador)
-    {
-        var dto = new LectorCreateDTO { Nombre = nombre, Apellido = apellido, Email = email, Identificador = identificador };
-
-        var service = CrearService();
-
-        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
-    }
-
-    [Theory]
-    [InlineData("no-es-un-email")]
-    [InlineData("falta-arroba.com")]
-    [InlineData("sin-dominio@")]
-    [InlineData("espacio en@email.com")]
-    public async Task CreateLectorAsync_WithInvalidEmailFormat_ThrowsValidationException(string email)
-    {
-        var dto = NuevoLectorDto();
-        dto.Email = email;
-
-        var service = CrearService();
-
-        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
-    }
-
-    [Fact]
-    public async Task CreateLectorAsync_NormalizesEmailWithTrimAndLowerCase()
-    {
-        var dto = NuevoLectorDto();
-        dto.Email = "  Ana@Example.COM ";
-        SetupSinDuplicados();
-        _lectorRepository
-            .Setup(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Lector l, CancellationToken _) =>
-            {
-                l.Id = Guid.NewGuid();
-                return l;
-            });
-
-        var service = CrearService();
-        var resultado = await service.CreateAsync(dto);
-
-        Assert.Equal("ana@example.com", resultado.Email);
-    }
-
-    [Fact]
-    public async Task CreateLectorAsync_WithTooLongTitulo_ThrowsValidationException()
-    {
-        var dto = NuevoLectorDto();
-        dto.Nombre = new string('A', 101);
-
-        var service = CrearService();
-
-        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
-    }
-
-    [Fact]
-    public async Task CreateLectorAsync_WhenIdentificadorAlreadyExists_ThrowsConflictException()
-    {
-        var dto = NuevoLectorDto();
+        var dto = new LectorCreateDTO
+        {
+            Nombre = "Ana",
+            Apellido = "Gómez",
+            Email = "ana@example.com",
+            Dni = "30111222"
+        };
 
         _lectorRepository
-            .Setup(r => r.GetByIdentificadorAsync(dto.Identificador, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Lector { Id = Guid.NewGuid(), Identificador = dto.Identificador });
-
-        var service = CrearService();
-
-        await Assert.ThrowsAsync<IdentificadorDuplicadoException>(() => service.CreateAsync(dto));
-        _lectorRepository.Verify(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task CreateLectorAsync_WhenIdentificadorDuplicadoWithDifferentCaseAndSpaces_ThrowsConflictException()
-    {
-        var dto = NuevoLectorDto();
-        dto.Identificador = "  l-4521  ";
-
-        _lectorRepository
-            .Setup(r => r.GetByIdentificadorAsync("L-4521", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Lector { Id = Guid.NewGuid(), Identificador = "L-4521" });
-
-        var service = CrearService();
-
-        await Assert.ThrowsAsync<IdentificadorDuplicadoException>(() => service.CreateAsync(dto));
-    }
-
-    [Fact]
-    public async Task CreateLectorAsync_WhenEmailAlreadyExists_ThrowsConflictException()
-    {
-        var dto = NuevoLectorDto();
-        dto.Email = " ANA@EXAMPLE.COM ";
-
-        _lectorRepository
-            .Setup(r => r.GetByIdentificadorAsync(dto.Identificador, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByDniAsync(dto.Dni, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Lector?)null);
         _lectorRepository
-            .Setup(r => r.GetByEmailAsync("ana@example.com", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Lector { Id = Guid.NewGuid(), Email = "ana@example.com" });
+            .Setup(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Lector l, CancellationToken _) =>
+            {
+                l.Id = IdsDePrueba.Nuevo();
+                return l;
+            });
+
+        var service = CrearService();
+        var resultado = await service.CreateAsync(dto);
+
+        Assert.True(resultado.Id > 0);
+        Assert.Equal(dto.Dni, resultado.Dni);
+    }
+
+    [Fact]
+    public async Task CreateLectorAsync_WithMissingRequiredField_ThrowsValidationException()
+    {
+        var dto = new LectorCreateDTO { Nombre = "", Apellido = "Gómez", Email = "a@a.com", Dni = "1" };
 
         var service = CrearService();
 
-        await Assert.ThrowsAsync<LectorEmailDuplicadoException>(() => service.CreateAsync(dto));
+        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
+    }
+
+    [Fact]
+    public async Task CreateLectorAsync_WhenDniAlreadyExists_ThrowsConflictException()
+    {
+        var dto = new LectorCreateDTO
+        {
+            Nombre = "Ana",
+            Apellido = "Gómez",
+            Email = "ana@example.com",
+            Dni = "30111222"
+        };
+
+        _lectorRepository
+            .Setup(r => r.GetByDniAsync(dto.Dni, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Lector { Id = IdsDePrueba.Nuevo(), Dni = dto.Dni });
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<DniDuplicadoException>(() => service.CreateAsync(dto));
         _lectorRepository.Verify(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task GetLectorByIdAsync_WhenLectorDoesNotExist_ThrowsNotFoundException()
     {
-        var id = Guid.NewGuid();
+        var id = IdsDePrueba.Nuevo();
         _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((Lector?)null);
 
         var service = CrearService();
@@ -176,12 +88,12 @@ public class LectorServiceTests
     }
 
     [Fact]
-    public async Task DeleteLectorAsync_WithoutLoanHistory_DeletesLector()
+    public async Task DeleteLectorAsync_WithoutActiveLoans_DeletesLector()
     {
-        var id = Guid.NewGuid();
-        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Identificador = "1" };
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Dni = "1" };
         _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
-        _prestamoRepository.Setup(r => r.TienePrestamosPorLectorAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _prestamoRepository.Setup(r => r.TieneActivosPorLectorAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
         var service = CrearService();
         await service.DeleteAsync(id);
@@ -190,34 +102,30 @@ public class LectorServiceTests
     }
 
     [Fact]
-    public async Task DeleteLectorAsync_WhenLectorHasLoanHistory_ThrowsConflictException()
+    public async Task DeleteLectorAsync_WhenLectorHasActiveLoans_ThrowsConflictException()
     {
-        var id = Guid.NewGuid();
-        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Identificador = "1" };
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Dni = "1" };
         _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
-        _prestamoRepository.Setup(r => r.TienePrestamosPorLectorAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _prestamoRepository.Setup(r => r.TieneActivosPorLectorAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var service = CrearService();
 
-        await Assert.ThrowsAsync<LectorConHistorialPrestamosException>(() => service.DeleteAsync(id));
-        _lectorRepository.Verify(r => r.DeleteAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
+        await Assert.ThrowsAsync<LectorConPrestamosActivosException>(() => service.DeleteAsync(id));
     }
 
     [Fact]
     public async Task UpdateLectorAsync_WithValidData_UpdatesLector()
     {
-        var id = Guid.NewGuid();
-        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Identificador = "30111222" };
-        var dto = new LectorUpdateDTO { Nombre = "Ana María", Apellido = "Gómez", Email = "anamaria@example.com", Identificador = "30111222" };
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Dni = "30111222" };
+        var dto = new LectorUpdateDTO { Nombre = "Ana María", Apellido = "Gómez", Email = "anamaria@example.com", Dni = "30111222" };
         _lectorRepository
             .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(lector);
         _lectorRepository
-            .Setup(r => r.GetByIdentificadorAsync(dto.Identificador, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByDniAsync(dto.Dni, It.IsAny<CancellationToken>()))
             .ReturnsAsync(lector);
-        _lectorRepository
-            .Setup(r => r.GetByEmailAsync(dto.Email, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Lector?)null);
 
         var service = CrearService();
         var resultado = await service.UpdateAsync(id, dto);
@@ -228,81 +136,223 @@ public class LectorServiceTests
     }
 
     [Fact]
-    public async Task UpdateLectorAsync_WhenIdentificadorBelongsToOtherLector_ThrowsConflictException()
+    public async Task UpdateLectorAsync_WhenDniBelongsToOtherLector_ThrowsConflictException()
     {
-        var id = Guid.NewGuid();
-        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Identificador = "30111222" };
-        var otro = new Lector { Id = Guid.NewGuid(), Nombre = "Luis", Apellido = "Paz", Email = "luis@example.com", Identificador = "40999888" };
-        var dto = new LectorUpdateDTO { Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Identificador = "40999888" };
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Dni = "30111222" };
+        var otro = new Lector { Id = IdsDePrueba.Nuevo(), Nombre = "Luis", Apellido = "Paz", Email = "luis@example.com", Dni = "40999888" };
+        var dto = new LectorUpdateDTO { Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Dni = "40999888" };
         _lectorRepository
             .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(lector);
         _lectorRepository
-            .Setup(r => r.GetByIdentificadorAsync(dto.Identificador, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByDniAsync(dto.Dni, It.IsAny<CancellationToken>()))
             .ReturnsAsync(otro);
 
         var service = CrearService();
 
-        await Assert.ThrowsAsync<IdentificadorDuplicadoException>(() => service.UpdateAsync(id, dto));
+        await Assert.ThrowsAsync<DniDuplicadoException>(() => service.UpdateAsync(id, dto));
         _lectorRepository.Verify(r => r.UpdateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
-    public async Task UpdateLectorAsync_WhenEmailBelongsToOtherLector_ThrowsConflictException()
+    private static LectorCreateDTO LectorValidoDto() => new()
     {
-        var id = Guid.NewGuid();
-        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Identificador = "30111222" };
-        var otro = new Lector { Id = Guid.NewGuid(), Nombre = "Luis", Apellido = "Paz", Email = "luis@example.com", Identificador = "40999888" };
-        var dto = new LectorUpdateDTO { Nombre = "Ana", Apellido = "Gómez", Email = "luis@example.com", Identificador = "30111222" };
-        _lectorRepository
-            .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(lector);
-        _lectorRepository
-            .Setup(r => r.GetByIdentificadorAsync(dto.Identificador, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(lector);
-        _lectorRepository
-            .Setup(r => r.GetByEmailAsync(dto.Email, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(otro);
+        Nombre = "Ana",
+        Apellido = "Gómez",
+        Email = "ana@example.com",
+        Dni = "30111222"
+    };
+
+    [Theory]
+    [InlineData("ana")]
+    [InlineData("ana@")]
+    [InlineData("ana@example")]
+    [InlineData("ana gomez@example.com")]
+    public async Task CreateLectorAsync_WithInvalidEmail_ThrowsLectorInvalidoException(string email)
+    {
+        var dto = LectorValidoDto();
+        dto.Email = email;
 
         var service = CrearService();
 
-        await Assert.ThrowsAsync<LectorEmailDuplicadoException>(() => service.UpdateAsync(id, dto));
-        _lectorRepository.Verify(r => r.UpdateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
+        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
     }
 
-    [Fact]
-    public async Task GetAllLectoresAsync_ReturnsPrestamosActivosFromSingleGroupedQuery()
+    [Theory]
+    [InlineData("123456")]
+    [InlineData("123456789")]
+    [InlineData("30.111.222")]
+    [InlineData("30 111 222")]
+    [InlineData("L-4521")]
+    [InlineData("ABC12345")]
+    public async Task CreateLectorAsync_WithInvalidDni_ThrowsLectorInvalidoException(string dni)
     {
-        var conPrestamos = new Lector { Id = Guid.NewGuid(), Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Identificador = "1" };
-        var sinPrestamos = new Lector { Id = Guid.NewGuid(), Nombre = "Luis", Apellido = "Pérez", Email = "l@l.com", Identificador = "2" };
-        _lectorRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Lector> { conPrestamos, sinPrestamos });
-        _prestamoRepository.Setup(r => r.CountActivosAgrupadosPorLectorAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<Guid, int> { [conPrestamos.Id] = 2 });
+        var dto = LectorValidoDto();
+        dto.Dni = dni;
 
         var service = CrearService();
-        var resultado = await service.GetAllAsync();
 
-        Assert.Equal(2, resultado.Single(l => l.Id == conPrestamos.Id).PrestamosActivos);
-        Assert.Equal(0, resultado.Single(l => l.Id == sinPrestamos.Id).PrestamosActivos);
-        Assert.All(resultado, l => Assert.Equal(3, l.MaximoPrestamos));
-        // Sin N+1: una sola consulta agrupada, ningún conteo por lector.
-        _prestamoRepository.Verify(r => r.CountActivosAgrupadosPorLectorAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _prestamoRepository.Verify(r => r.CountActivosPorLectorAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
+        _lectorRepository.Verify(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("1234567", "1234567")]
+    [InlineData("30111222", "30111222")]
+    [InlineData(" 30111222 ", "30111222")]
+    public async Task CreateLectorAsync_WithValidDni_SavesItTrimmed(string dni, string esperado)
+    {
+        var dto = LectorValidoDto();
+        dto.Dni = dni;
+        _lectorRepository
+            .Setup(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Lector l, CancellationToken _) => l);
+
+        var service = CrearService();
+        var resultado = await service.CreateAsync(dto);
+
+        Assert.Equal(esperado, resultado.Dni);
+    }
+
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("   ")]
+    [InlineData("A")]
+    [InlineData("Ana  María")]
+    [InlineData("Ana123")]
+    [InlineData("Ana_María")]
+    [InlineData("-Ana")]
+    public async Task CreateLectorAsync_WithInvalidNombre_ThrowsLectorInvalidoException(string nombre)
+    {
+        var dto = LectorValidoDto();
+        dto.Nombre = nombre;
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
+        _lectorRepository.Verify(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task GetLectorByIdAsync_ReturnsPrestamosActivosAndMaximo()
+    public async Task CreateLectorAsync_WithNombreTooLong_ThrowsLectorInvalidoException()
     {
-        var id = Guid.NewGuid();
-        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Identificador = "1" };
+        var dto = LectorValidoDto();
+        dto.Nombre = new string('a', 51);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
+    }
+
+    [Fact]
+    public async Task CreateLectorAsync_WithApellidoTooShort_ThrowsLectorInvalidoException()
+    {
+        var dto = LectorValidoDto();
+        dto.Apellido = "G";
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
+    }
+
+    [Theory]
+    [InlineData("Al")]
+    [InlineData("María José")]
+    [InlineData("O'Connor")]
+    [InlineData("Pérez-Núñez")]
+    public async Task CreateLectorAsync_WithValidNombre_CreatesLector(string nombre)
+    {
+        var dto = LectorValidoDto();
+        dto.Nombre = nombre;
+        _lectorRepository
+            .Setup(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Lector l, CancellationToken _) => l);
+
+        var service = CrearService();
+        var resultado = await service.CreateAsync(dto);
+
+        Assert.Equal(nombre, resultado.Nombre);
+    }
+
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("a@b.c")]
+    public async Task CreateLectorAsync_WithEmailOutOfRange_ThrowsLectorInvalidoException(string email)
+    {
+        var dto = LectorValidoDto();
+        dto.Email = email;
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
+    }
+
+    [Fact]
+    public async Task CreateLectorAsync_WithEmailTooLong_ThrowsLectorInvalidoException()
+    {
+        var dto = LectorValidoDto();
+        dto.Email = new string('a', 89) + "@example.com";
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorInvalidoException>(() => service.CreateAsync(dto));
+    }
+
+    [Fact]
+    public async Task DeleteLectorAsync_WhenLectorHasActiveReservas_ThrowsConflictException()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Dni = "1" };
         _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
-        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        _reservaRepository.Setup(r => r.TieneActivasPorLectorAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var service = CrearService();
-        var resultado = await service.GetByIdAsync(id);
 
-        Assert.Equal(2, resultado.PrestamosActivos);
-        Assert.Equal(3, resultado.MaximoPrestamos);
+        await Assert.ThrowsAsync<LectorConReservasActivasException>(() => service.DeleteAsync(id));
+        _lectorRepository.Verify(r => r.DeleteAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteLectorAsync_WhenLectorHasLoanHistory_ThrowsConflictException()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Dni = "1" };
+        _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _prestamoRepository.Setup(r => r.TienePrestamosPorLectorAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorConHistorialException>(() => service.DeleteAsync(id));
+        _lectorRepository.Verify(r => r.DeleteAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateLectorAsync_WhenEmailAlreadyExists_ThrowsConflictException()
+    {
+        var dto = LectorValidoDto();
+        dto.Email = "  ANA@Example.com ";
+        _lectorRepository
+            .Setup(r => r.GetByEmailAsync("ana@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Lector { Id = IdsDePrueba.Nuevo(), Email = "ana@example.com" });
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorEmailDuplicadoException>(() => service.CreateAsync(dto));
+        _lectorRepository.Verify(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateLectorAsync_KeepingOwnEmail_DoesNotThrow()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Dni = "30111222" };
+        _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _lectorRepository.Setup(r => r.GetByEmailAsync("ana@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        var dto = new LectorUpdateDTO { Nombre = "Ana", Apellido = "Gómez", Email = "Ana@Example.com", Dni = "30111222" };
+
+        var service = CrearService();
+        var resultado = await service.UpdateAsync(id, dto);
+
+        Assert.Equal("ana@example.com", resultado.Email);
     }
 }

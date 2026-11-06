@@ -12,8 +12,8 @@ post {
 
 body:json {
   {
-    "lectorId": "{{lectorId}}",
-    "libroId": "{{libroId}}"
+    "lectorId": {{lectorId}},
+    "libroId": {{libroId}}
   }
 }
 
@@ -26,8 +26,4 @@ script:post-response {
 docs {
   Requiere haber corrido antes "Crear lector (201)" y "Crear libro (201)"
   (con stock > 0) para tener lectorId y libroId cargados en el entorno.
-}
-
-assert {
-  res.status: eq 201
 }

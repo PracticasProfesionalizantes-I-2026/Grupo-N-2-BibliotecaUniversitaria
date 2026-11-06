@@ -12,13 +12,13 @@ post {
 
 body:json {
   {
-    "nombre": "Email",
-    "apellido": "Invalido",
-    "email": "esto-no-es-un-email",
-    "identificador": "99999001"
+    "nombre": "Martina",
+    "apellido": "Sosa",
+    "email": "martina.sosa",
+    "dni": "40123456"
   }
 }
 
-assert {
-  res.status: eq 400
+docs {
+  El email debe tener formato nombre@dominio.com.
 }

@@ -9,22 +9,19 @@ namespace BiblioGest.UnitTests;
 
 public class ReporteServiceTests
 {
-    private static readonly DateTimeOffset Ahora = new(2026, 10, 22, 12, 0, 0, TimeSpan.Zero);
-
     private readonly Mock<ILibroRepository> _libroRepository = new();
     private readonly Mock<ILectorRepository> _lectorRepository = new();
     private readonly Mock<IPrestamoRepository> _prestamoRepository = new();
-    private readonly TimeProvider _timeProvider = new FixedTimeProvider(Ahora);
 
     private ReporteService CrearService() =>
-        new(_libroRepository.Object, _lectorRepository.Object, _prestamoRepository.Object, _timeProvider);
+        new(_libroRepository.Object, _lectorRepository.Object, _prestamoRepository.Object);
 
     private static Prestamo NuevoPrestamo(EstadoPrestamo estado, DateTime fechaPrestamo) => new()
     {
-        Id = Guid.NewGuid(),
-        LectorId = Guid.NewGuid(),
+        Id = IdsDePrueba.Nuevo(),
+        LectorId = IdsDePrueba.Nuevo(),
         Lector = new Lector { Nombre = "Ana", Apellido = "Gómez" },
-        LibroId = Guid.NewGuid(),
+        LibroId = IdsDePrueba.Nuevo(),
         Libro = new Libro { Titulo = "Ficciones" },
         FechaPrestamo = fechaPrestamo,
         FechaVencimiento = fechaPrestamo.AddDays(14),
@@ -44,7 +41,7 @@ public class ReporteServiceTests
     [Fact]
     public async Task GetReporteAsync_WithValidType_ReturnsReportData()
     {
-        var hoy = Ahora.UtcDateTime;
+        var hoy = DateTime.UtcNow;
         _libroRepository
             .Setup(r => r.GetAllAsync(null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new Libro { Stock = 2 }, new Libro { Stock = 0 }]);
@@ -53,9 +50,14 @@ public class ReporteServiceTests
             .ReturnsAsync([new Lector()]);
         _prestamoRepository
             .Setup(r => r.GetPorRangoAsync(null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([NuevoPrestamo(EstadoPrestamo.Activo, hoy), NuevoPrestamo(EstadoPrestamo.Devuelto, hoy.AddDays(-30))]);
+            .ReturnsAsync([
+                NuevoPrestamo(EstadoPrestamo.Activo, hoy),
+                NuevoPrestamo(EstadoPrestamo.Devuelto, hoy.AddDays(-30)),
+                NuevoPrestamo(EstadoPrestamo.Extraviado, hoy.AddDays(-10)),
+                NuevoPrestamo(EstadoPrestamo.Extraviado, hoy.AddDays(-12)),
+                NuevoPrestamo(EstadoPrestamo.Repuesto, hoy.AddDays(-40))]);
         _prestamoRepository
-            .Setup(r => r.GetVencidosAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetVencidosAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([NuevoPrestamo(EstadoPrestamo.Activo, hoy.AddDays(-20))]);
 
         var service = CrearService();
@@ -68,6 +70,8 @@ public class ReporteServiceTests
         Assert.Equal(1, reporte.Resumen.TotalLectores);
         Assert.Equal(1, reporte.Resumen.PrestamosActivos);
         Assert.Equal(1, reporte.Resumen.PrestamosDevueltos);
+        Assert.Equal(2, reporte.Resumen.PrestamosExtraviados);
+        Assert.Equal(1, reporte.Resumen.PrestamosRepuestos);
         Assert.Equal(1, reporte.Resumen.PrestamosVencidos);
         Assert.Null(reporte.Mensaje);
     }
@@ -94,7 +98,7 @@ public class ReporteServiceTests
     public async Task GetReporteAsync_WithNoData_ReturnsEmptyReport()
     {
         _prestamoRepository
-            .Setup(r => r.GetVencidosAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetVencidosAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var service = CrearService();
@@ -119,5 +123,29 @@ public class ReporteServiceTests
         var service = CrearService();
 
         await Assert.ThrowsAsync<ReporteInvalidoException>(() => service.GetReporteAsync("ventas", null, null));
+    }
+
+    [Fact]
+    public async Task GetReporteAsync_WithRangeLongerThanOneYear_ThrowsReporteInvalidoException()
+    {
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<ReporteInvalidoException>(() =>
+            service.GetReporteAsync("prestamos", new DateTime(2025, 1, 1), new DateTime(2026, 1, 2)));
+        _prestamoRepository.Verify(r => r.GetPorRangoAsync(
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetReporteAsync_WithRangeOfExactlyOneYear_ReturnsReport()
+    {
+        _prestamoRepository
+            .Setup(r => r.GetPorRangoAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var service = CrearService();
+        var reporte = await service.GetReporteAsync("prestamos", new DateTime(2025, 1, 1), new DateTime(2026, 1, 1));
+
+        Assert.Equal("prestamos", reporte.Tipo);
     }
 }

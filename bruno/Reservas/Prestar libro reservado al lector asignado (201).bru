@@ -1,0 +1,23 @@
+meta {
+  name: Prestar libro reservado al lector asignado (201)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/prestamos
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "lectorId": {{lectorReservaId}},
+    "libroId": {{libroSinStockId}}
+  }
+}
+
+docs {
+  Con la reserva Asignada, el lector retira el ejemplar apartado: el préstamo se
+  crea aunque el stock sea 0 y la reserva pasa a Concretada.
+}

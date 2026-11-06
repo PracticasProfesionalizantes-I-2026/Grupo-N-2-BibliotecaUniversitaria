@@ -1,0 +1,17 @@
+meta {
+  name: Registrar extravio (200)
+  type: http
+  seq: 11
+}
+
+put {
+  url: {{baseUrl}}/api/prestamos/{{prestamoId}}/extravio
+  body: none
+  auth: inherit
+}
+
+docs {
+  Marca como Extraviado el préstamo creado en "Crear prestamo (201)".
+  El stock del libro no vuelve y el lector queda bloqueado (403) para pedir
+  otros préstamos hasta que reponga el ejemplar.
+}

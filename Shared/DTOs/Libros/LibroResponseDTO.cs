@@ -2,12 +2,11 @@ namespace BiblioGest.Shared.DTOs.Libros;
 
 public class LibroResponseDTO
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; }
     public string Titulo { get; set; } = string.Empty;
     public string Autor { get; set; } = string.Empty;
     public string Isbn { get; set; } = string.Empty;
     public string Ubicacion { get; set; } = string.Empty;
     public int Stock { get; set; }
     public bool Disponible { get; set; }
-    public string DisponibilidadTexto { get; set; } = string.Empty;
 }

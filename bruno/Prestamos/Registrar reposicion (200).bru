@@ -1,0 +1,17 @@
+meta {
+  name: Registrar reposicion (200)
+  type: http
+  seq: 13
+}
+
+put {
+  url: {{baseUrl}}/api/prestamos/{{prestamoId}}/reposicion
+  body: none
+  auth: inherit
+}
+
+docs {
+  El lector trae un ejemplar igual al extraviado: el préstamo pasa a Repuesto,
+  el stock del libro suma 1 y se levanta el bloqueo. Si la reposición es
+  posterior al vencimiento, se aplica la suspensión por atraso (1 día por día).
+}
