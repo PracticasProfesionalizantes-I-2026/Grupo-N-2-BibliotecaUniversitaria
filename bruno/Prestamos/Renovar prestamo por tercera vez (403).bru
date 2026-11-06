@@ -1,0 +1,19 @@
+meta {
+  name: Renovar prestamo por tercera vez (403)
+  type: http
+  seq: 16
+}
+
+put {
+  url: {{baseUrl}}/api/prestamos/{{prestamoId}}/renovacion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+docs {
+  Correr "Renovar prestamo (200)" dos veces antes: la tercera renovación se rechaza (403).
+}

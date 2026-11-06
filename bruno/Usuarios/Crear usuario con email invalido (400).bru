@@ -1,0 +1,27 @@
+meta {
+  name: Crear usuario con email invalido (400)
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/usuarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "email": "juan perez@bibliogest",
+    "password": "Clave123",
+    "rolUsuario": "Bibliotecario"
+  }
+}
+
+docs {
+  El email debe tener entre 6 y 100 caracteres y formato nombre@dominio.com, sin espacios.
+}

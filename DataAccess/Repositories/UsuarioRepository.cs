@@ -15,7 +15,7 @@ namespace BiblioGest.DataAccess.Repositories
         public async Task<IReadOnlyList<Usuario>> GetAllAsync(CancellationToken ct = default) =>
             await _context.Usuarios.AsNoTracking().OrderBy(u => u.Email).ToListAsync(ct);
 
-        public Task<Usuario?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+        public Task<Usuario?> GetByIdAsync(int id, CancellationToken ct = default) =>
             _context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, ct);
 
         public Task<Usuario?> GetByEmailAsync(string email, CancellationToken ct = default) =>
@@ -24,7 +24,6 @@ namespace BiblioGest.DataAccess.Repositories
 
         public async Task<Usuario> CreateAsync(Usuario usuario, CancellationToken ct = default)
         {
-            usuario.Id = Guid.NewGuid();
             _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync(ct);
             return usuario;

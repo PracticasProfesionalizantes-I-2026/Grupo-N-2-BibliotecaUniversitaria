@@ -6,7 +6,9 @@
 > Reglas de negocio RN-14, RN-15 y RN-16 **implementadas**: el estado "vencido" no se
 > persiste, se calcula en la consulta (`PrestamoRepository.GetVencidosAsync` y
 > `LectorTieneMoraAsync`), y un lector en mora no puede pedir otro préstamo (CU-05,
-> alternativa 3b). No se generan multas (RN-16). La matriz de trazabilidad lista los
+> alternativa 3b). Al registrar una devolución con atraso, el lector queda suspendido
+> un día por cada día de retraso (alternativa 7c, nivel 2 de la matriz de complejidad).
+> No se generan multas monetarias (RN-16). La matriz de trazabilidad lista los
 > tests reales.
 
 | Campo | Valor |
@@ -56,7 +58,7 @@ para que el bibliotecario pueda realizar el seguimiento correspondiente.
   1. Si en el Paso 7 el lector no realiza la devolución.
   2. El préstamo continúa marcado como vencido en la **Capa de Persistencia**.
   3. El Sistema mantiene visible el caso en el listado de mora (sin cambio de estado ni
-     nueva respuesta HTTP; la restricción se hace efectiva en el próximo intento de
+     nueva respuesta HTTP; la restricción se hace efectiva con 403 en el próximo intento de
      préstamo del lector, ver CU-05 alternativa 3b). Fin del caso de uso.
 
 * **7b. El préstamo ya había sido devuelto (HTTP 409 Conflict):**
@@ -66,6 +68,16 @@ para que el bibliotecario pueda realizar el seguimiento correspondiente.
      a sumar stock al libro.
   3. El Sistema devuelve un código **409 Conflict**. Fin del caso de uso.
 
+* **7c. Devolución con atraso (HTTP 200 OK):**
+  1. Si en el Paso 7 el lector devuelve el libro después de la fecha de vencimiento.
+  2. La Capa de Negocio calcula los días de atraso (fecha de devolución menos fecha de
+     vencimiento, por día calendario) y suspende al lector un día por cada día de
+     atraso, guardando `SuspendidoHasta` en el lector. Si ya tenía una suspensión
+     vigente, los días nuevos se suman al final de esa suspensión.
+  3. El Sistema devuelve **200 OK** con el préstamo devuelto. Mientras dure la
+     suspensión, cualquier intento de préstamo del lector devuelve **403 Forbidden**
+     (CU-05 alternativa 3c). Fin del caso de uso.
+
 ### 5. SUB-VARIACIONES (opcional)
 _No se identifican variaciones de datos o mecanismo adicionales a las descriptas en el
 flujo principal y alternativo._
@@ -73,6 +85,8 @@ flujo principal y alternativo._
 ### 6. POSTCONDICIONES
 - El sistema mantiene actualizado el estado de los préstamos vencidos.
 - El bibliotecario puede realizar seguimiento de los lectores con retrasos.
+- Si la devolución fue tardía, el lector queda suspendido tantos días como días de
+  atraso tuvo el préstamo.
 - **RN-16**: no se genera ninguna multa automática como consecuencia de este caso de
   uso (fuera del alcance del MVP).
 
@@ -94,5 +108,6 @@ flujo principal y alternativo._
 | --- | --- | --- | --- |
 | Flujo principal | `200 OK` | `GetPrestamosVencidosAsync_ReturnsOverdueList` | `GetPrestamosVencidos_ReturnsSuccessAndOverdueList` |
 | 2a. No hay préstamos vencidos | `200 OK` | `GetPrestamosVencidosAsync_WithNoOverdueLoans_ReturnsEmptyList` | — (la base de prueba siempre trae un préstamo vencido) |
-| 7a. El lector no devuelve el libro | — | `GetPrestamosVencidosAsync_ReturnsOverdueList`, `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsConflictException` | `CreatePrestamo_WhenLectorInMora_Returns409Conflict` |
+| 7a. El lector no devuelve el libro | — | `GetPrestamosVencidosAsync_ReturnsOverdueList`, `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsForbiddenException` | `CreatePrestamo_WhenLectorInMora_Returns403Forbidden` |
 | 7b. Préstamo ya devuelto | `409 Conflict` | `RegisterDevolucionAsync_WhenAlreadyReturned_ThrowsConflictException` | `RegisterDevolucion_WhenAlreadyReturned_Returns409ConflictAndKeepsStock` |
+| 7c. Devolución con atraso | `200 OK` | `RegisterDevolucionAsync_WithThreeDaysLate_SuspendsLectorForThreeDays`, `RegisterDevolucionAsync_OnTime_DoesNotSuspendLector`, `RegisterDevolucionAsync_WhenLectorAlreadySuspended_AddsDaysToCurrentSuspension` | `RegisterDevolucion_WhenLate_SuspendsLectorAndNextPrestamoReturns403Forbidden`, `RegisterDevolucion_OnTime_DoesNotSuspendLector` |

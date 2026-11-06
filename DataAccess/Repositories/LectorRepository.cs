@@ -15,15 +15,14 @@ public class LectorRepository : ILectorRepository
     public async Task<IReadOnlyList<Lector>> GetAllAsync(CancellationToken ct = default) =>
         await _context.Lectores.AsNoTracking().OrderBy(l => l.Apellido).ToListAsync(ct);
 
-    public Task<Lector?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+    public Task<Lector?> GetByIdAsync(int id, CancellationToken ct = default) =>
         _context.Lectores.AsNoTracking().FirstOrDefaultAsync(l => l.Id == id, ct);
 
-    public Task<Lector?> GetByIdentificadorAsync(string identificador, CancellationToken ct = default) =>
-        _context.Lectores.AsNoTracking().FirstOrDefaultAsync(l => l.Identificador == identificador, ct);
+    public Task<Lector?> GetByDniAsync(string dni, CancellationToken ct = default) =>
+        _context.Lectores.AsNoTracking().FirstOrDefaultAsync(l => l.Dni == dni, ct);
 
     public async Task<Lector> CreateAsync(Lector lector, CancellationToken ct = default)
     {
-        lector.Id = Guid.NewGuid();
         _context.Lectores.Add(lector);
         await _context.SaveChangesAsync(ct);
         return lector;

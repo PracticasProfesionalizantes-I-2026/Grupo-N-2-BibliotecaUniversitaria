@@ -1,0 +1,25 @@
+meta {
+  name: Crear libro con ubicacion invalida (400)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "titulo": "Rayuela",
+    "autor": "Julio Cortázar",
+    "isbn": "978-8437604572",
+    "ubicacion": "Estante Z9",
+    "stock": 3
+  }
+}

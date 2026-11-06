@@ -1,0 +1,21 @@
+meta {
+  name: Renovar prestamo (200)
+  type: http
+  seq: 15
+}
+
+put {
+  url: {{baseUrl}}/api/prestamos/{{prestamoId}}/renovacion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+docs {
+  Extiende el vencimiento 14 días. Máximo 2 renovaciones; la tercera responde 403.
+  También responde 403 si hay lectores en la cola de reservas del libro o si el
+  préstamo está vencido, y 409 si el préstamo no está activo.
+}

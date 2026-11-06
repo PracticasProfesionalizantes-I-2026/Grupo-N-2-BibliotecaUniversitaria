@@ -1,0 +1,28 @@
+meta {
+  name: Crear lector con DNI invalido (400)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "nombre": "Martina",
+    "apellido": "Sosa",
+    "email": "martina.sosa@example.com",
+    "dni": "40.123.456"
+  }
+}
+
+docs {
+  El DNI debe tener 7 u 8 dígitos, sin puntos ni espacios.
+}

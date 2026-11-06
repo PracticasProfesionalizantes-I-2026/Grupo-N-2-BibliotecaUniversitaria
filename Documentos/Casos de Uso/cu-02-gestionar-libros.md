@@ -76,6 +76,13 @@ actualizada la información del catálogo y del stock.
   3. El Sistema devuelve un código **409 Conflict** indicando que el libro no puede
      eliminarse mientras tenga préstamos activos. Fin del caso de uso.
 
+* **3c-2. Libro con reservas activas o con historial de préstamos (HTTP 409 Conflict):**
+  1. Si en el Paso 2 del flujo 3c el libro tiene reservas activas (`EnCola` o
+     `Asignada`) o tuvo préstamos, aunque ya estén todos devueltos.
+  2. El Sistema impide la eliminación para conservar el historial de préstamos.
+  3. El Sistema devuelve un código **409 Conflict** (`LibroConReservasActivasException` o
+     `LibroConHistorialException`). Fin del caso de uso.
+
 * **4a. Datos obligatorios incompletos (HTTP 400 Bad Request):**
   1. Si en el Paso 4 el Sistema detecta que faltan datos obligatorios (título, autor,
      ISBN, ubicación o cantidad de stock).
@@ -108,10 +115,10 @@ actualizada la información del catálogo y del stock.
 | --- | --- | --- |
 | `200` | OK | Consulta del listado/detalle, modificación o baja exitosa de un libro. |
 | `201` | Created | Confirmación de alta de un nuevo libro en el catálogo. |
-| `400` | Bad Request | Datos obligatorios faltantes (RN-03) o stock negativo (RN-04). |
+| `400` | Bad Request | Datos obligatorios faltantes o con formato inválido (RN-03: ISBN de 10 o 13 dígitos, ubicación `A1-4`) o stock fuera de rango (RN-04: de 0 a 10). |
 | `401` | Unauthorized | Petición sin token válido. |
 | `404` | Not Found | No existe un libro con el Id indicado. |
-| `409` | Conflict | Intento de eliminar un libro con préstamos activos. |
+| `409` | Conflict | ISBN ya registrado en otro libro, o intento de eliminar un libro con préstamos activos, reservas activas o historial de préstamos. |
 
 ### Matriz de trazabilidad CU-02 → Test
 
@@ -121,6 +128,12 @@ actualizada la información del catálogo y del stock.
 | 3b. Modificar libro | `200 OK` | `UpdateLibroAsync_WithValidData_UpdatesLibro` | `UpdateLibro_ReturnsSuccessAndUpdatedLibro` |
 | 3c. Eliminar libro | `200 OK` | `DeleteLibroAsync_WithoutActiveLoans_DeletesLibro` | `DeleteLibro_WithoutActiveLoans_Returns200OK` |
 | 3c-1. Libro con préstamos activos | `409 Conflict` | `DeleteLibroAsync_WhenLibroHasActiveLoans_ThrowsConflictException` | `DeleteLibro_WithActiveLoans_Returns409Conflict` |
+| 3c-2. Libro con reservas activas o historial | `409 Conflict` | `DeleteLibroAsync_WhenLibroHasActiveReservas_ThrowsConflictException`, `DeleteLibroAsync_WhenLibroHasLoanHistory_ThrowsConflictException` | `DeleteLectorAndLibro_WithReturnedLoanHistory_Returns409Conflict` |
 | 4a. Datos obligatorios incompletos | `400 Bad Request` | `CreateLibroAsync_WithMissingRequiredField_ThrowsValidationException` | `CreateLibro_WithMissingRequiredField_Returns400BadRequest` |
 | 6a. Stock negativo | `400 Bad Request` | `CreateLibroAsync_WithNegativeStock_ThrowsValidationException` | `CreateLibro_WithNegativeStock_Returns400BadRequest` |
+| 6b. Stock mayor a 10 | `400 Bad Request` | `CreateLibroAsync_WithStockAboveMaximum_ThrowsStockExcedidoException` | `CreateLibro_WithStockAboveMaximum_Returns400BadRequest` |
+| 4b. ISBN inválido | `400 Bad Request` | `CreateLibroAsync_WithInvalidIsbn_ThrowsLibroInvalidoException` | `CreateLibro_WithInvalidIsbn_Returns400BadRequest` |
+| 4c. Ubicación con formato inválido | `400 Bad Request` | `CreateLibroAsync_WithInvalidUbicacion_ThrowsLibroInvalidoException` | `CreateLibro_WithInvalidUbicacion_Returns400BadRequest` |
+| 4d. Título o autor de más de 150 caracteres | `400 Bad Request` | `CreateLibroAsync_WithTituloTooLong_ThrowsLibroInvalidoException` | — |
+| 6c. ISBN repetido | `409 Conflict` | `CreateLibroAsync_WithDuplicateIsbn_ThrowsIsbnDuplicadoException`, `UpdateLibroAsync_WhenIsbnBelongsToOtherLibro_ThrowsIsbnDuplicadoException` | `CreateLibro_WithDuplicateIsbn_Returns409Conflict` |
 | Id inexistente | `404 Not Found` | `GetLibroByIdAsync_WhenLibroDoesNotExist_ThrowsNotFoundException` | `GetLibro_WithUnknownId_Returns404NotFound` |

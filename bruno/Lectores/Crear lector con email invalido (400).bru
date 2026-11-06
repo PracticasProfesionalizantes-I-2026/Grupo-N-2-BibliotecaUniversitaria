@@ -1,0 +1,28 @@
+meta {
+  name: Crear lector con email invalido (400)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "nombre": "Martina",
+    "apellido": "Sosa",
+    "email": "martina.sosa",
+    "dni": "40123456"
+  }
+}
+
+docs {
+  El email debe tener formato nombre@dominio.com.
+}

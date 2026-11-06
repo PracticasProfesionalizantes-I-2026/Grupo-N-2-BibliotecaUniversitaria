@@ -1,0 +1,22 @@
+meta {
+  name: Registrar devolucion con atraso (200)
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/api/prestamos/{{prestamoMoraId}}/devolucion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+docs {
+  Devuelve el préstamo vencido guardado por "Listar prestamos en mora (200)".
+  Por cada día de atraso el lector queda suspendido un día: con el préstamo de
+  prueba (6 días de atraso) queda suspendido 6 días. Se puede ver en el campo
+  suspendidoHasta de GET /api/lectores/{{lectorMoraId}}.
+}

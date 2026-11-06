@@ -45,16 +45,16 @@ public class ExceptionMiddlewareTests : IClassFixture<CustomWebApplicationFactor
         public Task<IReadOnlyList<LibroResponseDTO>> GetAllAsync(string? busqueda, CancellationToken ct = default) =>
             throw new InvalidOperationException("Falla simulada");
 
-        public Task<LibroResponseDTO> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+        public Task<LibroResponseDTO> GetByIdAsync(int id, CancellationToken ct = default) =>
             throw new InvalidOperationException("Falla simulada");
 
         public Task<LibroResponseDTO> CreateAsync(LibroCreateDTO dto, CancellationToken ct = default) =>
             throw new InvalidOperationException("Falla simulada");
 
-        public Task<LibroResponseDTO> UpdateAsync(Guid id, LibroUpdateDTO dto, CancellationToken ct = default) =>
+        public Task<LibroResponseDTO> UpdateAsync(int id, LibroUpdateDTO dto, CancellationToken ct = default) =>
             throw new InvalidOperationException("Falla simulada");
 
-        public Task DeleteAsync(Guid id, CancellationToken ct = default) =>
+        public Task DeleteAsync(int id, CancellationToken ct = default) =>
             throw new InvalidOperationException("Falla simulada");
     }
 }

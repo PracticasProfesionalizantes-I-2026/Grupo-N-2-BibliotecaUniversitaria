@@ -27,8 +27,8 @@ public class LectoresController : ControllerBase
     }
 
     // GET /api/lectores/{id}
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         try
         {
@@ -61,8 +61,8 @@ public class LectoresController : ControllerBase
     }
 
     // PUT /api/lectores/{id}
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] LectorUpdateDTO dto, CancellationToken ct)
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] LectorUpdateDTO dto, CancellationToken ct)
     {
         try
         {
@@ -84,8 +84,8 @@ public class LectoresController : ControllerBase
     }
 
     // DELETE /api/lectores/{id}
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         try
         {

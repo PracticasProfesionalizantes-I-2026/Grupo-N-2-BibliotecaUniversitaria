@@ -1,0 +1,25 @@
+meta {
+  name: Crear libro con stock excedido (400)
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/libros
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "titulo": "Rayuela",
+    "autor": "Julio Cortázar",
+    "isbn": "978-8437604572",
+    "ubicacion": "B3-2",
+    "stock": 150000
+  }
+}

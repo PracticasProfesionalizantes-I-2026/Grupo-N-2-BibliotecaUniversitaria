@@ -1,0 +1,20 @@
+meta {
+  name: Registrar reposicion de prestamo no extraviado (409)
+  type: http
+  seq: 14
+}
+
+put {
+  url: {{baseUrl}}/api/prestamos/{{prestamoId}}/reposicion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+docs {
+  Correr después de "Registrar reposicion (200)": el préstamo ya está en
+  estado Repuesto, así que no se puede reponer de nuevo (409).
+}

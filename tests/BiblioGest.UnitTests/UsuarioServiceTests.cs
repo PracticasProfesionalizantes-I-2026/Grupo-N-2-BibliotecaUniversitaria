@@ -16,7 +16,7 @@ namespace BiblioGest.UnitTests
 
         private UsuarioService CrearService() => new(_usuarioRepository.Object, _passwordHasher.Object);
 
-        private static Usuario UsuarioExistente(Guid id) => new()
+        private static Usuario UsuarioExistente(int id) => new()
         {
             Id = id,
             Email = "existente@example.com",
@@ -44,14 +44,14 @@ namespace BiblioGest.UnitTests
                 .Setup(r => r.CreateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Usuario u, CancellationToken _) =>
                 {
-                    u.Id = Guid.NewGuid();
+                    u.Id = IdsDePrueba.Nuevo();
                     return u;
                 });
 
             var service = CrearService();
             var resultado = await service.CreateAsync(dto);
 
-            Assert.NotEqual(Guid.Empty, resultado.Id);
+            Assert.True(resultado.Id > 0);
             Assert.Equal(dto.Email, resultado.Email);
             Assert.Equal("Administrador", resultado.RolUsuario);
             _passwordHasher.Verify(h => h.Hash(dto.Password), Times.Once);
@@ -71,7 +71,7 @@ namespace BiblioGest.UnitTests
             };
             _usuarioRepository
                 .Setup(r => r.GetByEmailAsync(dto.Email, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(UsuarioExistente(Guid.NewGuid()));
+                .ReturnsAsync(UsuarioExistente(IdsDePrueba.Nuevo()));
 
             var service = CrearService();
 
@@ -116,18 +116,18 @@ namespace BiblioGest.UnitTests
         public async Task GetUsuarioByIdAsync_WithUnknownId_ThrowsNotFoundException()
         {
             _usuarioRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Usuario?)null);
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.GetByIdAsync(Guid.NewGuid()));
+            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.GetByIdAsync(IdsDePrueba.Nuevo()));
         }
 
         [Fact]
         public async Task UpdateUsuarioAsync_WithValidData_UpdatesUsuario()
         {
-            var id = Guid.NewGuid();
+            var id = IdsDePrueba.Nuevo();
             var usuario = UsuarioExistente(id);
             var dto = new UsuarioUpdateDTO { Email = "modificado@example.com", RolUsuario = "Administrador" };
             _usuarioRepository
@@ -150,7 +150,7 @@ namespace BiblioGest.UnitTests
         [Fact]
         public async Task UpdateUsuarioAsync_WithNewPassword_HashesPassword()
         {
-            var id = Guid.NewGuid();
+            var id = IdsDePrueba.Nuevo();
             var usuario = UsuarioExistente(id);
             var dto = new UsuarioUpdateDTO { Email = usuario.Email, Password = "NuevaClave1" };
             _usuarioRepository
@@ -173,26 +173,26 @@ namespace BiblioGest.UnitTests
         public async Task UpdateUsuarioAsync_WithUnknownId_ThrowsNotFoundException()
         {
             _usuarioRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Usuario?)null);
             var dto = new UsuarioUpdateDTO { Email = "x@example.com" };
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.UpdateAsync(Guid.NewGuid(), dto));
+            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.UpdateAsync(IdsDePrueba.Nuevo(), dto));
         }
 
         [Fact]
         public async Task UpdateUsuarioAsync_WhenEmailBelongsToOtherUsuario_ThrowsConflictException()
         {
-            var id = Guid.NewGuid();
+            var id = IdsDePrueba.Nuevo();
             var dto = new UsuarioUpdateDTO { Email = "otro@example.com" };
             _usuarioRepository
                 .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(UsuarioExistente(id));
             _usuarioRepository
                 .Setup(r => r.GetByEmailAsync(dto.Email, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(UsuarioExistente(Guid.NewGuid()));
+                .ReturnsAsync(UsuarioExistente(IdsDePrueba.Nuevo()));
 
             var service = CrearService();
 
@@ -202,7 +202,7 @@ namespace BiblioGest.UnitTests
         [Fact]
         public async Task DeleteUsuarioAsync_WithConfirmation_DeletesUsuario()
         {
-            var id = Guid.NewGuid();
+            var id = IdsDePrueba.Nuevo();
             var usuario = UsuarioExistente(id);
             _usuarioRepository
                 .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
@@ -219,12 +219,50 @@ namespace BiblioGest.UnitTests
         public async Task DeleteUsuarioAsync_WithUnknownId_ThrowsNotFoundException()
         {
             _usuarioRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Usuario?)null);
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.DeleteAsync(Guid.NewGuid()));
+            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.DeleteAsync(IdsDePrueba.Nuevo()));
+        }
+
+        [Theory]
+        [InlineData(" ")]
+        [InlineData("   ")]
+        [InlineData("a@b.c")]
+        [InlineData("no-es-un-email")]
+        [InlineData("juan perez@example.com")]
+        [InlineData("juan@example")]
+        public async Task CreateUsuarioAsync_WithInvalidEmail_ThrowsValidationException(string email)
+        {
+            var dto = new UsuarioCreateDTO { Email = email, Password = "Password123", RolUsuario = "Administrador" };
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioInvalidoException>(() => service.CreateAsync(dto));
+            _usuarioRepository.Verify(r => r.CreateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CreateUsuarioAsync_WithEmailTooLong_ThrowsValidationException()
+        {
+            var dto = new UsuarioCreateDTO { Email = new string('a', 89) + "@example.com", Password = "Password123", RolUsuario = "Administrador" };
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioInvalidoException>(() => service.CreateAsync(dto));
+        }
+
+        [Fact]
+        public async Task CreateUsuarioAsync_WithPasswordTooLong_ThrowsValidationException()
+        {
+            var dto = new UsuarioCreateDTO { Email = "nuevo@example.com", Password = new string('a', 65), RolUsuario = "Administrador" };
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioInvalidoException>(() => service.CreateAsync(dto));
+            _usuarioRepository.Verify(r => r.CreateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using BiblioGest.BusinessLogic.Interfaces;
+﻿using System.Text.RegularExpressions;
+using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Usuarios;
@@ -8,6 +9,10 @@ namespace BiblioGest.BusinessLogic.Services;
 
 public class UsuarioService : IUsuarioService
 {
+    private const int LargoMaximoContraseña = 64;
+    private const int LargoMinimoEmail = 6;
+    private const int LargoMaximoEmail = 100;
+    private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
     private readonly IUsuarioRepository _usuarioRepository;
     private readonly IPasswordHasher _passwordHasher;
     public UsuarioService(IUsuarioRepository usuarioRepository, IPasswordHasher passwordHasher)
@@ -20,7 +25,7 @@ public class UsuarioService : IUsuarioService
         var usuarios = await _usuarioRepository.GetAllAsync(ct);
         return usuarios.Select(MapToResponseDTO).ToList();
     }
-    public async Task<UsuarioResponseDTO> GetByIdAsync(Guid id, CancellationToken ct = default)
+    public async Task<UsuarioResponseDTO> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
         return MapToResponseDTO(usuario);
@@ -40,7 +45,7 @@ public class UsuarioService : IUsuarioService
         var creado = await _usuarioRepository.CreateAsync(usuario, ct);
         return MapToResponseDTO(creado);
     }
-    public async Task<UsuarioResponseDTO> UpdateAsync(Guid id, UsuarioUpdateDTO dto, CancellationToken ct = default)
+    public async Task<UsuarioResponseDTO> UpdateAsync(int id, UsuarioUpdateDTO dto, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
         ValidarEmail(dto.Email);
@@ -62,7 +67,7 @@ public class UsuarioService : IUsuarioService
         await _usuarioRepository.UpdateAsync(usuario, ct);
         return MapToResponseDTO(usuario);
     }
-    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteAsync(int id, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
         if (usuario.Activo)
@@ -78,6 +83,12 @@ public class UsuarioService : IUsuarioService
             throw new UsuarioInvalidoException(
                 "Contraseña es obligatoria y debe tener al menos 6 caracteres.");
         }
+
+        if (password.Length > LargoMaximoContraseña)
+        {
+            throw new UsuarioInvalidoException(
+                $"La contraseña no puede superar los {LargoMaximoContraseña} caracteres.");
+        }
     }
     private static void ValidarEmail(string email)
     {
@@ -86,8 +97,21 @@ public class UsuarioService : IUsuarioService
             throw new UsuarioInvalidoException(
                 "Email es obligatorio.");
         }
+
+        var largo = email.Trim().Length;
+        if (largo < LargoMinimoEmail || largo > LargoMaximoEmail)
+        {
+            throw new UsuarioInvalidoException(
+                $"El email debe tener entre {LargoMinimoEmail} y {LargoMaximoEmail} caracteres.");
+        }
+
+        if (!EmailRegex.IsMatch(email.Trim()))
+        {
+            throw new UsuarioInvalidoException(
+                "El email no tiene un formato válido (ejemplo: nombre@dominio.com).");
+        }
     }
-    private async Task ValidarEmailUnicoAsync(string email, Guid? usuarioIdActual, CancellationToken ct)
+    private async Task ValidarEmailUnicoAsync(string email, int? usuarioIdActual, CancellationToken ct)
     {
         var existente = await _usuarioRepository.GetByEmailAsync(email.Trim().ToLowerInvariant(), ct);
         if (existente is not null && existente.Id != usuarioIdActual)

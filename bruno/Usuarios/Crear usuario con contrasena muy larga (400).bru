@@ -1,0 +1,27 @@
+meta {
+  name: Crear usuario con contrasena muy larga (400)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/usuarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "email": "larga@bibliogest.com",
+    "password": "EstaContrasenaEsDemasiadoLargaYSuperaElMaximoDeSesentaYCuatroCaracteres1234",
+    "rolUsuario": "Bibliotecario"
+  }
+}
+
+docs {
+  La contraseña no puede superar los 64 caracteres.
+}

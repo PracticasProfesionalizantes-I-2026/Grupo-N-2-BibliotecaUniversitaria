@@ -1,0 +1,28 @@
+meta {
+  name: Crear lector con nombre invalido (400)
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "nombre": "   ",
+    "apellido": "S",
+    "email": "martina.sosa@example.com",
+    "dni": "40123457"
+  }
+}
+
+docs {
+  El nombre y el apellido deben tener entre 2 y 50 caracteres y solo letras, separadas por un único espacio, apóstrofo o guion. Un valor hecho solo de espacios no se acepta.
+}

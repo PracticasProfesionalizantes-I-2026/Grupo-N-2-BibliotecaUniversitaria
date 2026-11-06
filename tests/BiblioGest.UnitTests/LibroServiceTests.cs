@@ -12,8 +12,9 @@ public class LibroServiceTests
 {
     private readonly Mock<ILibroRepository> _libroRepository = new();
     private readonly Mock<IPrestamoRepository> _prestamoRepository = new();
+    private readonly Mock<IReservaRepository> _reservaRepository = new();
 
-    private LibroService CrearService() => new(_libroRepository.Object, _prestamoRepository.Object);
+    private LibroService CrearService() => new(_libroRepository.Object, _prestamoRepository.Object, _reservaRepository.Object);
 
     [Fact]
     public async Task CreateLibroAsync_WithValidData_SavesAndReturnsCreatedLibro()
@@ -23,7 +24,7 @@ public class LibroServiceTests
             Titulo = "Martín Fierro",
             Autor = "José Hernández",
             Isbn = "978-9500000000",
-            Ubicacion = "Estante B1",
+            Ubicacion = "B1-1",
             Stock = 5
         };
 
@@ -31,14 +32,14 @@ public class LibroServiceTests
             .Setup(r => r.CreateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Libro l, CancellationToken _) =>
             {
-                l.Id = Guid.NewGuid();
+                l.Id = IdsDePrueba.Nuevo();
                 return l;
             });
 
         var service = CrearService();
         var resultado = await service.CreateAsync(dto);
 
-        Assert.NotEqual(Guid.Empty, resultado.Id);
+        Assert.True(resultado.Id > 0);
         Assert.Equal(dto.Titulo, resultado.Titulo);
         Assert.Equal(dto.Stock, resultado.Stock);
         _libroRepository.Verify(r => r.CreateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -82,7 +83,7 @@ public class LibroServiceTests
     [Fact]
     public async Task GetLibroByIdAsync_WhenLibroDoesNotExist_ThrowsNotFoundException()
     {
-        var id = Guid.NewGuid();
+        var id = IdsDePrueba.Nuevo();
         _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((Libro?)null);
 
         var service = CrearService();
@@ -93,11 +94,11 @@ public class LibroServiceTests
     [Fact]
     public async Task UpdateLibroAsync_WithValidData_UpdatesLibro()
     {
-        var id = Guid.NewGuid();
+        var id = IdsDePrueba.Nuevo();
         var libroExistente = new Libro { Id = id, Titulo = "Viejo", Autor = "A", Isbn = "1", Ubicacion = "A1", Stock = 1 };
         _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(libroExistente);
 
-        var dto = new LibroUpdateDTO { Titulo = "Nuevo", Autor = "B", Isbn = "2", Ubicacion = "A2", Stock = 4 };
+        var dto = new LibroUpdateDTO { Titulo = "Nuevo", Autor = "B", Isbn = "978-8420633109", Ubicacion = "A2-1", Stock = 4 };
         var service = CrearService();
 
         var resultado = await service.UpdateAsync(id, dto);
@@ -110,7 +111,7 @@ public class LibroServiceTests
     [Fact]
     public async Task DeleteLibroAsync_WithoutActiveLoans_DeletesLibro()
     {
-        var id = Guid.NewGuid();
+        var id = IdsDePrueba.Nuevo();
         var libro = new Libro { Id = id, Titulo = "T", Autor = "A", Isbn = "1", Ubicacion = "A1", Stock = 1 };
         _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
         _prestamoRepository.Setup(r => r.TieneActivosPorLibroAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(false);
@@ -124,7 +125,7 @@ public class LibroServiceTests
     [Fact]
     public async Task DeleteLibroAsync_WhenLibroHasActiveLoans_ThrowsConflictException()
     {
-        var id = Guid.NewGuid();
+        var id = IdsDePrueba.Nuevo();
         var libro = new Libro { Id = id, Titulo = "T", Autor = "A", Isbn = "1", Ubicacion = "A1", Stock = 1 };
         _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
         _prestamoRepository.Setup(r => r.TieneActivosPorLibroAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
@@ -142,8 +143,8 @@ public class LibroServiceTests
             .Setup(r => r.GetAllAsync("borges", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Libro>
             {
-                new() { Id = Guid.NewGuid(), Titulo = "Ficciones", Autor = "Borges", Isbn = "1", Ubicacion = "A1", Stock = 2 },
-                new() { Id = Guid.NewGuid(), Titulo = "El Aleph", Autor = "Borges", Isbn = "2", Ubicacion = "A2", Stock = 0 }
+                new() { Id = IdsDePrueba.Nuevo(), Titulo = "Ficciones", Autor = "Borges", Isbn = "1", Ubicacion = "A1", Stock = 2 },
+                new() { Id = IdsDePrueba.Nuevo(), Titulo = "El Aleph", Autor = "Borges", Isbn = "2", Ubicacion = "A2", Stock = 0 }
             });
 
         var service = CrearService();
@@ -170,7 +171,7 @@ public class LibroServiceTests
     [Fact]
     public async Task GetLibroDisponibilidadAsync_WithZeroStock_ReturnsUnavailable()
     {
-        var id = Guid.NewGuid();
+        var id = IdsDePrueba.Nuevo();
         _libroRepository
             .Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Libro { Id = id, Titulo = "Rayuela", Autor = "Cortázar", Isbn = "3", Ubicacion = "B1", Stock = 0 });
@@ -180,5 +181,197 @@ public class LibroServiceTests
 
         Assert.Equal(0, resultado.Stock);
         Assert.False(resultado.Disponible);
+    }
+
+    private static LibroCreateDTO LibroValidoDto() => new()
+    {
+        Titulo = "Ficciones",
+        Autor = "Jorge Luis Borges",
+        Isbn = "978-8420633109",
+        Ubicacion = "A1-4",
+        Stock = 5
+    };
+
+    private void ConfigurarCreateQueDevuelveElLibro() =>
+        _libroRepository
+            .Setup(r => r.CreateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Libro l, CancellationToken _) => l);
+
+    [Fact]
+    public async Task CreateLibroAsync_WithStockAboveMaximum_ThrowsStockExcedidoException()
+    {
+        var dto = LibroValidoDto();
+        dto.Stock = 11;
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<StockExcedidoException>(() => service.CreateAsync(dto));
+        _libroRepository.Verify(r => r.CreateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateLibroAsync_WithStockAtMaximum_CreatesLibro()
+    {
+        var dto = LibroValidoDto();
+        dto.Stock = 10;
+        ConfigurarCreateQueDevuelveElLibro();
+
+        var service = CrearService();
+        var resultado = await service.CreateAsync(dto);
+
+        Assert.Equal(10, resultado.Stock);
+    }
+
+    [Fact]
+    public async Task UpdateLibroAsync_WithStockAboveMaximum_ThrowsStockExcedidoException()
+    {
+        var id = IdsDePrueba.Nuevo();
+        _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Libro { Id = id, Titulo = "T", Autor = "A", Isbn = "1", Ubicacion = "A1-1", Stock = 1 });
+        var dto = new LibroUpdateDTO { Titulo = "T", Autor = "A", Isbn = "978-8420633109", Ubicacion = "A1-1", Stock = 150000 };
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<StockExcedidoException>(() => service.UpdateAsync(id, dto));
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("123")]
+    [InlineData("978842063310")]
+    [InlineData("97884206331091")]
+    [InlineData("978-84-2063-31A-9")]
+    [InlineData("84206331X9")]
+    public async Task CreateLibroAsync_WithInvalidIsbn_ThrowsLibroInvalidoException(string isbn)
+    {
+        var dto = LibroValidoDto();
+        dto.Isbn = isbn;
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LibroInvalidoException>(() => service.CreateAsync(dto));
+    }
+
+    [Theory]
+    [InlineData("978-8420633109")]
+    [InlineData("9788420633109")]
+    [InlineData("84-206-3310-X")]
+    [InlineData("8420633109")]
+    public async Task CreateLibroAsync_WithValidIsbn_CreatesLibro(string isbn)
+    {
+        var dto = LibroValidoDto();
+        dto.Isbn = isbn;
+        ConfigurarCreateQueDevuelveElLibro();
+
+        var service = CrearService();
+        var resultado = await service.CreateAsync(dto);
+
+        Assert.Equal(isbn, resultado.Isbn);
+    }
+
+    [Theory]
+    [InlineData("Estante A4")]
+    [InlineData("A1")]
+    [InlineData("A14")]
+    [InlineData("K1-1")]
+    [InlineData("A0-1")]
+    [InlineData("A31-1")]
+    [InlineData("A1-0")]
+    [InlineData("A1-7")]
+    [InlineData("A01-1")]
+    public async Task CreateLibroAsync_WithInvalidUbicacion_ThrowsLibroInvalidoException(string ubicacion)
+    {
+        var dto = LibroValidoDto();
+        dto.Ubicacion = ubicacion;
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LibroInvalidoException>(() => service.CreateAsync(dto));
+    }
+
+    [Theory]
+    [InlineData("A1-4", "A1-4")]
+    [InlineData("J30-6", "J30-6")]
+    [InlineData(" c12-3 ", "C12-3")]
+    public async Task CreateLibroAsync_WithValidUbicacion_SavesItNormalized(string ubicacion, string esperada)
+    {
+        var dto = LibroValidoDto();
+        dto.Ubicacion = ubicacion;
+        ConfigurarCreateQueDevuelveElLibro();
+
+        var service = CrearService();
+        var resultado = await service.CreateAsync(dto);
+
+        Assert.Equal(esperada, resultado.Ubicacion);
+    }
+
+    [Fact]
+    public async Task CreateLibroAsync_WithDuplicateIsbn_ThrowsIsbnDuplicadoException()
+    {
+        var dto = LibroValidoDto();
+        _libroRepository
+            .Setup(r => r.ExisteIsbnAsync("9788420633109", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<IsbnDuplicadoException>(() => service.CreateAsync(dto));
+        _libroRepository.Verify(r => r.CreateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateLibroAsync_WhenIsbnBelongsToOtherLibro_ThrowsIsbnDuplicadoException()
+    {
+        var id = IdsDePrueba.Nuevo();
+        _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Libro { Id = id, Titulo = "T", Autor = "A", Isbn = "8420633109", Ubicacion = "A1-1", Stock = 1 });
+        _libroRepository
+            .Setup(r => r.ExisteIsbnAsync("9788420633109", id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var dto = new LibroUpdateDTO { Titulo = "T", Autor = "A", Isbn = "978-8420633109", Ubicacion = "A1-1", Stock = 1 };
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<IsbnDuplicadoException>(() => service.UpdateAsync(id, dto));
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateLibroAsync_WithTituloTooLong_ThrowsLibroInvalidoException()
+    {
+        var dto = LibroValidoDto();
+        dto.Titulo = new string('a', 151);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LibroInvalidoException>(() => service.CreateAsync(dto));
+    }
+
+    [Fact]
+    public async Task DeleteLibroAsync_WhenLibroHasActiveReservas_ThrowsConflictException()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var libro = new Libro { Id = id, Titulo = "T", Autor = "A", Isbn = "1", Ubicacion = "A1", Stock = 0 };
+        _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
+        _reservaRepository.Setup(r => r.TieneActivasPorLibroAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LibroConReservasActivasException>(() => service.DeleteAsync(id));
+        _libroRepository.Verify(r => r.DeleteAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteLibroAsync_WhenLibroHasLoanHistory_ThrowsConflictException()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var libro = new Libro { Id = id, Titulo = "T", Autor = "A", Isbn = "1", Ubicacion = "A1", Stock = 1 };
+        _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
+        _prestamoRepository.Setup(r => r.TienePrestamosPorLibroAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LibroConHistorialException>(() => service.DeleteAsync(id));
+        _libroRepository.Verify(r => r.DeleteAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

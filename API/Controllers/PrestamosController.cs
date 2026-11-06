@@ -28,8 +28,8 @@ public class PrestamosController : ControllerBase
     }
 
     // GET /api/prestamos/{id}
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         try
         {
@@ -55,6 +55,10 @@ public class PrestamosController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+        catch (ForbiddenException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
         catch (ConflictException ex)
         {
             return Conflict(new { message = ex.Message });
@@ -62,8 +66,8 @@ public class PrestamosController : ControllerBase
     }
 
     // PUT /api/prestamos/{id}/devolucion
-    [HttpPut("{id:guid}/devolucion")]
-    public async Task<IActionResult> RegistrarDevolucion(Guid id, CancellationToken ct)
+    [HttpPut("{id:int}/devolucion")]
+    public async Task<IActionResult> RegistrarDevolucion(int id, CancellationToken ct)
     {
         try
         {
@@ -73,6 +77,64 @@ public class PrestamosController : ControllerBase
         catch (NotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:int}/extravio")]
+    public async Task<IActionResult> RegistrarExtravio(int id, CancellationToken ct)
+    {
+        try
+        {
+            var actualizado = await _prestamoService.RegistrarExtravioAsync(id, ct);
+            return Ok(actualizado);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:int}/reposicion")]
+    public async Task<IActionResult> RegistrarReposicion(int id, CancellationToken ct)
+    {
+        try
+        {
+            var actualizado = await _prestamoService.RegistrarReposicionAsync(id, ct);
+            return Ok(actualizado);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:int}/renovacion")]
+    public async Task<IActionResult> Renovar(int id, CancellationToken ct)
+    {
+        try
+        {
+            var renovado = await _prestamoService.RenovarAsync(id, ct);
+            return Ok(renovado);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ForbiddenException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (ConflictException ex)
         {

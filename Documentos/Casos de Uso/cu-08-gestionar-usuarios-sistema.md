@@ -77,7 +77,8 @@ sistema, como bibliotecarios o personal autorizado.
 
 * **4a. Datos obligatorios incompletos o inválidos (HTTP 400 Bad Request):**
   1. Si el Sistema detecta que faltan datos obligatorios (email, contraseña o rol),
-     que la contraseña tiene menos de 6 caracteres o que el rol no existe.
+     que el email no tiene formato válido o no tiene entre 6 y 100 caracteres,
+     que la contraseña no tiene entre 6 y 64 caracteres o que el rol no existe.
   2. La Capa de Negocio rechaza la petición (`UsuarioInvalidoException`).
   3. El Sistema devuelve un código **400 Bad Request** informando los campos
      requeridos. Fin del caso de uso.
@@ -115,7 +116,7 @@ flujo principal y alternativo._
 | --- | --- | --- |
 | `200` | OK | Consulta del listado/detalle, modificación o baja exitosa de un usuario. |
 | `201` | Created | Confirmación de alta de un nuevo usuario del sistema. |
-| `400` | Bad Request | Datos obligatorios faltantes, contraseña de menos de 6 caracteres o rol inexistente (RN-20, RN-21). |
+| `400` | Bad Request | Datos obligatorios faltantes, email inválido o fuera de 6 a 100 caracteres, contraseña de menos de 6 o más de 64 caracteres, o rol inexistente (RN-20, RN-21). |
 | `401` | Unauthorized | Petición sin token válido. |
 | `403` | Forbidden | Usuario autenticado que no es Administrador (RN-19). |
 | `404` | Not Found | No existe un usuario con el Id indicado. |
@@ -128,7 +129,8 @@ flujo principal y alternativo._
 | 3a. Registrar usuario | `201 Created` | `CreateUsuarioAsync_WithValidData_SavesAndReturnsCreatedUsuario` | `CreateUsuario_ReturnsSuccessAndCreatedUsuario` |
 | 3b. Modificar usuario | `200 OK` | `UpdateUsuarioAsync_WithValidData_UpdatesUsuario`, `UpdateUsuarioAsync_WithNewPassword_HashesPassword` | `UpdateUsuario_ReturnsSuccessAndUpdatedUsuario` |
 | 3c. Eliminar usuario | `200 OK` | `DeleteUsuarioAsync_WithConfirmation_DeletesUsuario` | `DeleteUsuario_ReturnsSuccessAndDeletesUsuario` |
-| 4a. Datos obligatorios incompletos o inválidos | `400 Bad Request` | `CreateUsuarioAsync_WithMissingEmail_ThrowsValidationException`, `CreateUsuarioAsync_WithShortPassword_ThrowsValidationException`, `CreateUsuarioAsync_WithInvalidRol_ThrowsValidationException` | `CreateUsuario_WithMissingRequiredField_Returns400BadRequest` |
+| 4a. Datos obligatorios incompletos o inválidos | `400 Bad Request` | `CreateUsuarioAsync_WithMissingEmail_ThrowsValidationException`, `CreateUsuarioAsync_WithShortPassword_ThrowsValidationException`, `CreateUsuarioAsync_WithInvalidRol_ThrowsValidationException`, `CreateUsuarioAsync_WithInvalidEmail_ThrowsValidationException`, `CreateUsuarioAsync_WithEmailTooLong_ThrowsValidationException` | `CreateUsuario_WithMissingRequiredField_Returns400BadRequest`, `CreateUsuario_WithInvalidEmail_Returns400BadRequest` |
+| 4b. Contraseña de más de 64 caracteres | `400 Bad Request` | `CreateUsuarioAsync_WithPasswordTooLong_ThrowsValidationException` | `CreateUsuario_WithPasswordTooLong_Returns400BadRequest` |
 | 6a. Email repetido | `409 Conflict` | `CreateUsuarioAsync_WhenEmailAlreadyExists_ThrowsConflictException`, `UpdateUsuarioAsync_WhenEmailBelongsToOtherUsuario_ThrowsConflictException` | `CreateUsuario_WhenDuplicateEmail_Returns409Conflict` |
 | Id inexistente | `404 Not Found` | `GetUsuarioByIdAsync_WithUnknownId_ThrowsNotFoundException`, `UpdateUsuarioAsync_WithUnknownId_ThrowsNotFoundException`, `DeleteUsuarioAsync_WithUnknownId_ThrowsNotFoundException` | `GetUsuario_WithUnknownId_Returns404NotFound` |
 | RN-19 sin permisos | `401` / `403` | — (lo resuelve `[Authorize(Roles)]` en Presentación) | `GetUsuarios_WithoutToken_Returns401Unauthorized`, `GetUsuarios_AsBibliotecario_Returns403Forbidden` |

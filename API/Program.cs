@@ -25,9 +25,12 @@ builder.Services.AddScoped<ILibroRepository, LibroRepository>();
 builder.Services.AddScoped<ILectorRepository, LectorRepository>();
 builder.Services.AddScoped<IPrestamoRepository, PrestamoRepository>();
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 
 builder.Services.AddScoped<ILibroService, LibroService>();
 builder.Services.AddScoped<ILectorService, LectorService>();
+builder.Services.AddScoped<IColaDeReservas, ColaDeReservas>();
+builder.Services.AddScoped<IReservaService, ReservaService>();
 builder.Services.AddScoped<IPrestamoService, PrestamoService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();

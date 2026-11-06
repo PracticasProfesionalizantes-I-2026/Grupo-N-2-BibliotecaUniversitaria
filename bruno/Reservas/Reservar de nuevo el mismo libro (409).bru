@@ -1,0 +1,26 @@
+meta {
+  name: Reservar de nuevo el mismo libro (409)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/reservas
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "lectorId": {{lectorReservaId}},
+    "libroId": {{libroSinStockId}}
+  }
+}
+
+docs {
+  El lector ya tiene una reserva activa para ese libro (409).
+}

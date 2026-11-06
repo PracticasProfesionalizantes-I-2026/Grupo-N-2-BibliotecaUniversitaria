@@ -1,0 +1,33 @@
+meta {
+  name: Reservar libro sin stock (201)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/reservas
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "lectorId": {{lectorReservaId}},
+    "libroId": {{libroSinStockId}}
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("reservaId", res.body.id);
+  }
+}
+
+docs {
+  Con los datos de prueba: Bruno Díaz (lector 2) reserva "Rayuela" (libro 3,
+  stock 0). La reserva queda EnCola con su posición. Guarda reservaId.
+}

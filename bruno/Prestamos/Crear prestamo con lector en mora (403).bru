@@ -1,0 +1,27 @@
+meta {
+  name: Crear prestamo con lector en mora (403)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/prestamos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "lectorId": {{lectorMoraId}},
+    "libroId": {{libroId}}
+  }
+}
+
+docs {
+  Correr antes "Listar prestamos en mora (200)" y "Crear libro (201)".
+  El lector tiene un préstamo vencido sin devolver: no puede pedir otro (403).
+}

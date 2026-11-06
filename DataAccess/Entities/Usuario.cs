@@ -2,7 +2,7 @@
 {
     public class Usuario
     {
-        public Guid Id { get; set; }
+        public int Id { get; set; }
         public string Email { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
         public RolUsuario RolUsuario { get; set; }

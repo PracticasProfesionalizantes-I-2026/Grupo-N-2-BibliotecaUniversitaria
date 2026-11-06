@@ -3,9 +3,9 @@
 > Especificación elaborada siguiendo la guía
 > `GUIA-Especificacion-Casos-de-Uso.md` (sección 3), a partir del documento
 > `BiblioGest_CasosDeUso.pdf`.
-> Reglas de negocio RN-08 (unicidad de DNI/legajo) y RN-09 (no eliminar lector con
-> préstamos activos) **implementadas** en `LectorService`. El DNI o legajo se guarda en
-> un único campo `Identificador`. Requiere token JWT (`[Authorize]`). La matriz de
+> Reglas de negocio RN-08 (DNI único) y RN-09 (no eliminar lector con
+> préstamos activos) **implementadas** en `LectorService`. El lector se identifica por
+> su DNI (campo `Dni`, 7 u 8 dígitos sin puntos). Requiere token JWT (`[Authorize]`). La matriz de
 > trazabilidad lista los tests reales.
 
 | Campo | Valor |
@@ -17,7 +17,7 @@
 | **Stakeholders e intereses** | Bibliotecario/Administrador → mantener actualizados los datos de los lectores habilitados a operar en el sistema; Lector → que sus datos de identificación y contacto estén correctamente registrados para poder solicitar préstamos |
 | **Disparador (Trigger)** | El bibliotecario o administrador necesita registrar, modificar, eliminar o consultar la información de un lector |
 | **Prioridad / Frecuencia** | Alta; uso frecuente (altas y actualizaciones habituales de lectores) |
-| **Reglas de negocio relacionadas** | RN-08 (DNI o legajo único); RN-09 (no eliminar lector con préstamos activos) |
+| **Reglas de negocio relacionadas** | RN-08 (DNI único); RN-09 (no eliminar lector con préstamos activos) |
 
 ---
 
@@ -52,7 +52,7 @@ mantener actualizada la información de quienes solicitan préstamos.
 
 * **3a. Registrar lector (HTTP 201 Created):**
   1. El usuario selecciona la opción de registrar lector y envía `POST /api/lectores`
-     con nombre, apellido, mail y DNI o legajo.
+     con nombre, apellido, mail y DNI.
   2. La Capa de Negocio valida la información y verifica **RN-08**.
   3. El Sistema registra el lector y devuelve **HTTP 201 Created** con los datos del
      nuevo lector.
@@ -77,16 +77,23 @@ mantener actualizada la información de quienes solicitan préstamos.
   3. El Sistema devuelve un código **409 Conflict** indicando que el lector no puede
      eliminarse mientras tenga préstamos activos. Fin del caso de uso.
 
+* **3c-2. Lector con reservas activas o con historial de préstamos (HTTP 409 Conflict):**
+  1. Si en el Paso 2 del flujo 3c el lector tiene reservas activas (`EnCola` o
+     `Asignada`) o tuvo préstamos, aunque ya estén todos devueltos.
+  2. El Sistema impide la eliminación para conservar el historial de préstamos.
+  3. El Sistema devuelve un código **409 Conflict** (`LectorConReservasActivasException` o
+     `LectorConHistorialException`). Fin del caso de uso.
+
 * **4a. Datos obligatorios incompletos (HTTP 400 Bad Request):**
   1. Si en el Paso 4 el Sistema detecta que faltan datos obligatorios (nombre, apellido,
-     mail o DNI/legajo).
+     mail o DNI).
   2. La Capa de Negocio rechaza la petición por error de validación.
   3. El Sistema devuelve un código **400 Bad Request** informando los campos
      requeridos. Fin del caso de uso.
 
-* **6a. DNI o legajo repetido (HTTP 409 Conflict):**
+* **6a. DNI repetido (HTTP 409 Conflict):**
   1. Si en el Paso 6 el Sistema detecta que ya existe un lector registrado con el mismo
-     DNI o legajo, violando **RN-08**.
+     DNI, violando **RN-08**.
   2. La Capa de Negocio rechaza la operación.
   3. El Sistema devuelve un código **409 Conflict** indicando que el dato debe ser
      único, permitiendo al usuario corregir la información. Fin del caso de uso.
@@ -108,10 +115,10 @@ flujo principal y alternativo._
 | --- | --- | --- |
 | `200` | OK | Consulta del listado/detalle, modificación o baja exitosa de un lector. |
 | `201` | Created | Confirmación de alta de un nuevo lector. |
-| `400` | Bad Request | Datos obligatorios faltantes en el alta o modificación del lector. |
+| `400` | Bad Request | Datos obligatorios faltantes o inválidos en el alta o modificación del lector: email sin formato válido, DNI que no tenga 7 u 8 dígitos (sin puntos), nombre o apellido fuera de 2 a 50 caracteres o con caracteres que no sean letras (incluye valores hechos solo de espacios), email fuera de 6 a 100 caracteres. |
 | `401` | Unauthorized | Petición sin token válido. |
 | `404` | Not Found | No existe un lector con el Id indicado. |
-| `409` | Conflict | DNI/legajo duplicado (RN-08) o intento de eliminar un lector con préstamos activos (RN-09). |
+| `409` | Conflict | DNI duplicado (RN-08) o intento de eliminar un lector con préstamos activos (RN-09), reservas activas o historial de préstamos. |
 
 ### Matriz de trazabilidad CU-04 → Test
 
@@ -121,6 +128,10 @@ flujo principal y alternativo._
 | 3b. Modificar lector | `200 OK` | `UpdateLectorAsync_WithValidData_UpdatesLector` | `UpdateLector_ReturnsSuccessAndUpdatedLector` |
 | 3c. Eliminar lector | `200 OK` | `DeleteLectorAsync_WithoutActiveLoans_DeletesLector` | `DeleteLector_WithoutActiveLoans_Returns200OK` |
 | 3c-1. Lector con préstamos activos | `409 Conflict` | `DeleteLectorAsync_WhenLectorHasActiveLoans_ThrowsConflictException` | `DeleteLector_WithActiveLoans_Returns409Conflict` |
+| 3c-2. Lector con reservas activas o historial | `409 Conflict` | `DeleteLectorAsync_WhenLectorHasActiveReservas_ThrowsConflictException`, `DeleteLectorAsync_WhenLectorHasLoanHistory_ThrowsConflictException` | `DeleteLectorAndLibro_WithReturnedLoanHistory_Returns409Conflict` |
 | 4a. Datos obligatorios incompletos | `400 Bad Request` | `CreateLectorAsync_WithMissingRequiredField_ThrowsValidationException` | `CreateLector_WithMissingRequiredField_Returns400BadRequest` |
-| 6a. DNI o legajo repetido | `409 Conflict` | `CreateLectorAsync_WhenIdentificadorAlreadyExists_ThrowsConflictException`, `UpdateLectorAsync_WhenIdentificadorBelongsToOtherLector_ThrowsConflictException` | `CreateLector_WhenDuplicateIdentificador_Returns409Conflict` |
+| 4b. Email con formato inválido o fuera de 6 a 100 caracteres | `400 Bad Request` | `CreateLectorAsync_WithInvalidEmail_ThrowsLectorInvalidoException`, `CreateLectorAsync_WithEmailOutOfRange_ThrowsLectorInvalidoException`, `CreateLectorAsync_WithEmailTooLong_ThrowsLectorInvalidoException` | `CreateLector_WithInvalidEmail_Returns400BadRequest` |
+| 4c. DNI con formato inválido | `400 Bad Request` | `CreateLectorAsync_WithInvalidDni_ThrowsLectorInvalidoException` | `CreateLector_WithInvalidDni_Returns400BadRequest` |
+| 4d. Nombre o apellido fuera de 2 a 50 caracteres, con caracteres que no son letras o solo espacios | `400 Bad Request` | `CreateLectorAsync_WithInvalidNombre_ThrowsLectorInvalidoException`, `CreateLectorAsync_WithNombreTooLong_ThrowsLectorInvalidoException`, `CreateLectorAsync_WithApellidoTooShort_ThrowsLectorInvalidoException` | `CreateLector_WithInvalidNombre_Returns400BadRequest` |
+| 6a. DNI repetido | `409 Conflict` | `CreateLectorAsync_WhenDniAlreadyExists_ThrowsConflictException`, `UpdateLectorAsync_WhenDniBelongsToOtherLector_ThrowsConflictException` | `CreateLector_WhenDuplicateDni_Returns409Conflict` |
 | Id inexistente | `404 Not Found` | `GetLectorByIdAsync_WhenLectorDoesNotExist_ThrowsNotFoundException` | `GetLector_WithUnknownId_Returns404NotFound` |

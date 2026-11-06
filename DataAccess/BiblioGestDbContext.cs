@@ -12,7 +12,8 @@ public class BiblioGestDbContext : DbContext
     public DbSet<Libro> Libros => Set<Libro>();
     public DbSet<Lector> Lectores => Set<Lector>();
     public DbSet<Prestamo> Prestamos => Set<Prestamo>();
-    public DbSet<Usuario> Usuarios => Set<Usuario>();   
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<Reserva> Reservas => Set<Reserva>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,8 +32,8 @@ public class BiblioGestDbContext : DbContext
             entity.Property(l => l.Nombre).IsRequired();
             entity.Property(l => l.Apellido).IsRequired();
             entity.Property(l => l.Email).IsRequired();
-            entity.Property(l => l.Identificador).IsRequired();
-            entity.HasIndex(l => l.Identificador).IsUnique();
+            entity.Property(l => l.Dni).IsRequired();
+            entity.HasIndex(l => l.Dni).IsUnique();
         });
 
         modelBuilder.Entity<Prestamo>(entity =>
@@ -62,6 +63,24 @@ public class BiblioGestDbContext : DbContext
             entity.Property(u => u.RolUsuario)
                 .HasConversion<string>();
             entity.Property(u => u.Activo);
+        });
+
+        modelBuilder.Entity<Reserva>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.HasOne(r => r.Lector)
+                .WithMany()
+                .HasForeignKey(r => r.LectorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.Libro)
+                .WithMany()
+                .HasForeignKey(r => r.LibroId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(r => r.Estado)
+                .HasConversion<string>();
         });
 
         base.OnModelCreating(modelBuilder);

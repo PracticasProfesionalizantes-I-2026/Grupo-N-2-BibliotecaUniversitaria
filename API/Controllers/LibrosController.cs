@@ -27,8 +27,8 @@ public class LibrosController : ControllerBase
     }
 
     // GET /api/libros/{id}
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         try
         {
@@ -54,11 +54,15 @@ public class LibrosController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     // PUT /api/libros/{id}
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] LibroUpdateDTO dto, CancellationToken ct)
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] LibroUpdateDTO dto, CancellationToken ct)
     {
         try
         {
@@ -73,11 +77,15 @@ public class LibrosController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     // DELETE /api/libros/{id}
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         try
         {

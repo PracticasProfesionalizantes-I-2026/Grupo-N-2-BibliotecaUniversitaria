@@ -44,6 +44,11 @@ public class ReporteService : IReporteService
             throw new ReporteInvalidoException("La fecha 'desde' no puede ser posterior a la fecha 'hasta'.");
         }
 
+        if (desde.HasValue && hasta.HasValue && hasta.Value.Date > desde.Value.Date.AddYears(1))
+        {
+            throw new ReporteInvalidoException("El rango de fechas no puede superar un año.");
+        }
+
         var tipoNormalizado = tipo?.Trim().ToLowerInvariant() ?? string.Empty;
 
         return tipoNormalizado switch
@@ -70,6 +75,8 @@ public class ReporteService : IReporteService
             TotalLectores = lectores.Count,
             PrestamosActivos = prestamos.Count(p => p.Estado == EstadoPrestamo.Activo),
             PrestamosDevueltos = prestamos.Count(p => p.Estado == EstadoPrestamo.Devuelto),
+            PrestamosExtraviados = prestamos.Count(p => p.Estado == EstadoPrestamo.Extraviado),
+            PrestamosRepuestos = prestamos.Count(p => p.Estado == EstadoPrestamo.Repuesto),
             PrestamosVencidos = vencidos.Count
         };
 

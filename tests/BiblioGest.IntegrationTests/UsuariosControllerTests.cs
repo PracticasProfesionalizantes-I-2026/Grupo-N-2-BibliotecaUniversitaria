@@ -39,7 +39,7 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var creado = await response.Content.ReadFromJsonAsync<UsuarioResponseDTO>();
         Assert.NotNull(creado);
-        Assert.NotEqual(Guid.Empty, creado!.Id);
+        Assert.True(creado!.Id > 0);
         Assert.Equal(dto.Email, creado.Email);
     }
 
@@ -100,7 +100,7 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task GetUsuario_WithUnknownId_Returns404NotFound()
     {
-        var response = await _client.GetAsync($"/api/usuarios/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/usuarios/{int.MaxValue}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -123,5 +123,30 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
         var response = await client.GetAsync("/api/usuarios");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("   ")]
+    [InlineData("juan perez@bibliogest.com")]
+    [InlineData("a@b.c")]
+    public async Task CreateUsuario_WithInvalidEmail_Returns400BadRequest(string email)
+    {
+        var dto = NuevoUsuarioDto();
+        dto.Email = email;
+
+        var response = await _client.PostAsJsonAsync("/api/usuarios", dto);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateUsuario_WithPasswordTooLong_Returns400BadRequest()
+    {
+        var dto = NuevoUsuarioDto();
+        dto.Password = new string('a', 65);
+
+        var response = await _client.PostAsJsonAsync("/api/usuarios", dto);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }

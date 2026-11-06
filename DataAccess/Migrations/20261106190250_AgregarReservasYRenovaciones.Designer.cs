@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BiblioGest.DataAccess.Migrations
 {
     [DbContext(typeof(BiblioGestDbContext))]
-    [Migration("20261007002126_AgregarUsuarios")]
-    partial class AgregarUsuarios
+    [Migration("20261106190250_AgregarReservasYRenovaciones")]
+    partial class AgregarReservasYRenovaciones
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -22,11 +22,15 @@ namespace BiblioGest.DataAccess.Migrations
 
             modelBuilder.Entity("BiblioGest.DataAccess.Entities.Lector", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Apellido")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Dni")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -34,17 +38,16 @@ namespace BiblioGest.DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Identificador")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("SuspendidoHasta")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Identificador")
+                    b.HasIndex("Dni")
                         .IsUnique();
 
                     b.ToTable("Lectores");
@@ -52,9 +55,9 @@ namespace BiblioGest.DataAccess.Migrations
 
             modelBuilder.Entity("BiblioGest.DataAccess.Entities.Libro", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Autor")
                         .IsRequired()
@@ -82,9 +85,9 @@ namespace BiblioGest.DataAccess.Migrations
 
             modelBuilder.Entity("BiblioGest.DataAccess.Entities.Prestamo", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Estado")
                         .IsRequired()
@@ -99,11 +102,14 @@ namespace BiblioGest.DataAccess.Migrations
                     b.Property<DateTime>("FechaVencimiento")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("LectorId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("LectorId")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<Guid>("LibroId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("LibroId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Renovaciones")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -114,11 +120,45 @@ namespace BiblioGest.DataAccess.Migrations
                     b.ToTable("Prestamos");
                 });
 
+            modelBuilder.Entity("BiblioGest.DataAccess.Entities.Reserva", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaAsignacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaLimiteRetiro")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaReserva")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LectorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LibroId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LectorId");
+
+                    b.HasIndex("LibroId");
+
+                    b.ToTable("Reservas");
+                });
+
             modelBuilder.Entity("BiblioGest.DataAccess.Entities.Usuario", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("Activo")
                         .HasColumnType("INTEGER");
@@ -155,6 +195,25 @@ namespace BiblioGest.DataAccess.Migrations
                         .WithMany("Prestamos")
                         .HasForeignKey("LibroId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Lector");
+
+                    b.Navigation("Libro");
+                });
+
+            modelBuilder.Entity("BiblioGest.DataAccess.Entities.Reserva", b =>
+                {
+                    b.HasOne("BiblioGest.DataAccess.Entities.Lector", "Lector")
+                        .WithMany()
+                        .HasForeignKey("LectorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BiblioGest.DataAccess.Entities.Libro", "Libro")
+                        .WithMany()
+                        .HasForeignKey("LibroId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Lector");
