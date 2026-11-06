@@ -62,7 +62,8 @@ sistema, como bibliotecarios o personal autorizado.
 
 * **3b. Modificar usuario (HTTP 200 OK):**
   1. El administrador selecciona un usuario existente y envía `PUT /api/usuarios/{id}`
-     con el email, la contraseña o el rol a modificar.
+     con el email, la contraseña, el rol o el estado a modificar. Los campos que no se
+     envían, van en `null` o van vacíos conservan su valor actual.
   2. La Capa de Negocio valida los cambios conforme a **RN-20** y **RN-21**.
   3. El Sistema actualiza el registro y devuelve **HTTP 200 OK** con los datos
      actualizados.

@@ -2,9 +2,9 @@ namespace BiblioGest.Shared.DTOs.Libros;
 
 public class LibroUpdateDTO
 {
-    public string Titulo { get; set; } = string.Empty;
-    public string Autor { get; set; } = string.Empty;
-    public string Isbn { get; set; } = string.Empty;
-    public string Ubicacion { get; set; } = string.Empty;
-    public int Stock { get; set; }
+    public string? Titulo { get; set; }
+    public string? Autor { get; set; }
+    public string? Isbn { get; set; }
+    public string? Ubicacion { get; set; }
+    public int? Stock { get; set; }
 }

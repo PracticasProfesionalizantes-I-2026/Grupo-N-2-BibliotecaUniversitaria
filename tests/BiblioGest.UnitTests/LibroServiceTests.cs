@@ -374,4 +374,37 @@ public class LibroServiceTests
         await Assert.ThrowsAsync<LibroConHistorialException>(() => service.DeleteAsync(id));
         _libroRepository.Verify(r => r.DeleteAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task UpdateLibroAsync_WithOnlyTitulo_KeepsTheOtherFields()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var libro = new Libro { Id = id, Titulo = "Ficciones", Autor = "Jorge Luis Borges", Isbn = "978-8420633109", Ubicacion = "A1-4", Stock = 3 };
+        _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
+
+        var service = CrearService();
+        var resultado = await service.UpdateAsync(id, new LibroUpdateDTO { Titulo = "Ficciones (edición aniversario)" });
+
+        Assert.Equal("Ficciones (edición aniversario)", resultado.Titulo);
+        Assert.Equal("Jorge Luis Borges", resultado.Autor);
+        Assert.Equal("978-8420633109", resultado.Isbn);
+        Assert.Equal("A1-4", resultado.Ubicacion);
+        Assert.Equal(3, resultado.Stock);
+    }
+
+    [Fact]
+    public async Task UpdateLibroAsync_WithEmptyFields_KeepsCurrentValues()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var libro = new Libro { Id = id, Titulo = "Ficciones", Autor = "Borges", Isbn = "978-8420633109", Ubicacion = "A1-4", Stock = 3 };
+        _libroRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
+
+        var service = CrearService();
+        var resultado = await service.UpdateAsync(id, new LibroUpdateDTO { Titulo = "   ", Autor = "", Ubicacion = "B2-3" });
+
+        Assert.Equal("Ficciones", resultado.Titulo);
+        Assert.Equal("Borges", resultado.Autor);
+        Assert.Equal("B2-3", resultado.Ubicacion);
+        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

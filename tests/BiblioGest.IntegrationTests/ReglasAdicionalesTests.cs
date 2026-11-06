@@ -190,4 +190,52 @@ public class ReglasAdicionalesTests : IClassFixture<CustomWebApplicationFactory>
         var error = await response.Content.ReadFromJsonAsync<MensajeDeError>();
         Assert.Equal("El cuerpo de la solicitud no es un JSON válido.", error!.Message);
     }
+
+    [Fact]
+    public async Task UpdateLector_WithOnlyNombre_KeepsTheOtherFields()
+    {
+        var original = await CrearLectorAsync();
+
+        var response = await _client.PutAsJsonAsync($"/api/lectores/{original.Id}", new { nombre = "Tomás Ignacio" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var actualizado = await response.Content.ReadFromJsonAsync<LectorResponseDTO>();
+        Assert.Equal("Tomás Ignacio", actualizado!.Nombre);
+        Assert.Equal(original.Apellido, actualizado.Apellido);
+        Assert.Equal(original.Email, actualizado.Email);
+        Assert.Equal(original.Dni, actualizado.Dni);
+    }
+
+    [Fact]
+    public async Task UpdateLibro_WithOnlyStock_KeepsTheOtherFields()
+    {
+        var original = await CrearLibroAsync(stock: 2);
+
+        var response = await _client.PutAsJsonAsync($"/api/libros/{original.Id}", new { stock = 7 });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var actualizado = await response.Content.ReadFromJsonAsync<LibroResponseDTO>();
+        Assert.Equal(7, actualizado!.Stock);
+        Assert.Equal(original.Titulo, actualizado.Titulo);
+        Assert.Equal(original.Isbn, actualizado.Isbn);
+        Assert.Equal(original.Ubicacion, actualizado.Ubicacion);
+    }
+
+    [Fact]
+    public async Task UpdateUsuario_WithEmptyEmail_KeepsCurrentEmail()
+    {
+        var creado = await (await _client.PostAsJsonAsync("/api/usuarios", new UsuarioCreateDTO
+        {
+            Email = $"{Guid.NewGuid()}@bibliogest.com",
+            Password = "Clave123",
+            RolUsuario = "Bibliotecario"
+        })).Content.ReadFromJsonAsync<UsuarioResponseDTO>();
+
+        var response = await _client.PutAsJsonAsync($"/api/usuarios/{creado!.Id}", new { email = "", rolUsuario = "Administrador" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var actualizado = await response.Content.ReadFromJsonAsync<UsuarioResponseDTO>();
+        Assert.Equal(creado.Email, actualizado!.Email);
+        Assert.Equal("Administrador", actualizado.RolUsuario);
+    }
 }

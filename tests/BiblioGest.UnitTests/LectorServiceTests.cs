@@ -355,4 +355,38 @@ public class LectorServiceTests
 
         Assert.Equal("ana@example.com", resultado.Email);
     }
+
+    [Fact]
+    public async Task UpdateLectorAsync_WithOnlyNombre_KeepsTheOtherFields()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Dni = "30111222" };
+        _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _lectorRepository.Setup(r => r.GetByEmailAsync("ana@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _lectorRepository.Setup(r => r.GetByDniAsync("30111222", It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+
+        var service = CrearService();
+        var resultado = await service.UpdateAsync(id, new LectorUpdateDTO { Nombre = "Ana María" });
+
+        Assert.Equal("Ana María", resultado.Nombre);
+        Assert.Equal("Gómez", resultado.Apellido);
+        Assert.Equal("ana@example.com", resultado.Email);
+        Assert.Equal("30111222", resultado.Dni);
+    }
+
+    [Fact]
+    public async Task UpdateLectorAsync_WithEmptyFields_KeepsCurrentValues()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Dni = "30111222" };
+        _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+
+        var service = CrearService();
+        var resultado = await service.UpdateAsync(id, new LectorUpdateDTO { Nombre = "", Apellido = "   ", Email = "nueva@example.com", Dni = "" });
+
+        Assert.Equal("Ana", resultado.Nombre);
+        Assert.Equal("Gómez", resultado.Apellido);
+        Assert.Equal("nueva@example.com", resultado.Email);
+        Assert.Equal("30111222", resultado.Dni);
+    }
 }
