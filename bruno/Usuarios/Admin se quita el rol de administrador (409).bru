@@ -1,0 +1,23 @@
+meta {
+  name: Admin se quita el rol de administrador (409)
+  type: http
+  seq: 13
+}
+
+put {
+  url: {{baseUrl}}/api/usuarios/{{adminId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "admin@bibliogest.com",
+    "rolUsuario": "Bibliotecario"
+  }
+}
+
+docs {
+  El usuario logueado no puede desactivarse ni quitarse el rol de Administrador (409).
+  Tampoco se puede dejar al sistema sin ningún administrador activo.
+}

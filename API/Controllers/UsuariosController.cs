@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.Shared.DTOs.Usuarios;
 using BiblioGest.Shared.Exceptions;
@@ -62,7 +63,7 @@ public class UsuariosController : ControllerBase
     {
         try
         {
-            var actualizado = await _usuarioService.UpdateAsync(id, dto, ct);
+            var actualizado = await _usuarioService.UpdateAsync(id, dto, UsuarioActualId(), ct);
             return Ok(actualizado);
         }
         catch (NotFoundException ex)
@@ -84,12 +85,19 @@ public class UsuariosController : ControllerBase
     {
         try
         {
-            await _usuarioService.DeleteAsync(id, ct);
+            await _usuarioService.DeleteAsync(id, UsuarioActualId(), ct);
             return Ok(new { message = "Usuario dado de baja correctamente." });
         }
         catch (NotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
         }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
+
+    private int UsuarioActualId() =>
+        int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

@@ -9,6 +9,7 @@ Integrantes: Lautaro Navarro y Elías Korell
 - Presentación de casos de uso: https://docs.google.com/document/d/1cPGvxmILelmMMogMiCeEFB1LkpB8VdPgWXqcZl9IrxY/edit?usp=sharing
 - Mocap (Figma): https://www.figma.com/design/wegjr31mBIEI3hgwNyycAH/Mocap---BiblioGest?node-id=0-1&m=dev&t=xQyKmKHf32WRdCLE-1
 - Casos de uso detallados: [`Documentos/Casos de Uso/`](Documentos/Casos%20de%20Uso/)
+- Matriz de trazabilidad (RN → CU → código → tests → Bruno): [`Documentos/Trazabilidad.md`](Documentos/Trazabilidad.md)
 
 ## Alcance de esta entrega
 
@@ -130,6 +131,13 @@ de datos, además de la validación explícita en el service (409 Conflict).
 | Cancelar una reserva que no está EnCola ni Asignada | `ReservaNoActivaException` | 409 |
 | Eliminar libro o lector con reservas activas | `LibroConReservasActivasException` / `LectorConReservasActivasException` | 409 |
 | Eliminar libro o lector que tiene historial de préstamos (aunque estén devueltos) | `LibroConHistorialException` / `LectorConHistorialException` | 409 |
+| Email de lector ya usado por otro lector (sin distinguir mayúsculas) | `LectorEmailDuplicadoException` | 409 |
+| Prestar a un lector un libro que ya tiene prestado | `PrestamoActivoDuplicadoException` | 409 |
+| El administrador se da de baja, se desactiva o se quita el rol a sí mismo | `UsuarioAutoBajaException` / `UsuarioAutoModificacionException` | 409 |
+| Dejar al sistema sin ningún administrador activo | `UltimoAdministradorException` | 409 |
+| Request sin token o con token inválido/vencido | `JwtBearerEvents.OnChallenge` | 401 (`Debe iniciar sesión.` / `Token inválido o vencido.`) |
+| Rol insuficiente | `JwtBearerEvents.OnForbidden` | 403 (`No tiene permisos para realizar esta acción.`) |
+| Cuerpo vacío o JSON mal formado | `InvalidModelStateResponseFactory` | 400 con `{ "message" }` en español |
 | Renovar un préstamo ya renovado 2 veces | `LimiteRenovacionesException` | 403 |
 | Renovar con lectores en la cola de reservas del libro | `RenovacionConReservasException` | 403 |
 | Renovar un préstamo vencido | `PrestamoVencidoNoRenovableException` | 403 |
@@ -287,6 +295,8 @@ Ejemplo `POST /api/lectores`:
 | PUT | `/api/prestamos/{id}/reposicion` | Registrar la reposición del ejemplar extraviado | 200 | 404, 409 |
 | PUT | `/api/prestamos/{id}/renovacion` | Renovar 14 días más (máximo 2 veces) | 200 | 403, 404, 409 |
 | GET | `/api/prestamos/mora` | Listar préstamos vencidos | 200 | — |
+| GET | `/api/prestamos/activos` | Listar préstamos activos, por vencimiento | 200 | — |
+| GET | `/api/prestamos/estado-lector/{lectorId}` | Si el lector puede pedir un préstamo y, si no, el motivo | 200 | 404 |
 
 Ejemplo `POST /api/prestamos`:
 
@@ -399,13 +409,17 @@ En `bruno/` hay una carpeta por controller con un request por caso de éxito
 y de error relevante (400/401/403/404/409). El entorno `Local` trae `baseUrl` y los
 requests de creación completan automáticamente `libroId`/`lectorId`/
 `prestamoId`/`usuarioId` para encadenar los siguientes. Primero hay que
-ejecutar `Auth/Login Administrador (200)`, que guarda el `token`.
+ejecutar `Auth/Login Administrador (200)`, que guarda `tokenAdmin`, y
+`Auth/Login Bibliotecario (200)`, que guarda `tokenBibliotecario`. La autenticación
+se configura una sola vez en la colección (todos los requests heredan `tokenAdmin`,
+salvo el 403 de bibliotecario). Los requests de creación generan email, DNI e ISBN
+únicos en cada corrida, así la colección se puede ejecutar varias veces seguidas.
 
 ## Testing
 
 - `tests/BiblioGest.UnitTests`: xUnit + Moq sobre los services, sin tocar
-  la base real (50 tests).
+  la base real (175 tests).
 - `tests/BiblioGest.IntegrationTests`: `WebApplicationFactory` levantando la
-  API completa contra una SQLite en memoria aislada por instancia (49 tests).
+  API completa contra una SQLite en memoria aislada por instancia (95 tests).
 
 Link: https://docs.google.com/document/d/1f4idud-PCBsQK\_48ZCf5ibF\_MNzNLKdxSAvWgO32Wt4/edit?tab=t.0#heading=h.frnk5y8ou0gl

@@ -7,11 +7,7 @@ meta {
 post {
   url: {{baseUrl}}/api/lectores
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 body:json {
@@ -19,7 +15,7 @@ body:json {
     "nombre": "Otro",
     "apellido": "Lector",
     "email": "otro.lector@example.com",
-    "dni": "35555111"
+    "dni": "{{lectorDni}}"
   }
 }
 

@@ -48,25 +48,15 @@ public class PrestamoService : IPrestamoService
 
         await _colaDeReservas.ProcesarAsignacionesVencidasAsync(libro, ct);
 
-        var prestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(dto.LectorId, ct);
-        if (prestamosActivos >= MaximoPrestamosActivosPorLector)
+        var bloqueo = await BuscarBloqueoDelLectorAsync(lector, ct);
+        if (bloqueo is not null)
         {
-            throw new LimitePrestamosActivosException(dto.LectorId);
+            throw bloqueo;
         }
 
-        if (lector.SuspendidoHasta.HasValue && lector.SuspendidoHasta.Value > DateTime.UtcNow)
+        if (await _prestamoRepository.ExistePrestamoActivoAsync(lector.Id, libro.Id, ct))
         {
-            throw new LectorSuspendidoException(dto.LectorId, lector.SuspendidoHasta.Value);
-        }
-
-        if (await _prestamoRepository.LectorTieneExtraviadosAsync(dto.LectorId, ct))
-        {
-            throw new LectorConLibroExtraviadoException(dto.LectorId);
-        }
-
-        if (await _prestamoRepository.LectorTieneMoraAsync(dto.LectorId, ct))
-        {
-            throw new LectorEnMoraException(dto.LectorId);
+            throw new PrestamoActivoDuplicadoException(lector.Id, libro.Id);
         }
 
         var reservaAsignada = await _reservaRepository.GetAsignadaAsync(lector.Id, libro.Id, ct);
@@ -102,6 +92,62 @@ public class PrestamoService : IPrestamoService
         creado.Libro = libro;
         return MapToResponseDTO(creado);
     }
+
+    public async Task<IReadOnlyList<PrestamoResponseDTO>> GetActivosAsync(CancellationToken ct = default)
+    {
+        var activos = await _prestamoRepository.GetActivosAsync(ct);
+        return activos.Select(p => MapToResponseDTO(p)).ToList();
+    }
+
+    public async Task<EstadoLectorPrestamoDTO> GetEstadoLectorAsync(int lectorId, CancellationToken ct = default)
+    {
+        var lector = await _lectorRepository.GetByIdAsync(lectorId, ct) ?? throw new LectorNotFoundException(lectorId);
+
+        var bloqueo = await BuscarBloqueoDelLectorAsync(lector, ct);
+        var ahora = DateTime.UtcNow;
+
+        return new EstadoLectorPrestamoDTO
+        {
+            PrestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(lectorId, ct),
+            MaximoPrestamos = MaximoPrestamosActivosPorLector,
+            EnMora = await _prestamoRepository.LectorTieneMoraAsync(lectorId, ct),
+            TieneLibroExtraviado = await _prestamoRepository.LectorTieneExtraviadosAsync(lectorId, ct),
+            SuspendidoHasta = EstaSuspendido(lector, ahora) ? lector.SuspendidoHasta : null,
+            PuedePedir = bloqueo is null,
+            Motivo = bloqueo?.Message,
+            FechaPrestamo = ahora,
+            FechaVencimiento = ahora.AddDays(DiasDePrestamo)
+        };
+    }
+
+    private async Task<ForbiddenException?> BuscarBloqueoDelLectorAsync(Lector lector, CancellationToken ct)
+    {
+        var prestamosActivos = await _prestamoRepository.CountActivosPorLectorAsync(lector.Id, ct);
+        if (prestamosActivos >= MaximoPrestamosActivosPorLector)
+        {
+            return new LimitePrestamosActivosException(lector.Id);
+        }
+
+        if (EstaSuspendido(lector, DateTime.UtcNow))
+        {
+            return new LectorSuspendidoException(lector.Id, lector.SuspendidoHasta!.Value);
+        }
+
+        if (await _prestamoRepository.LectorTieneExtraviadosAsync(lector.Id, ct))
+        {
+            return new LectorConLibroExtraviadoException(lector.Id);
+        }
+
+        if (await _prestamoRepository.LectorTieneMoraAsync(lector.Id, ct))
+        {
+            return new LectorEnMoraException(lector.Id);
+        }
+
+        return null;
+    }
+
+    private static bool EstaSuspendido(Lector lector, DateTime ahora) =>
+        lector.SuspendidoHasta.HasValue && lector.SuspendidoHasta.Value > ahora;
 
     public async Task<PrestamoResponseDTO> RegistrarDevolucionAsync(int id, CancellationToken ct = default)
     {

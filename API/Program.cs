@@ -5,6 +5,7 @@ using BiblioGest.BusinessLogic.Services;
 using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -12,7 +13,41 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var entradas = context.ModelState
+                .Where(kvp => kvp.Value is { Errors.Count: > 0 })
+                .ToList();
+
+            var errorDeCuerpo = entradas.FirstOrDefault(kvp =>
+                kvp.Key.Length == 0 || kvp.Key == "$" || kvp.Key.StartsWith("$.", StringComparison.Ordinal));
+
+            string mensaje;
+            if (errorDeCuerpo.Value is not null)
+            {
+                var original = errorDeCuerpo.Value.Errors[0].ErrorMessage;
+                mensaje = original.Contains("non-empty request body", StringComparison.OrdinalIgnoreCase)
+                    ? "El cuerpo de la solicitud es obligatorio y no puede estar vacío."
+                    : "El cuerpo de la solicitud no es un JSON válido.";
+            }
+            else
+            {
+                var camposInvalidos = entradas
+                    .Where(kvp => kvp.Key.Length > 0 && kvp.Key != "dto")
+                    .Select(kvp => DescribirErrorDeCampo(kvp.Key, kvp.Value!.Errors[0].ErrorMessage))
+                    .ToList();
+
+                mensaje = camposInvalidos.Count > 0
+                    ? string.Join(" ", camposInvalidos)
+                    : "Hay errores de validación en los datos enviados.";
+            }
+
+            return new BadRequestObjectResult(new { message = mensaje });
+        };
+    });
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
@@ -56,6 +91,26 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnChallenge = async context =>
+        {
+            context.HandleResponse();
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json";
+            var mensaje = context.AuthenticateFailure is null
+                ? "Debe iniciar sesión."
+                : "Token inválido o vencido.";
+            await context.Response.WriteAsJsonAsync(new { message = mensaje });
+        },
+        OnForbidden = async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "No tiene permisos para realizar esta acción." });
+        }
+    };
 });
 builder.Services.AddAuthorization();
 
@@ -90,6 +145,21 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static string DescribirErrorDeCampo(string campo, string mensajeOriginal)
+{
+    if (mensajeOriginal.Contains("is required", StringComparison.OrdinalIgnoreCase))
+    {
+        return $"El campo {campo} es obligatorio.";
+    }
+
+    if (mensajeOriginal.Contains("is not a valid e-mail", StringComparison.OrdinalIgnoreCase))
+    {
+        return $"El campo {campo} no tiene un formato de email válido.";
+    }
+
+    return $"El campo {campo} tiene un valor inválido.";
+}
 
 public partial class Program
 {

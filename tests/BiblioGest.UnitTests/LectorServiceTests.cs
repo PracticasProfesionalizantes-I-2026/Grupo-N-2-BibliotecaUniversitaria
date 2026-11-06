@@ -325,4 +325,34 @@ public class LectorServiceTests
         await Assert.ThrowsAsync<LectorConHistorialException>(() => service.DeleteAsync(id));
         _lectorRepository.Verify(r => r.DeleteAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task CreateLectorAsync_WhenEmailAlreadyExists_ThrowsConflictException()
+    {
+        var dto = LectorValidoDto();
+        dto.Email = "  ANA@Example.com ";
+        _lectorRepository
+            .Setup(r => r.GetByEmailAsync("ana@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Lector { Id = IdsDePrueba.Nuevo(), Email = "ana@example.com" });
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorEmailDuplicadoException>(() => service.CreateAsync(dto));
+        _lectorRepository.Verify(r => r.CreateAsync(It.IsAny<Lector>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateLectorAsync_KeepingOwnEmail_DoesNotThrow()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var lector = new Lector { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "ana@example.com", Dni = "30111222" };
+        _lectorRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _lectorRepository.Setup(r => r.GetByEmailAsync("ana@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        var dto = new LectorUpdateDTO { Nombre = "Ana", Apellido = "Gómez", Email = "Ana@Example.com", Dni = "30111222" };
+
+        var service = CrearService();
+        var resultado = await service.UpdateAsync(id, dto);
+
+        Assert.Equal("ana@example.com", resultado.Email);
+    }
 }

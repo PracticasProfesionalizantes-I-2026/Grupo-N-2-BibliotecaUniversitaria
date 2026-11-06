@@ -98,6 +98,19 @@ sistema, como bibliotecarios o personal autorizado.
   1. Sin token válido el Sistema devuelve **401 Unauthorized**.
   2. Con token de Bibliotecario devuelve **403 Forbidden** (RN-19). Fin del caso de uso.
 
+* **6b. El administrador se modifica o se da de baja a sí mismo (HTTP 409 Conflict):**
+  1. Si el usuario logueado intenta darse de baja, desactivarse o quitarse el rol de
+     Administrador.
+  2. La Capa de Negocio rechaza la operación (`UsuarioAutoBajaException` o
+     `UsuarioAutoModificacionException`).
+  3. El Sistema devuelve un código **409 Conflict**. Fin del caso de uso.
+
+* **6c. Último administrador activo (HTTP 409 Conflict):**
+  1. Si la baja, la desactivación o el cambio de rol dejaría al sistema sin ningún
+     administrador activo.
+  2. La Capa de Negocio rechaza la operación (`UltimoAdministradorException`).
+  3. El Sistema devuelve un código **409 Conflict**. Fin del caso de uso.
+
 ### 5. SUB-VARIACIONES (opcional)
 _No se identifican variaciones de datos o mecanismo adicionales a las descriptas en el
 flujo principal y alternativo._
@@ -120,7 +133,7 @@ flujo principal y alternativo._
 | `401` | Unauthorized | Petición sin token válido. |
 | `403` | Forbidden | Usuario autenticado que no es Administrador (RN-19). |
 | `404` | Not Found | No existe un usuario con el Id indicado. |
-| `409` | Conflict | Email duplicado (RN-20). |
+| `409` | Conflict | Email duplicado (RN-20), auto-baja o auto-modificación del administrador logueado, o dejar al sistema sin administradores activos. |
 
 ### Matriz de trazabilidad CU-08 → Test
 
@@ -132,5 +145,7 @@ flujo principal y alternativo._
 | 4a. Datos obligatorios incompletos o inválidos | `400 Bad Request` | `CreateUsuarioAsync_WithMissingEmail_ThrowsValidationException`, `CreateUsuarioAsync_WithShortPassword_ThrowsValidationException`, `CreateUsuarioAsync_WithInvalidRol_ThrowsValidationException`, `CreateUsuarioAsync_WithInvalidEmail_ThrowsValidationException`, `CreateUsuarioAsync_WithEmailTooLong_ThrowsValidationException` | `CreateUsuario_WithMissingRequiredField_Returns400BadRequest`, `CreateUsuario_WithInvalidEmail_Returns400BadRequest` |
 | 4b. Contraseña de más de 64 caracteres | `400 Bad Request` | `CreateUsuarioAsync_WithPasswordTooLong_ThrowsValidationException` | `CreateUsuario_WithPasswordTooLong_Returns400BadRequest` |
 | 6a. Email repetido | `409 Conflict` | `CreateUsuarioAsync_WhenEmailAlreadyExists_ThrowsConflictException`, `UpdateUsuarioAsync_WhenEmailBelongsToOtherUsuario_ThrowsConflictException` | `CreateUsuario_WhenDuplicateEmail_Returns409Conflict` |
+| 6b. Auto-baja o auto-modificación | `409 Conflict` | `DeleteUsuarioAsync_WhenDeletingOwnAccount_ThrowsConflictException`, `UpdateUsuarioAsync_WhenDeactivatingOrDemotingSelf_ThrowsConflictException` | `DeleteUsuario_WhenDeletingOwnAccount_Returns409Conflict`, `UpdateUsuario_WhenRemovingOwnAdministratorRole_Returns409Conflict` |
+| 6c. Último administrador activo | `409 Conflict` | `DeleteUsuarioAsync_WhenLastActiveAdministrator_ThrowsConflictException`, `UpdateUsuarioAsync_WhenDemotingLastActiveAdministrator_ThrowsConflictException`, `DeleteUsuarioAsync_WhenOtherAdministratorsRemain_DeactivatesAdministrator` | — |
 | Id inexistente | `404 Not Found` | `GetUsuarioByIdAsync_WithUnknownId_ThrowsNotFoundException`, `UpdateUsuarioAsync_WithUnknownId_ThrowsNotFoundException`, `DeleteUsuarioAsync_WithUnknownId_ThrowsNotFoundException` | `GetUsuario_WithUnknownId_Returns404NotFound` |
 | RN-19 sin permisos | `401` / `403` | — (lo resuelve `[Authorize(Roles)]` en Presentación) | `GetUsuarios_WithoutToken_Returns401Unauthorized`, `GetUsuarios_AsBibliotecario_Returns403Forbidden` |

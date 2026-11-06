@@ -34,6 +34,7 @@ public class BiblioGestDbContext : DbContext
             entity.Property(l => l.Email).IsRequired();
             entity.Property(l => l.Dni).IsRequired();
             entity.HasIndex(l => l.Dni).IsUnique();
+            entity.HasIndex(l => l.Email).IsUnique();
         });
 
         modelBuilder.Entity<Prestamo>(entity =>

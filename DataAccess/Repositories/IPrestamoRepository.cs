@@ -14,6 +14,8 @@ public interface IPrestamoRepository
     Task<bool> TienePrestamosPorLibroAsync(int libroId, CancellationToken ct = default);
     Task<bool> LectorTieneMoraAsync(int lectorId, CancellationToken ct = default);
     Task<bool> LectorTieneExtraviadosAsync(int lectorId, CancellationToken ct = default);
+    Task<bool> ExistePrestamoActivoAsync(int lectorId, int libroId, CancellationToken ct = default);
+    Task<IReadOnlyList<Prestamo>> GetActivosAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Prestamo>> GetVencidosAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Prestamo>> GetPorRangoAsync(DateTime? desde, DateTime? hastaExclusivo, CancellationToken ct = default);
 }

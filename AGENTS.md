@@ -73,10 +73,13 @@ dotnet ef database update
 | Lector: nombre y apellido de 2 a 50 caracteres, solo letras (un espacio, apóstrofo o guion entre palabras); email de 6 a 100 caracteres con formato válido | `LectorService.CreateAsync/UpdateAsync` |
 | Lector: DNI de 7 u 8 dígitos, sin puntos ni espacios | `LectorService.CreateAsync/UpdateAsync` |
 | Lector: DNI único (`DniDuplicadoException` → 409) | `LectorService.CreateAsync/UpdateAsync` |
+| Lector: email único, sin distinguir mayúsculas (`LectorEmailDuplicadoException` → 409); se guarda en minúsculas | `LectorService.CreateAsync/UpdateAsync` + índice único |
 | Lector: no se elimina con préstamos activos o extraviados sin reponer | `LectorService.DeleteAsync` |
 | Préstamo: máximo 3 activos por lector (403) | `PrestamoService.CreateAsync` |
 | Préstamo: no se presta un libro sin stock | `PrestamoService.CreateAsync` |
 | Préstamo: lector en mora no puede pedir otro (403) | `PrestamoService.CreateAsync` |
+| Préstamo: un lector no puede tener dos préstamos activos del mismo libro (409) | `PrestamoService.CreateAsync` |
+| Préstamo: `GET /api/prestamos/estado-lector/{id}` anticipa si el lector puede pedir y el motivo, con las mismas reglas y mensajes que el alta | `PrestamoService.GetEstadoLectorAsync` |
 | Préstamo: vencimiento a 14 días | `PrestamoService.CreateAsync` |
 | Préstamo: solo se devuelve un préstamo `Activo`; devolución repetida o de un extraviado → 409 | `PrestamoService.RegistrarDevolucionAsync` |
 | Préstamo: extravío (solo desde `Activo`) → estado `Extraviado`, el stock no vuelve y el lector queda bloqueado (403) hasta reponer el ejemplar; reposición (solo desde `Extraviado`) → `Repuesto`, stock +1, aplica suspensión si fue tarde. Sin multas monetarias (nivel 1) | `PrestamoService.RegistrarExtravioAsync/RegistrarReposicionAsync` + `CreateAsync` |
@@ -88,6 +91,8 @@ dotnet ef database update
 | Usuario: contraseña de 6 a 64 caracteres, guardada con hash PBKDF2 (RN-21) | `UsuarioService` + `IPasswordHasher` |
 | Usuario: email único, de 6 a 100 caracteres y con formato válido | `UsuarioService.CreateAsync/UpdateAsync` |
 | Usuario: baja lógica (`Activo = false`) | `UsuarioService.DeleteAsync` |
+| Usuario: el logueado no puede darse de baja, desactivarse ni quitarse el rol de Administrador; no se puede dejar al sistema sin administradores activos (409) | `UsuarioService.UpdateAsync/DeleteAsync` |
+| Errores 401/403 del token y de model binding responden `{ "message" }` en español | `Program.cs` |
 | Reserva: solo si el libro tiene stock 0 (si no, 409); una reserva activa por lector y libro (409); cola por orden de llegada | `ReservaService.CreateAsync` |
 | Reserva: al devolver o reponer un ejemplar con cola, no vuelve al stock: se asigna al primero por 24 h (`Asignada`); solo ese lector puede retirarlo y la reserva pasa a `Concretada` | `ColaDeReservas.AsignarAlSiguienteAsync` + `PrestamoService.CreateAsync` |
 | Reserva: si vence el plazo de 24 h queda `Vencida` y el ejemplar pasa al siguiente o vuelve al stock. Se evalúa en cada consulta u operación sobre el libro, sin tareas en segundo plano | `ColaDeReservas.ProcesarAsignacionesVencidasAsync` |
@@ -115,6 +120,7 @@ dotnet ef database update
 - Login/Autenticación (CU-01) ya está implementado: Libros, Lectores, Reservas y
   Préstamos y Reportes llevan `[Authorize]` (JWT); `UsuariosController` lleva
   `[Authorize(Roles = "Administrador")]`; `AuthController` queda anónimo.
+- Al agregar o cambiar una regla, actualizar `Documentos/Trazabilidad.md`.
 - `bruno/` debe tener un request por endpoint nuevo que se agregue,
   cubriendo al menos un caso de éxito y los de error relevantes.
 - No commitear `bin/`, `obj/` ni archivos `.db` (ver `.gitignore`).

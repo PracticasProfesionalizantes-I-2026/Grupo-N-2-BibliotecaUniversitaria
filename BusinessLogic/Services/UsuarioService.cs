@@ -45,21 +45,33 @@ public class UsuarioService : IUsuarioService
         var creado = await _usuarioRepository.CreateAsync(usuario, ct);
         return MapToResponseDTO(creado);
     }
-    public async Task<UsuarioResponseDTO> UpdateAsync(int id, UsuarioUpdateDTO dto, CancellationToken ct = default)
+    public async Task<UsuarioResponseDTO> UpdateAsync(int id, UsuarioUpdateDTO dto, int usuarioActualId, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
         ValidarEmail(dto.Email);
         await ValidarEmailUnicoAsync(dto.Email, usuarioIdActual: id, ct);
+
+        var nuevoRol = string.IsNullOrWhiteSpace(dto.RolUsuario) ? usuario.RolUsuario : ParseRol(dto.RolUsuario);
+        var seDesactiva = dto.Activo == false && usuario.Activo;
+        var dejaDeSerAdministrador = usuario.RolUsuario == RolUsuario.Administrador && nuevoRol != RolUsuario.Administrador;
+
+        if (id == usuarioActualId && (dto.Activo == false || dejaDeSerAdministrador))
+        {
+            throw new UsuarioAutoModificacionException();
+        }
+
+        if (usuario.RolUsuario == RolUsuario.Administrador && usuario.Activo && (seDesactiva || dejaDeSerAdministrador))
+        {
+            await ValidarQueNoEsElUltimoAdministradorAsync(ct);
+        }
+
         usuario.Email = dto.Email.Trim().ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(dto.Password))
         {
             ValidarContraseña(dto.Password);
             usuario.PasswordHash = _passwordHasher.Hash(dto.Password);
         }
-        if (!string.IsNullOrWhiteSpace(dto.RolUsuario))
-        {
-            usuario.RolUsuario = ParseRol(dto.RolUsuario);
-        }
+        usuario.RolUsuario = nuevoRol;
         if (dto.Activo.HasValue)
         {
             usuario.Activo = dto.Activo.Value;
@@ -67,13 +79,32 @@ public class UsuarioService : IUsuarioService
         await _usuarioRepository.UpdateAsync(usuario, ct);
         return MapToResponseDTO(usuario);
     }
-    public async Task DeleteAsync(int id, CancellationToken ct = default)
+    public async Task DeleteAsync(int id, int usuarioActualId, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
+
+        if (id == usuarioActualId)
+        {
+            throw new UsuarioAutoBajaException();
+        }
+
         if (usuario.Activo)
         {
+            if (usuario.RolUsuario == RolUsuario.Administrador)
+            {
+                await ValidarQueNoEsElUltimoAdministradorAsync(ct);
+            }
+
             usuario.Activo = false;
             await _usuarioRepository.UpdateAsync(usuario, ct);
+        }
+    }
+    private async Task ValidarQueNoEsElUltimoAdministradorAsync(CancellationToken ct)
+    {
+        var administradoresActivos = await _usuarioRepository.CountAdministradoresActivosAsync(ct);
+        if (administradoresActivos <= 1)
+        {
+            throw new UltimoAdministradorException();
         }
     }
     private static void ValidarContraseña(string password)

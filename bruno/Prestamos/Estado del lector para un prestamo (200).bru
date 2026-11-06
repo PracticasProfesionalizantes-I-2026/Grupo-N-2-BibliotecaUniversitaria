@@ -1,0 +1,17 @@
+meta {
+  name: Estado del lector para un prestamo (200)
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/api/prestamos/estado-lector/{{lectorId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  Dice si el lector puede pedir un préstamo y, si no, el motivo (mismo mensaje que
+  daría POST /api/prestamos): límite de 3, suspensión, libro extraviado o mora.
+  Lo calcula la API para que el frontend solo lo muestre.
+}

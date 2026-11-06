@@ -7,18 +7,18 @@ meta {
 put {
   url: {{baseUrl}}/api/lectores/{{lectorId}}
   body: json
-  auth: bearer
+  auth: inherit
 }
 
-auth:bearer {
-  token: {{token}}
+script:pre-request {
+  bru.setEnvVar("lectorDniModificado", String(30000000 + Math.floor(Math.random() * 60000000)));
 }
 
 body:json {
   {
     "nombre": "Facundo",
     "apellido": "López",
-    "email": "facundo.lopez@example.com",
-    "dni": "35555112"
+    "email": "{{lectorEmail}}",
+    "dni": "{{lectorDniModificado}}"
   }
 }

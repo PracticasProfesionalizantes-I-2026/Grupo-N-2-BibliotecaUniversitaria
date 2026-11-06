@@ -98,6 +98,11 @@ mantener actualizada la información de quienes solicitan préstamos.
   3. El Sistema devuelve un código **409 Conflict** indicando que el dato debe ser
      único, permitiendo al usuario corregir la información. Fin del caso de uso.
 
+* **6b. Email repetido (HTTP 409 Conflict):**
+  1. Si el email ya pertenece a otro lector (se compara sin distinguir mayúsculas).
+  2. La Capa de Negocio rechaza la operación (`LectorEmailDuplicadoException`).
+  3. El Sistema devuelve un código **409 Conflict**. Fin del caso de uso.
+
 ### 5. SUB-VARIACIONES (opcional)
 _No se identifican variaciones de datos o mecanismo adicionales a las descriptas en el
 flujo principal y alternativo._
@@ -118,7 +123,7 @@ flujo principal y alternativo._
 | `400` | Bad Request | Datos obligatorios faltantes o inválidos en el alta o modificación del lector: email sin formato válido, DNI que no tenga 7 u 8 dígitos (sin puntos), nombre o apellido fuera de 2 a 50 caracteres o con caracteres que no sean letras (incluye valores hechos solo de espacios), email fuera de 6 a 100 caracteres. |
 | `401` | Unauthorized | Petición sin token válido. |
 | `404` | Not Found | No existe un lector con el Id indicado. |
-| `409` | Conflict | DNI duplicado (RN-08) o intento de eliminar un lector con préstamos activos (RN-09), reservas activas o historial de préstamos. |
+| `409` | Conflict | DNI o email duplicado (RN-08) o intento de eliminar un lector con préstamos activos (RN-09), reservas activas o historial de préstamos. |
 
 ### Matriz de trazabilidad CU-04 → Test
 
@@ -134,4 +139,5 @@ flujo principal y alternativo._
 | 4c. DNI con formato inválido | `400 Bad Request` | `CreateLectorAsync_WithInvalidDni_ThrowsLectorInvalidoException` | `CreateLector_WithInvalidDni_Returns400BadRequest` |
 | 4d. Nombre o apellido fuera de 2 a 50 caracteres, con caracteres que no son letras o solo espacios | `400 Bad Request` | `CreateLectorAsync_WithInvalidNombre_ThrowsLectorInvalidoException`, `CreateLectorAsync_WithNombreTooLong_ThrowsLectorInvalidoException`, `CreateLectorAsync_WithApellidoTooShort_ThrowsLectorInvalidoException` | `CreateLector_WithInvalidNombre_Returns400BadRequest` |
 | 6a. DNI repetido | `409 Conflict` | `CreateLectorAsync_WhenDniAlreadyExists_ThrowsConflictException`, `UpdateLectorAsync_WhenDniBelongsToOtherLector_ThrowsConflictException` | `CreateLector_WhenDuplicateDni_Returns409Conflict` |
+| 6b. Email repetido | `409 Conflict` | `CreateLectorAsync_WhenEmailAlreadyExists_ThrowsConflictException`, `UpdateLectorAsync_KeepingOwnEmail_DoesNotThrow` | `CreateLector_WithEmailOfAnotherLectorIgnoringCase_Returns409Conflict` |
 | Id inexistente | `404 Not Found` | `GetLectorByIdAsync_WhenLectorDoesNotExist_ThrowsNotFoundException` | `GetLector_WithUnknownId_Returns404NotFound` |

@@ -11,10 +11,10 @@ get {
 }
 
 auth:bearer {
-  token: {{token}}
+  token: {{tokenBibliotecario}}
 }
 
 docs {
-  RN-19: ejecutar antes "Auth/Login Bibliotecario (200)" para que el token sea de
-  un bibliotecario. Después volver a loguearse como administrador.
+  RN-19: usa el token del bibliotecario (correr antes "Auth/Login Bibliotecario (200)").
+  No hace falta volver a loguearse como administrador: el resto de la colección usa tokenAdmin.
 }

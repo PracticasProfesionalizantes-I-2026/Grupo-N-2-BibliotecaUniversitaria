@@ -70,6 +70,20 @@ public class PrestamoRepository : IPrestamoRepository
             .AsNoTracking()
             .AnyAsync(p => p.LectorId == lectorId && p.Estado == EstadoPrestamo.Extraviado, ct);
 
+    public Task<bool> ExistePrestamoActivoAsync(int lectorId, int libroId, CancellationToken ct = default) =>
+        _context.Prestamos
+            .AsNoTracking()
+            .AnyAsync(p => p.LectorId == lectorId && p.LibroId == libroId && p.Estado == EstadoPrestamo.Activo, ct);
+
+    public async Task<IReadOnlyList<Prestamo>> GetActivosAsync(CancellationToken ct = default) =>
+        await _context.Prestamos
+            .AsNoTracking()
+            .Include(p => p.Libro)
+            .Include(p => p.Lector)
+            .Where(p => p.Estado == EstadoPrestamo.Activo)
+            .OrderBy(p => p.FechaVencimiento)
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<Prestamo>> GetVencidosAsync(CancellationToken ct = default) =>
         await _context.Prestamos
             .AsNoTracking()

@@ -21,6 +21,10 @@ namespace BiblioGest.DataAccess.Repositories
         public Task<Usuario?> GetByEmailAsync(string email, CancellationToken ct = default) =>
             _context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email, ct);
 
+        public Task<int> CountAdministradoresActivosAsync(CancellationToken ct = default) =>
+            _context.Usuarios.AsNoTracking()
+                .CountAsync(u => u.RolUsuario == RolUsuario.Administrador && u.Activo, ct);
+
 
         public async Task<Usuario> CreateAsync(Usuario usuario, CancellationToken ct = default)
         {

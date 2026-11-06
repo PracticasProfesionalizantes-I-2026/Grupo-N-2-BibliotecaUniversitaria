@@ -11,4 +11,6 @@ public interface IPrestamoService
     Task<PrestamoResponseDTO> RegistrarReposicionAsync(int id, CancellationToken ct = default);
     Task<PrestamoResponseDTO> RenovarAsync(int id, CancellationToken ct = default);
     Task<IReadOnlyList<PrestamoResponseDTO>> GetVencidosAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<PrestamoResponseDTO>> GetActivosAsync(CancellationToken ct = default);
+    Task<EstadoLectorPrestamoDTO> GetEstadoLectorAsync(int lectorId, CancellationToken ct = default);
 }

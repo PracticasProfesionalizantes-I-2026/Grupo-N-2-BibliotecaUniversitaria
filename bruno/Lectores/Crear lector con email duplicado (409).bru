@@ -1,0 +1,25 @@
+meta {
+  name: Crear lector con email duplicado (409)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/lectores
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Otra",
+    "apellido": "Persona",
+    "email": "ANA.GOMEZ@example.com",
+    "dni": "41222333"
+  }
+}
+
+docs {
+  El email ana.gomez@example.com ya es de una lectora de los datos de prueba.
+  Se compara sin distinguir mayúsculas (409).
+}

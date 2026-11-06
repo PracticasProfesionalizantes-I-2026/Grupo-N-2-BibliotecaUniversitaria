@@ -7,11 +7,7 @@ meta {
 delete {
   url: {{baseUrl}}/api/libros/{{libroId}}
   body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 docs {

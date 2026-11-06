@@ -14,6 +14,8 @@ namespace BiblioGest.UnitTests
         private readonly Mock<IUsuarioRepository> _usuarioRepository = new();
         private readonly Mock<IPasswordHasher> _passwordHasher = new();
 
+        private const int AdminLogueadoId = 999_999;
+
         private UsuarioService CrearService() => new(_usuarioRepository.Object, _passwordHasher.Object);
 
         private static Usuario UsuarioExistente(int id) => new()
@@ -138,7 +140,7 @@ namespace BiblioGest.UnitTests
                 .ReturnsAsync((Usuario?)null);
 
             var service = CrearService();
-            var resultado = await service.UpdateAsync(id, dto);
+            var resultado = await service.UpdateAsync(id, dto, AdminLogueadoId);
 
             Assert.Equal("modificado@example.com", resultado.Email);
             Assert.Equal("Administrador", resultado.RolUsuario);
@@ -164,7 +166,7 @@ namespace BiblioGest.UnitTests
                 .Returns("hash-nuevo");
 
             var service = CrearService();
-            await service.UpdateAsync(id, dto);
+            await service.UpdateAsync(id, dto, AdminLogueadoId);
 
             Assert.Equal("hash-nuevo", usuario.PasswordHash);
         }
@@ -179,7 +181,7 @@ namespace BiblioGest.UnitTests
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.UpdateAsync(IdsDePrueba.Nuevo(), dto));
+            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.UpdateAsync(IdsDePrueba.Nuevo(), dto, AdminLogueadoId));
         }
 
         [Fact]
@@ -196,7 +198,7 @@ namespace BiblioGest.UnitTests
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioDuplicadoException>(() => service.UpdateAsync(id, dto));
+            await Assert.ThrowsAsync<UsuarioDuplicadoException>(() => service.UpdateAsync(id, dto, AdminLogueadoId));
         }
 
         [Fact]
@@ -209,7 +211,7 @@ namespace BiblioGest.UnitTests
                 .ReturnsAsync(usuario);
 
             var service = CrearService();
-            await service.DeleteAsync(id);
+            await service.DeleteAsync(id, AdminLogueadoId);
 
             Assert.False(usuario.Activo);
             _usuarioRepository.Verify(r => r.UpdateAsync(usuario, It.IsAny<CancellationToken>()), Times.Once);
@@ -224,7 +226,7 @@ namespace BiblioGest.UnitTests
 
             var service = CrearService();
 
-            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.DeleteAsync(IdsDePrueba.Nuevo()));
+            await Assert.ThrowsAsync<UsuarioNotFoundException>(() => service.DeleteAsync(IdsDePrueba.Nuevo(), AdminLogueadoId));
         }
 
         [Theory]
@@ -263,6 +265,81 @@ namespace BiblioGest.UnitTests
 
             await Assert.ThrowsAsync<UsuarioInvalidoException>(() => service.CreateAsync(dto));
             _usuarioRepository.Verify(r => r.CreateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        private Usuario ConfigurarAdministrador(int id, int administradoresActivos)
+        {
+            var admin = new Usuario
+            {
+                Id = id,
+                Email = $"admin{id}@bibliogest.com",
+                PasswordHash = "hash",
+                RolUsuario = RolUsuario.Administrador,
+                Activo = true
+            };
+            _usuarioRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(admin);
+            _usuarioRepository.Setup(r => r.CountAdministradoresActivosAsync(It.IsAny<CancellationToken>())).ReturnsAsync(administradoresActivos);
+            return admin;
+        }
+
+        [Fact]
+        public async Task DeleteUsuarioAsync_WhenDeletingOwnAccount_ThrowsConflictException()
+        {
+            ConfigurarAdministrador(AdminLogueadoId, administradoresActivos: 2);
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioAutoBajaException>(() => service.DeleteAsync(AdminLogueadoId, AdminLogueadoId));
+            _usuarioRepository.Verify(r => r.UpdateAsync(It.IsAny<Usuario>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task DeleteUsuarioAsync_WhenLastActiveAdministrator_ThrowsConflictException()
+        {
+            var id = IdsDePrueba.Nuevo();
+            ConfigurarAdministrador(id, administradoresActivos: 1);
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UltimoAdministradorException>(() => service.DeleteAsync(id, AdminLogueadoId));
+        }
+
+        [Fact]
+        public async Task DeleteUsuarioAsync_WhenOtherAdministratorsRemain_DeactivatesAdministrator()
+        {
+            var id = IdsDePrueba.Nuevo();
+            var admin = ConfigurarAdministrador(id, administradoresActivos: 2);
+
+            var service = CrearService();
+            await service.DeleteAsync(id, AdminLogueadoId);
+
+            Assert.False(admin.Activo);
+        }
+
+        [Theory]
+        [InlineData(false, "Administrador")]
+        [InlineData(true, "Bibliotecario")]
+        public async Task UpdateUsuarioAsync_WhenDeactivatingOrDemotingSelf_ThrowsConflictException(bool activo, string rol)
+        {
+            var admin = ConfigurarAdministrador(AdminLogueadoId, administradoresActivos: 2);
+            var dto = new UsuarioUpdateDTO { Email = admin.Email, RolUsuario = rol, Activo = activo };
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UsuarioAutoModificacionException>(() => service.UpdateAsync(AdminLogueadoId, dto, AdminLogueadoId));
+        }
+
+        [Fact]
+        public async Task UpdateUsuarioAsync_WhenDemotingLastActiveAdministrator_ThrowsConflictException()
+        {
+            var id = IdsDePrueba.Nuevo();
+            var admin = ConfigurarAdministrador(id, administradoresActivos: 1);
+            var dto = new UsuarioUpdateDTO { Email = admin.Email, RolUsuario = "Bibliotecario" };
+
+            var service = CrearService();
+
+            await Assert.ThrowsAsync<UltimoAdministradorException>(() => service.UpdateAsync(id, dto, AdminLogueadoId));
+            Assert.Equal(RolUsuario.Administrador, admin.RolUsuario);
         }
     }
 }

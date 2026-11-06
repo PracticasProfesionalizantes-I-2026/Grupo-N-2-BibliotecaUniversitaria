@@ -44,12 +44,13 @@ public class LectorService : ILectorService
     {
         ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Dni);
         await ValidarDniUnicoAsync(dto.Dni, lectorIdActual: null, ct);
+        await ValidarEmailUnicoAsync(dto.Email, lectorIdActual: null, ct);
 
         var lector = new Lector
         {
             Nombre = dto.Nombre.Trim(),
             Apellido = dto.Apellido.Trim(),
-            Email = dto.Email.Trim(),
+            Email = NormalizarEmail(dto.Email),
             Dni = dto.Dni.Trim()
         };
 
@@ -63,10 +64,11 @@ public class LectorService : ILectorService
 
         ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Dni);
         await ValidarDniUnicoAsync(dto.Dni, lectorIdActual: id, ct);
+        await ValidarEmailUnicoAsync(dto.Email, lectorIdActual: id, ct);
 
         lector.Nombre = dto.Nombre.Trim();
         lector.Apellido = dto.Apellido.Trim();
-        lector.Email = dto.Email.Trim();
+        lector.Email = NormalizarEmail(dto.Email);
         lector.Dni = dto.Dni.Trim();
 
         await _lectorRepository.UpdateAsync(lector, ct);
@@ -142,6 +144,17 @@ public class LectorService : ILectorService
         var largo = valor.Trim().Length;
         return largo >= minimo && largo <= maximo;
     }
+
+    private async Task ValidarEmailUnicoAsync(string email, int? lectorIdActual, CancellationToken ct)
+    {
+        var existente = await _lectorRepository.GetByEmailAsync(NormalizarEmail(email), ct);
+        if (existente is not null && existente.Id != lectorIdActual)
+        {
+            throw new LectorEmailDuplicadoException(NormalizarEmail(email));
+        }
+    }
+
+    private static string NormalizarEmail(string email) => email.Trim().ToLowerInvariant();
 
     private async Task ValidarDniUnicoAsync(string dni, int? lectorIdActual, CancellationToken ct)
     {

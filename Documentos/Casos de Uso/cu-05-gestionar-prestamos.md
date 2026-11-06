@@ -84,6 +84,18 @@ stock y el estado del préstamo.
   2. El Sistema impide registrar un nuevo préstamo hasta que reponga el ejemplar.
   3. El Sistema devuelve un código **403 Forbidden**. Fin del caso de uso.
 
+* **3e. El lector ya tiene ese libro prestado (HTTP 409 Conflict):**
+  1. Si el lector tiene un préstamo `Activo` del mismo libro.
+  2. La Capa de Negocio rechaza el alta (`PrestamoActivoDuplicadoException`, RN-13).
+  3. El Sistema devuelve un código **409 Conflict**. Fin del caso de uso.
+
+* **3f. Consultar si el lector puede pedir un préstamo (HTTP 200 OK):**
+  1. Antes de registrar el préstamo, el usuario puede enviar
+     `GET /api/prestamos/estado-lector/{lectorId}`.
+  2. El Sistema aplica las mismas reglas que el alta (3a a 3d) y devuelve si puede
+     pedir, el motivo si no puede (mismo mensaje que daría el alta) y la fecha de
+     vencimiento que tendría el préstamo. Si el lector no existe responde **404**.
+
 * **5a. Libro sin stock (HTTP 409 Conflict):**
   1. Si en el Paso 5 la Capa de Negocio detecta que no hay ejemplares disponibles,
      violando **RN-11**.
@@ -185,7 +197,7 @@ flujo principal y alternativo._
 | `401` | Unauthorized | Petición sin token válido. |
 | `403` | Forbidden | Lector con 3 préstamos activos (RN-10), lector en mora, lector suspendido por devolver con atraso , lector con un libro extraviado sin reponer, o renovación denegada (2 renovaciones, préstamo vencido o cola de reservas activa). |
 | `404` | Not Found | El lector, el libro, el préstamo o la reserva indicados no existen en el sistema. |
-| `409` | Conflict | Libro sin stock disponible (RN-11), devolución de un préstamo que no está activo, extravío de un préstamo que no está activo , reposición de un préstamo que no está extraviado, renovación de un préstamo no activo, reserva de un libro con stock, reserva duplicada o cancelación de una reserva no activa. |
+| `409` | Conflict | Libro sin stock disponible (RN-11), préstamo activo duplicado del mismo libro (RN-13), devolución de un préstamo que no está activo, extravío de un préstamo que no está activo , reposición de un préstamo que no está extraviado, renovación de un préstamo no activo, reserva de un libro con stock, reserva duplicada o cancelación de una reserva no activa. |
 
 ### Matriz de trazabilidad CU-05 → Test
 
@@ -197,6 +209,8 @@ flujo principal y alternativo._
 | 3b. Lector con mora | `403 Forbidden` | `CreatePrestamoAsync_WhenLectorHasOverdueLoans_ThrowsForbiddenException` | `CreatePrestamo_WhenLectorInMora_Returns403Forbidden` |
 | 3c. Lector suspendido | `403 Forbidden` | `CreatePrestamoAsync_WhenLectorIsSuspended_ThrowsForbiddenException`, `CreatePrestamoAsync_WhenSuspensionHasExpired_CreatesPrestamo` | `RegisterDevolucion_WhenLate_SuspendsLectorAndNextPrestamoReturns403Forbidden` |
 | 3d. Lector con libro extraviado | `403 Forbidden` | `CreatePrestamoAsync_WhenLectorHasExtraviadoPrestamo_ThrowsForbiddenException` | `Extravio_BlocksLectorUntilReposicionAndThenRestoresStock` |
+| 3e. Préstamo duplicado del mismo libro | `409 Conflict` | `CreatePrestamoAsync_WhenLectorAlreadyHasSameBookActive_ThrowsConflictException` | `CreatePrestamo_WhenLectorAlreadyHasSameBookActive_Returns409Conflict` |
+| 3f. Estado del lector | `200` / `404` | `GetEstadoLectorAsync_WithoutRestrictions_CanBorrow`, `GetEstadoLectorAsync_WhenSuspended_CannotBorrowAndExplainsWhy`, `GetEstadoLectorAsync_WithUnknownLector_ThrowsNotFoundException` | `GetEstadoLector_WithFreeLector_ReturnsCanBorrow`, `GetEstadoLector_WithUnknownLector_Returns404NotFound` |
 | 5a. Libro sin stock | `409 Conflict` | `CreatePrestamoAsync_WhenLibroHasNoStock_ThrowsConflictException` | `CreatePrestamo_WithoutStock_Returns409Conflict` |
 | 6a. Registrar devolución | `200 OK` | `RegisterDevolucionAsync_WithValidData_UpdatesStockAndPrestamoState` | `RegisterDevolucion_ReturnsSuccessAndUpdatedPrestamo` |
 | 6a-1. Devolver un préstamo extraviado | `409 Conflict` | `RegisterDevolucionAsync_WhenPrestamoIsExtraviado_ThrowsConflictException` | — |

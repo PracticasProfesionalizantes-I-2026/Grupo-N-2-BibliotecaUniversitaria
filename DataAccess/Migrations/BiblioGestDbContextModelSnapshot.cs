@@ -47,6 +47,9 @@ namespace BiblioGest.DataAccess.Migrations
                     b.HasIndex("Dni")
                         .IsUnique();
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
                     b.ToTable("Lectores");
                 });
 

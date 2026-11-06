@@ -21,6 +21,9 @@ public class LectorRepository : ILectorRepository
     public Task<Lector?> GetByDniAsync(string dni, CancellationToken ct = default) =>
         _context.Lectores.AsNoTracking().FirstOrDefaultAsync(l => l.Dni == dni, ct);
 
+    public Task<Lector?> GetByEmailAsync(string email, CancellationToken ct = default) =>
+        _context.Lectores.AsNoTracking().FirstOrDefaultAsync(l => l.Email == email, ct);
+
     public async Task<Lector> CreateAsync(Lector lector, CancellationToken ct = default)
     {
         _context.Lectores.Add(lector);

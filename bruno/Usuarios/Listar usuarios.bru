@@ -7,9 +7,14 @@ meta {
 get {
   url: {{baseUrl}}/api/usuarios
   body: none
-  auth: bearer
+  auth: inherit
 }
 
-auth:bearer {
-  token: {{token}}
+script:post-response {
+  if (res.status === 200) {
+    const admin = res.body.find(u => u.email === "admin@bibliogest.com");
+    if (admin) {
+      bru.setEnvVar("adminId", admin.id);
+    }
+  }
 }

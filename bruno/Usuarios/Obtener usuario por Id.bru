@@ -7,9 +7,5 @@ meta {
 get {
   url: {{baseUrl}}/api/usuarios/{{usuarioId}}
   body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }

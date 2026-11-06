@@ -1,0 +1,19 @@
+meta {
+  name: Listar libros con token invalido (401)
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/libros
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: token-invalido
+}
+
+docs {
+  Responde 401 con { "message": "Token inválido o vencido." }.
+}

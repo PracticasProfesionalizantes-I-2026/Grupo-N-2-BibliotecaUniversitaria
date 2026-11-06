@@ -7,11 +7,7 @@ meta {
 get {
   url: {{baseUrl}}/api/prestamos/mora
   body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }
 
 script:post-response {

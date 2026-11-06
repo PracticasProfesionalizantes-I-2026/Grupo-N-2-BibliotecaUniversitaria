@@ -7,9 +7,5 @@ meta {
 get {
   url: {{baseUrl}}/api/reportes/prestamos?desde=2026-01-01&hasta=2026-12-31
   body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: inherit
 }

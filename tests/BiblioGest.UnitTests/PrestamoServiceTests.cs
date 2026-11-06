@@ -537,4 +537,59 @@ public class PrestamoServiceTests
 
         await Assert.ThrowsAsync<PrestamoNoActivoException>(() => service.RenovarAsync(prestamo.Id));
     }
+
+    [Fact]
+    public async Task CreatePrestamoAsync_WhenLectorAlreadyHasSameBookActive_ThrowsConflictException()
+    {
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 3);
+        ConfigurarAltaSinBloqueos(lector, libro);
+        _prestamoRepository.Setup(r => r.ExistePrestamoActivoAsync(lector.Id, libro.Id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<PrestamoActivoDuplicadoException>(
+            () => service.CreateAsync(new PrestamoCreateDTO { LectorId = lector.Id, LibroId = libro.Id }));
+        _prestamoRepository.Verify(r => r.CreateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetEstadoLectorAsync_WithoutRestrictions_CanBorrow()
+    {
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        _lectorRepository.Setup(r => r.GetByIdAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var service = CrearService();
+        var estado = await service.GetEstadoLectorAsync(lector.Id);
+
+        Assert.True(estado.PuedePedir);
+        Assert.Null(estado.Motivo);
+        Assert.Equal(1, estado.PrestamosActivos);
+        Assert.Equal(3, estado.MaximoPrestamos);
+        Assert.Equal(estado.FechaPrestamo.AddDays(14), estado.FechaVencimiento);
+    }
+
+    [Fact]
+    public async Task GetEstadoLectorAsync_WhenSuspended_CannotBorrowAndExplainsWhy()
+    {
+        var lector = CrearLector(IdsDePrueba.Nuevo());
+        lector.SuspendidoHasta = DateTime.UtcNow.AddDays(2);
+        _lectorRepository.Setup(r => r.GetByIdAsync(lector.Id, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+
+        var service = CrearService();
+        var estado = await service.GetEstadoLectorAsync(lector.Id);
+
+        Assert.False(estado.PuedePedir);
+        Assert.Equal(lector.SuspendidoHasta, estado.SuspendidoHasta);
+        Assert.Contains("suspendido", estado.Motivo);
+    }
+
+    [Fact]
+    public async Task GetEstadoLectorAsync_WithUnknownLector_ThrowsNotFoundException()
+    {
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LectorNotFoundException>(() => service.GetEstadoLectorAsync(IdsDePrueba.Nuevo()));
+    }
 }
