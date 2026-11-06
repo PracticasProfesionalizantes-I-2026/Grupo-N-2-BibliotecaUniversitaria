@@ -1,0 +1,28 @@
+meta {
+  name: Modificar usuario como bibliotecario (403)
+  type: http
+  seq: 14
+}
+
+put {
+  url: {{baseUrl}}/api/usuarios/{{adminId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenBibliotecario}}
+}
+
+body:json {
+  {
+    "rolUsuario": "Bibliotecario"
+  }
+}
+
+docs {
+  RN-19: solo el Administrador gestiona usuarios. Usa el token del bibliotecario
+  (correr antes "Auth/Login Bibliotecario (200)") e intenta quitarle el rol al admin:
+  responde 403 con "No tiene permisos para realizar esta acción." y no cambia nada.
+  Correr antes "Listar usuarios" para cargar adminId.
+}

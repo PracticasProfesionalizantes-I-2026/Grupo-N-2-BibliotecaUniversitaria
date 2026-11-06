@@ -59,14 +59,20 @@ public class LibroService : ILibroService
     {
         var libro = await _libroRepository.GetByIdAsync(id, ct) ?? throw new LibroNotFoundException(id);
 
-        ValidarDatos(dto.Titulo, dto.Autor, dto.Isbn, dto.Ubicacion, dto.Stock);
-        await ValidarIsbnUnicoAsync(dto.Isbn, libroIdActual: id, ct);
+        var titulo = string.IsNullOrWhiteSpace(dto.Titulo) ? libro.Titulo : dto.Titulo;
+        var autor = string.IsNullOrWhiteSpace(dto.Autor) ? libro.Autor : dto.Autor;
+        var isbn = string.IsNullOrWhiteSpace(dto.Isbn) ? libro.Isbn : dto.Isbn;
+        var ubicacion = string.IsNullOrWhiteSpace(dto.Ubicacion) ? libro.Ubicacion : dto.Ubicacion;
+        var stock = dto.Stock ?? libro.Stock;
 
-        libro.Titulo = dto.Titulo.Trim();
-        libro.Autor = dto.Autor.Trim();
-        libro.Isbn = dto.Isbn.Trim();
-        libro.Ubicacion = dto.Ubicacion.Trim().ToUpperInvariant();
-        libro.Stock = dto.Stock;
+        ValidarDatos(titulo, autor, isbn, ubicacion, stock);
+        await ValidarIsbnUnicoAsync(isbn, libroIdActual: id, ct);
+
+        libro.Titulo = titulo.Trim();
+        libro.Autor = autor.Trim();
+        libro.Isbn = isbn.Trim();
+        libro.Ubicacion = ubicacion.Trim().ToUpperInvariant();
+        libro.Stock = stock;
 
         await _libroRepository.UpdateAsync(libro, ct);
         return MapToResponseDTO(libro);

@@ -48,8 +48,9 @@ public class UsuarioService : IUsuarioService
     public async Task<UsuarioResponseDTO> UpdateAsync(int id, UsuarioUpdateDTO dto, int usuarioActualId, CancellationToken ct = default)
     {
         var usuario = await _usuarioRepository.GetByIdAsync(id, ct) ?? throw new UsuarioNotFoundException("Usuario no encontrado");
-        ValidarEmail(dto.Email);
-        await ValidarEmailUnicoAsync(dto.Email, usuarioIdActual: id, ct);
+        var email = string.IsNullOrWhiteSpace(dto.Email) ? usuario.Email : dto.Email;
+        ValidarEmail(email);
+        await ValidarEmailUnicoAsync(email, usuarioIdActual: id, ct);
 
         var nuevoRol = string.IsNullOrWhiteSpace(dto.RolUsuario) ? usuario.RolUsuario : ParseRol(dto.RolUsuario);
         var seDesactiva = dto.Activo == false && usuario.Activo;
@@ -65,7 +66,7 @@ public class UsuarioService : IUsuarioService
             await ValidarQueNoEsElUltimoAdministradorAsync(ct);
         }
 
-        usuario.Email = dto.Email.Trim().ToLowerInvariant();
+        usuario.Email = email.Trim().ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(dto.Password))
         {
             ValidarContraseña(dto.Password);

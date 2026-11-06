@@ -59,7 +59,8 @@ mantener actualizada la información de quienes solicitan préstamos.
 
 * **3b. Modificar lector (HTTP 200 OK):**
   1. El usuario selecciona un lector existente y envía `PUT /api/lectores/{id}` con los
-     datos a modificar.
+     datos a modificar. Los campos que no se envían, van en `null` o van
+     vacíos conservan su valor actual; los que traen un valor se validan igual que en el alta.
   2. La Capa de Negocio valida y verifica los cambios conforme a **RN-08**.
   3. El Sistema actualiza el registro y devuelve **HTTP 200 OK** con los datos
      actualizados.

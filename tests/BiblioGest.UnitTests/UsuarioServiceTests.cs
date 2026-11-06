@@ -341,5 +341,23 @@ namespace BiblioGest.UnitTests
             await Assert.ThrowsAsync<UltimoAdministradorException>(() => service.UpdateAsync(id, dto, AdminLogueadoId));
             Assert.Equal(RolUsuario.Administrador, admin.RolUsuario);
         }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public async Task UpdateUsuarioAsync_WithoutEmail_KeepsCurrentEmail(string? email)
+        {
+            var id = IdsDePrueba.Nuevo();
+            var usuario = UsuarioExistente(id);
+            _usuarioRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(usuario);
+            _usuarioRepository.Setup(r => r.GetByEmailAsync(usuario.Email, It.IsAny<CancellationToken>())).ReturnsAsync(usuario);
+
+            var service = CrearService();
+            var resultado = await service.UpdateAsync(id, new UsuarioUpdateDTO { Email = email, RolUsuario = "Administrador" }, AdminLogueadoId);
+
+            Assert.Equal("existente@example.com", resultado.Email);
+            Assert.Equal("Administrador", resultado.RolUsuario);
+        }
     }
 }

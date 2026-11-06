@@ -1,0 +1,21 @@
+meta {
+  name: Modificar solo el nombre del lector (200)
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/lectores/{{lectorId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Facundo Martín"
+  }
+}
+
+docs {
+  Solo se envía el nombre: apellido, email y DNI conservan su valor actual.
+}

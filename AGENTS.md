@@ -91,6 +91,7 @@ dotnet ef database update
 | Usuario: contraseña de 6 a 64 caracteres, guardada con hash PBKDF2 (RN-21) | `UsuarioService` + `IPasswordHasher` |
 | Usuario: email único, de 6 a 100 caracteres y con formato válido | `UsuarioService.CreateAsync/UpdateAsync` |
 | Usuario: baja lógica (`Activo = false`) | `UsuarioService.DeleteAsync` |
+| Modificación (PUT) de libros, lectores y usuarios: los campos que no se envían, van en `null` o vacíos mantienen su valor; los que traen un valor se validan como en el alta | `LibroService/LectorService/UsuarioService.UpdateAsync` |
 | Usuario: el logueado no puede darse de baja, desactivarse ni quitarse el rol de Administrador; no se puede dejar al sistema sin administradores activos (409) | `UsuarioService.UpdateAsync/DeleteAsync` |
 | Errores 401/403 del token y de model binding responden `{ "message" }` en español | `Program.cs` |
 | Reserva: solo si el libro tiene stock 0 (si no, 409); una reserva activa por lector y libro (409); cola por orden de llegada | `ReservaService.CreateAsync` |

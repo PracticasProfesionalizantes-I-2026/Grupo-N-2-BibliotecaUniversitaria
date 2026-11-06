@@ -62,14 +62,19 @@ public class LectorService : ILectorService
     {
         var lector = await _lectorRepository.GetByIdAsync(id, ct) ?? throw new LectorNotFoundException(id);
 
-        ValidarDatos(dto.Nombre, dto.Apellido, dto.Email, dto.Dni);
-        await ValidarDniUnicoAsync(dto.Dni, lectorIdActual: id, ct);
-        await ValidarEmailUnicoAsync(dto.Email, lectorIdActual: id, ct);
+        var nombre = string.IsNullOrWhiteSpace(dto.Nombre) ? lector.Nombre : dto.Nombre;
+        var apellido = string.IsNullOrWhiteSpace(dto.Apellido) ? lector.Apellido : dto.Apellido;
+        var email = string.IsNullOrWhiteSpace(dto.Email) ? lector.Email : dto.Email;
+        var dni = string.IsNullOrWhiteSpace(dto.Dni) ? lector.Dni : dto.Dni;
 
-        lector.Nombre = dto.Nombre.Trim();
-        lector.Apellido = dto.Apellido.Trim();
-        lector.Email = NormalizarEmail(dto.Email);
-        lector.Dni = dto.Dni.Trim();
+        ValidarDatos(nombre, apellido, email, dni);
+        await ValidarDniUnicoAsync(dni, lectorIdActual: id, ct);
+        await ValidarEmailUnicoAsync(email, lectorIdActual: id, ct);
+
+        lector.Nombre = nombre.Trim();
+        lector.Apellido = apellido.Trim();
+        lector.Email = NormalizarEmail(email);
+        lector.Dni = dni.Trim();
 
         await _lectorRepository.UpdateAsync(lector, ct);
         return MapToResponseDTO(lector);

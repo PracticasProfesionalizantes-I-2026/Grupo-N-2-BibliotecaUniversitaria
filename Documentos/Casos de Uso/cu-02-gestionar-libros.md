@@ -59,7 +59,8 @@ actualizada la información del catálogo y del stock.
 
 * **3b. Modificar libro (HTTP 200 OK):**
   1. El usuario selecciona un libro existente y envía `PUT /api/libros/{id}` con los
-     datos a modificar.
+     datos a modificar. Los campos que no se envían, van en `null` o van
+     vacíos conservan su valor actual; los que traen un valor se validan igual que en el alta.
   2. La Capa de Negocio valida los cambios conforme a **RN-03** y **RN-04**.
   3. El Sistema actualiza el registro y devuelve **HTTP 200 OK** con los datos
      actualizados.

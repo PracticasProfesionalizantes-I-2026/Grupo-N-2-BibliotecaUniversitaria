@@ -225,7 +225,7 @@ Usuarios de prueba: `admin@bibliogest.com` / `Admin123!` (Administrador) y
 | GET | `/api/libros?busqueda=` | Listar/buscar por título, autor o ISBN | 200 | — |
 | GET | `/api/libros/{id}` | Obtener un libro | 200 | 404 |
 | POST | `/api/libros` | Crear libro | 201 | 400, 409 |
-| PUT | `/api/libros/{id}` | Modificar libro | 200 | 400, 404, 409 |
+| PUT | `/api/libros/{id}` | Modificar libro (solo los campos enviados; los que faltan se mantienen) | 200 | 400, 404, 409 |
 | DELETE | `/api/libros/{id}` | Eliminar libro | 200 | 404, 409 |
 
 Ejemplo `POST /api/libros`:
@@ -259,7 +259,7 @@ Ejemplo `POST /api/libros`:
 | GET | `/api/lectores` | Listar lectores | 200 | — |
 | GET | `/api/lectores/{id}` | Obtener un lector | 200 | 404 |
 | POST | `/api/lectores` | Crear lector | 201 | 400, 409 |
-| PUT | `/api/lectores/{id}` | Modificar lector | 200 | 400, 404, 409 |
+| PUT | `/api/lectores/{id}` | Modificar lector (solo los campos enviados; los que faltan se mantienen) | 200 | 400, 404, 409 |
 | DELETE | `/api/lectores/{id}` | Eliminar lector | 200 | 404, 409 |
 
 Ejemplo `POST /api/lectores`:
@@ -381,7 +381,7 @@ Si no hay datos, el reporte vuelve con `200`, la lista vacía y
 | GET | `/api/usuarios` | Listar usuarios | 200 | 401, 403 |
 | GET | `/api/usuarios/{id}` | Obtener un usuario | 200 | 401, 403, 404 |
 | POST | `/api/usuarios` | Crear usuario | 201 | 400, 401, 403, 409 |
-| PUT | `/api/usuarios/{id}` | Modificar usuario (contraseña opcional) | 200 | 400, 401, 403, 404, 409 |
+| PUT | `/api/usuarios/{id}` | Modificar usuario (solo los campos enviados; los que faltan o van vacíos se mantienen) | 200 | 400, 401, 403, 404, 409 |
 | DELETE | `/api/usuarios/{id}` | Baja lógica (`activo = false`) | 200 | 401, 403, 404 |
 
 Ejemplo `POST /api/usuarios`:
