@@ -40,4 +40,6 @@ public class UnitOfWork : IUnitOfWork
         await _transaction.DisposeAsync();
         _transaction = null;
     }
+
+    public Task SaveChangesAsync(CancellationToken ct = default) => _context.SaveChangesAsync(ct);
 }

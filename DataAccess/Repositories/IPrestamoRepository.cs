@@ -6,7 +6,10 @@ public interface IPrestamoRepository
 {
     Task<Prestamo?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<Prestamo> CreateAsync(Prestamo prestamo, CancellationToken ct = default);
-    Task UpdateAsync(Prestamo prestamo, CancellationToken ct = default);
+    // guardarCambios = false difiere el SaveChanges (lo usa
+    // PrestamoService.CerrarPrestamoAsync para persistir toda la operación
+    // de cierre con un único SaveChanges).
+    Task UpdateAsync(Prestamo prestamo, CancellationToken ct = default, bool guardarCambios = true);
     Task<int> CountActivosPorLectorAsync(int lectorId, CancellationToken ct = default);
     Task<bool> TieneActivosPorLibroAsync(int libroId, CancellationToken ct = default);
     Task<bool> TieneActivosPorLectorAsync(int lectorId, CancellationToken ct = default);

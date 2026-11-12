@@ -43,7 +43,7 @@ public class LibroRepository : ILibroRepository
         return libro;
     }
 
-    public async Task UpdateAsync(Libro libro, CancellationToken ct = default)
+    public async Task UpdateAsync(Libro libro, CancellationToken ct = default, bool guardarCambios = true)
     {
         // RowVersion es el token de concurrencia optimista: el valor que trae
         // "libro" es el que se leyó antes de modificarlo (el original real),
@@ -55,7 +55,10 @@ public class LibroRepository : ILibroRepository
         entry.Property(l => l.RowVersion).OriginalValue = rowVersionLeido;
         entry.Property(l => l.RowVersion).CurrentValue = RandomNumberGenerator.GetBytes(8);
 
-        await _context.SaveChangesAsync(ct);
+        if (guardarCambios)
+        {
+            await _context.SaveChangesAsync(ct);
+        }
     }
 
     public async Task DeleteAsync(Libro libro, CancellationToken ct = default)
