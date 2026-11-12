@@ -221,18 +221,31 @@ public class PrestamoService : IPrestamoService
 
     private async Task CerrarPrestamoAsync(Prestamo prestamo, EstadoPrestamo estadoFinal, CancellationToken ct)
     {
+        // El préstamo, la reserva/stock del libro y la suspensión del lector
+        // se marcan en memoria sin guardar cada uno por separado, y se
+        // persisten juntos con un único SaveChanges (atómico por sí mismo:
+        // si falla, no queda nada guardado a mitad de camino).
         prestamo.Estado = estadoFinal;
         prestamo.FechaDevolucion = DateTime.UtcNow;
-        await _prestamoRepository.UpdateAsync(prestamo, ct);
+        await _prestamoRepository.UpdateAsync(prestamo, ct, guardarCambios: false);
 
         if (prestamo.Libro is not null &&
-            !await _colaDeReservas.AsignarAlSiguienteAsync(prestamo.Libro, prestamo.FechaDevolucion.Value, ct))
+            !await _colaDeReservas.AsignarAlSiguienteAsync(prestamo.Libro, prestamo.FechaDevolucion.Value, ct, guardarCambios: false))
         {
             prestamo.Libro.Stock += 1;
-            await _libroRepository.UpdateAsync(prestamo.Libro, ct);
+            await _libroRepository.UpdateAsync(prestamo.Libro, ct, guardarCambios: false);
         }
 
         await AplicarSuspensionPorAtrasoAsync(prestamo, ct);
+
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new LibroConcurrenciaException(prestamo.LibroId);
+        }
     }
 
     public async Task<PrestamoResponseDTO> RenovarAsync(int id, CancellationToken ct = default)
@@ -287,7 +300,7 @@ public class PrestamoService : IPrestamoService
             : prestamo.FechaDevolucion.Value;
 
         lector.SuspendidoHasta = desde.AddDays(diasDeAtraso * DiasDeSuspensionPorDiaDeAtraso);
-        await _lectorRepository.UpdateAsync(lector, ct);
+        await _lectorRepository.UpdateAsync(lector, ct, guardarCambios: false);
     }
 
     private static int CalcularDiasDeAtraso(DateTime fechaVencimiento, DateTime fechaDevolucion)

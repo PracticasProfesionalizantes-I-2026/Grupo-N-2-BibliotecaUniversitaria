@@ -29,35 +29,35 @@ public class ColaDeReservas : IColaDeReservas
             await _reservaRepository.UpdateAsync(vencida, ct);
             activas.Remove(vencida);
 
-            await LiberarEjemplarAsync(libro, activas, vencida.FechaLimiteRetiro!.Value, ct);
+            await LiberarEjemplarAsync(libro, activas, vencida.FechaLimiteRetiro!.Value, guardarCambios: true, ct);
             vencida = BuscarAsignacionVencida(activas, ahora);
         }
     }
 
-    public async Task<bool> AsignarAlSiguienteAsync(Libro libro, DateTime desde, CancellationToken ct = default)
+    public async Task<bool> AsignarAlSiguienteAsync(Libro libro, DateTime desde, CancellationToken ct = default, bool guardarCambios = true)
     {
         var activas = (await _reservaRepository.GetActivasPorLibroAsync(libro.Id, ct)).ToList();
-        return await AsignarAlSiguienteAsync(activas, desde, ct);
+        return await AsignarAlSiguienteAsync(activas, desde, guardarCambios, ct);
     }
 
     public async Task LiberarEjemplarAsync(Libro libro, DateTime desde, CancellationToken ct = default)
     {
         var activas = (await _reservaRepository.GetActivasPorLibroAsync(libro.Id, ct)).ToList();
-        await LiberarEjemplarAsync(libro, activas, desde, ct);
+        await LiberarEjemplarAsync(libro, activas, desde, guardarCambios: true, ct);
     }
 
-    private async Task LiberarEjemplarAsync(Libro libro, List<Reserva> activas, DateTime desde, CancellationToken ct)
+    private async Task LiberarEjemplarAsync(Libro libro, List<Reserva> activas, DateTime desde, bool guardarCambios, CancellationToken ct)
     {
-        if (await AsignarAlSiguienteAsync(activas, desde, ct))
+        if (await AsignarAlSiguienteAsync(activas, desde, guardarCambios, ct))
         {
             return;
         }
 
         libro.Stock += 1;
-        await _libroRepository.UpdateAsync(libro, ct);
+        await _libroRepository.UpdateAsync(libro, ct, guardarCambios);
     }
 
-    private async Task<bool> AsignarAlSiguienteAsync(List<Reserva> activas, DateTime desde, CancellationToken ct)
+    private async Task<bool> AsignarAlSiguienteAsync(List<Reserva> activas, DateTime desde, bool guardarCambios, CancellationToken ct)
     {
         var siguiente = activas.FirstOrDefault(r => r.Estado == EstadoReserva.EnCola);
         if (siguiente is null)
@@ -68,7 +68,7 @@ public class ColaDeReservas : IColaDeReservas
         siguiente.Estado = EstadoReserva.Asignada;
         siguiente.FechaAsignacion = desde;
         siguiente.FechaLimiteRetiro = desde.AddHours(HorasParaRetirar);
-        await _reservaRepository.UpdateAsync(siguiente, ct);
+        await _reservaRepository.UpdateAsync(siguiente, ct, guardarCambios);
         return true;
     }
 
