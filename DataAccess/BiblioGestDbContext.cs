@@ -24,6 +24,9 @@ public class BiblioGestDbContext : DbContext
             entity.Property(l => l.Autor).IsRequired();
             entity.Property(l => l.Isbn).IsRequired();
             entity.Property(l => l.Ubicacion).IsRequired();
+            entity.Property(l => l.RowVersion)
+                .IsConcurrencyToken()
+                .HasDefaultValueSql("randomblob(8)");
         });
 
         modelBuilder.Entity<Lector>(entity =>

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using BiblioGest.DataAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,7 +45,16 @@ public class LibroRepository : ILibroRepository
 
     public async Task UpdateAsync(Libro libro, CancellationToken ct = default)
     {
-        _context.Libros.Update(libro);
+        // RowVersion es el token de concurrencia optimista: el valor que trae
+        // "libro" es el que se leyó antes de modificarlo (el original real),
+        // y acá se genera uno nuevo para guardar. Si otra operación ya lo
+        // cambió entre medio, el UPDATE no afecta filas y EF tira
+        // DbUpdateConcurrencyException.
+        var rowVersionLeido = libro.RowVersion;
+        var entry = _context.Libros.Update(libro);
+        entry.Property(l => l.RowVersion).OriginalValue = rowVersionLeido;
+        entry.Property(l => l.RowVersion).CurrentValue = RandomNumberGenerator.GetBytes(8);
+
         await _context.SaveChangesAsync(ct);
     }
 
