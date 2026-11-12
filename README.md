@@ -99,9 +99,10 @@ con Moq en los tests unitarios.
 - **Usuario**: Id (int autoincremental), Email (único, 6 a 100 caracteres, formato válido), PasswordHash (PBKDF2), RolUsuario
   (Administrador/Bibliotecario), Activo (baja lógica).
 
-`Prestamo` es hijo de `Libro` y `Lector` con `DeleteBehavior.Restrict`: no
-se puede eliminar un libro o lector con préstamos activos a nivel de base
-de datos, además de la validación explícita en el service (409 Conflict).
+`Prestamo` y `Reserva` son hijos de `Libro` y `Lector` con
+`DeleteBehavior.Restrict`: no se puede eliminar un libro o lector con
+préstamos o reservas activas a nivel de base de datos, además de la
+validación explícita en el service (409 Conflict).
 
 ## Reglas de negocio y excepciones
 

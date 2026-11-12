@@ -73,12 +73,12 @@ public class BiblioGestDbContext : DbContext
             entity.HasOne(r => r.Lector)
                 .WithMany()
                 .HasForeignKey(r => r.LectorId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(r => r.Libro)
                 .WithMany()
                 .HasForeignKey(r => r.LibroId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.Property(r => r.Estado)
                 .HasConversion<string>();
