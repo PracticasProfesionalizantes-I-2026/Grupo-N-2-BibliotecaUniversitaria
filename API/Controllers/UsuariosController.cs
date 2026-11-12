@@ -66,6 +66,10 @@ public class UsuariosController : ControllerBase
             var actualizado = await _usuarioService.UpdateAsync(id, dto, UsuarioActualId(), ct);
             return Ok(actualizado);
         }
+        catch (UnauthorizedException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
         catch (NotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
@@ -88,6 +92,10 @@ public class UsuariosController : ControllerBase
             await _usuarioService.DeleteAsync(id, UsuarioActualId(), ct);
             return Ok(new { message = "Usuario dado de baja correctamente." });
         }
+        catch (UnauthorizedException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
         catch (NotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
@@ -98,6 +106,14 @@ public class UsuariosController : ControllerBase
         }
     }
 
-    private int UsuarioActualId() =>
-        int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private int UsuarioActualId()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(claim, out var id))
+        {
+            throw new ClaimInvalidoException();
+        }
+
+        return id;
+    }
 }
