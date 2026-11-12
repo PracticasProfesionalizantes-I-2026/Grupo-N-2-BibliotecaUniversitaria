@@ -1,9 +1,11 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.BusinessLogic.Services;
+using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Prestamos;
 using BiblioGest.Shared.Exceptions;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 
@@ -16,9 +18,10 @@ public class PrestamoServiceTests
     private readonly Mock<ILectorRepository> _lectorRepository = new();
     private readonly Mock<IReservaRepository> _reservaRepository = new();
     private readonly Mock<IColaDeReservas> _colaDeReservas = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
     private PrestamoService CrearService() =>
-        new(_prestamoRepository.Object, _libroRepository.Object, _lectorRepository.Object, _reservaRepository.Object, _colaDeReservas.Object);
+        new(_prestamoRepository.Object, _libroRepository.Object, _lectorRepository.Object, _reservaRepository.Object, _colaDeReservas.Object, _unitOfWork.Object);
 
     private static Lector CrearLector(int id) =>
         new() { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Dni = "1" };
@@ -54,6 +57,38 @@ public class PrestamoServiceTests
         Assert.Equal(resultado.FechaPrestamo.AddDays(14), resultado.FechaVencimiento);
         Assert.Equal(1, libro.Stock);
         _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreatePrestamoAsync_WhenLibroStockWasChangedConcurrently_ThrowsLibroConcurrenciaExceptionAndRollsBack()
+    {
+        var lectorId = IdsDePrueba.Nuevo();
+        var libroId = IdsDePrueba.Nuevo();
+        var lector = CrearLector(lectorId);
+        var libro = CrearLibro(libroId, stock: 1);
+
+        _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _libroRepository.Setup(r => r.GetByIdAsync(libroId, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
+        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _prestamoRepository
+            .Setup(r => r.CreateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Prestamo p, CancellationToken _) =>
+            {
+                p.Id = IdsDePrueba.Nuevo();
+                return p;
+            });
+        _libroRepository
+            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LibroConcurrenciaException>(
+            () => service.CreateAsync(new PrestamoCreateDTO { LectorId = lectorId, LibroId = libroId }));
+
+        _unitOfWork.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -139,8 +174,36 @@ public class PrestamoServiceTests
         Assert.Equal("Devuelto", resultado.Estado);
         Assert.NotNull(resultado.FechaDevolucion);
         Assert.Equal(1, libro.Stock);
-        _prestamoRepository.Verify(r => r.UpdateAsync(prestamo, It.IsAny<CancellationToken>()), Times.Once);
-        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+        _prestamoRepository.Verify(r => r.UpdateAsync(prestamo, It.IsAny<CancellationToken>(), false), Times.Once);
+        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false), Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegisterDevolucionAsync_WhenUpdatingStockFails_NeverReachesSaveChanges()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0);
+        var prestamo = new Prestamo
+        {
+            Id = id,
+            LectorId = IdsDePrueba.Nuevo(),
+            LibroId = libro.Id,
+            Libro = libro,
+            FechaPrestamo = DateTime.UtcNow.AddDays(-5),
+            FechaVencimiento = DateTime.UtcNow.AddDays(9),
+            Estado = EstadoPrestamo.Activo
+        };
+        _prestamoRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
+        _libroRepository
+            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false))
+            .ThrowsAsync(new InvalidOperationException("Fallo simulado al actualizar el stock."));
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RegistrarDevolucionAsync(id));
+
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -272,7 +335,7 @@ public class PrestamoServiceTests
         var resultado = await service.RegistrarDevolucionAsync(prestamo.Id);
 
         Assert.Equal(resultado.FechaDevolucion!.Value.AddDays(3), lector.SuspendidoHasta);
-        _lectorRepository.Verify(r => r.UpdateAsync(lector, It.IsAny<CancellationToken>()), Times.Once);
+        _lectorRepository.Verify(r => r.UpdateAsync(lector, It.IsAny<CancellationToken>(), false), Times.Once);
     }
 
     [Fact]
@@ -370,7 +433,23 @@ public class PrestamoServiceTests
         Assert.NotNull(resultado.FechaDevolucion);
         Assert.Equal(1, libro.Stock);
         Assert.Null(lector.SuspendidoHasta);
-        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false), Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegistrarReposicionAsync_WhenUpdatingStockFails_NeverReachesSaveChanges()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Extraviado, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
+        _libroRepository
+            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false))
+            .ThrowsAsync(new InvalidOperationException("Fallo simulado al actualizar el stock."));
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RegistrarReposicionAsync(prestamo.Id));
+
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -466,7 +545,7 @@ public class PrestamoServiceTests
     {
         var prestamo = ConfigurarPrestamo(EstadoPrestamo.Activo, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
         _colaDeReservas
-            .Setup(c => c.AsignarAlSiguienteAsync(libro, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Setup(c => c.AsignarAlSiguienteAsync(libro, It.IsAny<DateTime>(), It.IsAny<CancellationToken>(), false))
             .ReturnsAsync(true);
 
         var service = CrearService();
@@ -474,7 +553,7 @@ public class PrestamoServiceTests
 
         Assert.Equal("Devuelto", resultado.Estado);
         Assert.Equal(0, libro.Stock);
-        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
     }
 
     [Fact]

@@ -1,8 +1,10 @@
 using BiblioGest.BusinessLogic.Interfaces;
+using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Reservas;
 using BiblioGest.Shared.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace BiblioGest.BusinessLogic.Services;
 
@@ -12,17 +14,20 @@ public class ReservaService : IReservaService
     private readonly ILibroRepository _libroRepository;
     private readonly ILectorRepository _lectorRepository;
     private readonly IColaDeReservas _colaDeReservas;
+    private readonly IUnitOfWork _unitOfWork;
 
     public ReservaService(
         IReservaRepository reservaRepository,
         ILibroRepository libroRepository,
         ILectorRepository lectorRepository,
-        IColaDeReservas colaDeReservas)
+        IColaDeReservas colaDeReservas,
+        IUnitOfWork unitOfWork)
     {
         _reservaRepository = reservaRepository;
         _libroRepository = libroRepository;
         _lectorRepository = lectorRepository;
         _colaDeReservas = colaDeReservas;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IReadOnlyList<ReservaResponseDTO>> GetColaPorLibroAsync(int libroId, CancellationToken ct = default)
@@ -56,32 +61,48 @@ public class ReservaService : IReservaService
         var libro = await _libroRepository.GetByIdAsync(dto.LibroId, ct)
             ?? throw new LibroNotFoundException(dto.LibroId);
 
-        await _colaDeReservas.ProcesarAsignacionesVencidasAsync(libro, ct);
-
-        if (libro.Stock > 0)
+        await _unitOfWork.BeginTransactionAsync(ct);
+        try
         {
-            throw new ReservaConStockDisponibleException(libro.Id, libro.Stock);
+            await _colaDeReservas.ProcesarAsignacionesVencidasAsync(libro, ct);
+
+            if (libro.Stock > 0)
+            {
+                throw new ReservaConStockDisponibleException(libro.Id, libro.Stock);
+            }
+
+            if (await _reservaRepository.ExisteActivaAsync(lector.Id, libro.Id, ct))
+            {
+                throw new ReservaDuplicadaException(lector.Id, libro.Id);
+            }
+
+            var reserva = new Reserva
+            {
+                LectorId = lector.Id,
+                LibroId = libro.Id,
+                FechaReserva = DateTime.UtcNow,
+                Estado = EstadoReserva.EnCola
+            };
+
+            var creada = await _reservaRepository.CreateAsync(reserva, ct);
+            await _unitOfWork.CommitAsync(ct);
+
+            creada.Lector = lector;
+            creada.Libro = libro;
+
+            var activas = await _reservaRepository.GetActivasPorLibroAsync(libro.Id, ct);
+            return MapToResponseDTO(creada, activas);
         }
-
-        if (await _reservaRepository.ExisteActivaAsync(lector.Id, libro.Id, ct))
+        catch (DbUpdateConcurrencyException)
         {
-            throw new ReservaDuplicadaException(lector.Id, libro.Id);
+            await _unitOfWork.RollbackAsync(ct);
+            throw new LibroConcurrenciaException(libro.Id);
         }
-
-        var reserva = new Reserva
+        catch
         {
-            LectorId = lector.Id,
-            LibroId = libro.Id,
-            FechaReserva = DateTime.UtcNow,
-            Estado = EstadoReserva.EnCola
-        };
-
-        var creada = await _reservaRepository.CreateAsync(reserva, ct);
-        creada.Lector = lector;
-        creada.Libro = libro;
-
-        var activas = await _reservaRepository.GetActivasPorLibroAsync(libro.Id, ct);
-        return MapToResponseDTO(creada, activas);
+            await _unitOfWork.RollbackAsync(ct);
+            throw;
+        }
     }
 
     public async Task<ReservaResponseDTO> CancelarAsync(int id, CancellationToken ct = default)

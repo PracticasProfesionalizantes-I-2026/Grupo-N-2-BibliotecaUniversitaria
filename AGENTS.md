@@ -50,6 +50,16 @@ dotnet ef database update
 - `Repository` (en `DataAccess/`) es el único lugar que habla con el
   `DbContext`. Usa `AsNoTracking()` en toda lectura. Los Id son enteros
   autoincrementales que asigna la base al guardar (nunca los manda el caller).
+- `IUnitOfWork` (en `DataAccess/`) expone `BeginTransactionAsync`/
+  `CommitAsync`/`RollbackAsync` sobre el `DbContext`. Es la única forma en
+  que un `Service` puede abrir una transacción explícita (cuando una
+  operación hace varias lecturas/escrituras que tienen que ser atómicas)
+  sin violar la regla de arriba de no tocar el `DbContext` directamente.
+- `Libro.RowVersion` es un token de concurrencia optimista (`IsConcurrencyToken`
+  en el `DbContext`) que `LibroRepository.UpdateAsync` regenera en cada
+  update. Si el valor leído quedó desactualizado, EF tira
+  `DbUpdateConcurrencyException`; el `Service` que llamó a `UpdateAsync` lo
+  atrapa y lanza `LibroConcurrenciaException` (409).
 - DTOs (`Shared/DTOs/`) son manuales, sin AutoMapper, separados en
   `CreateDTO`/`UpdateDTO`/`ResponseDTO` por entidad. Nunca se expone una
   entidad de EF directamente en una respuesta HTTP.

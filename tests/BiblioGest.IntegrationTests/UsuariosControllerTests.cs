@@ -162,9 +162,6 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    // Token válido (misma clave/issuer/audience que appsettings.json) y con
-    // el rol correcto, pero sin el claim de identificador de usuario: simula
-    // un token mal emitido para probar que UsuarioActualId() no tira 500.
     private static string CrearTokenSinClaimDeId()
     {
         var claims = new List<Claim>

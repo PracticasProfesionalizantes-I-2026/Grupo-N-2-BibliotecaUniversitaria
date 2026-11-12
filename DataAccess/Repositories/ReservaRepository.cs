@@ -66,7 +66,7 @@ public class ReservaRepository : IReservaRepository
         return reserva;
     }
 
-    public async Task UpdateAsync(Reserva reserva, CancellationToken ct = default)
+    public async Task UpdateAsync(Reserva reserva, CancellationToken ct = default, bool guardarCambios = true)
     {
         var existente = await _context.Reservas.FindAsync([reserva.Id], ct);
         if (existente is null)
@@ -75,6 +75,10 @@ public class ReservaRepository : IReservaRepository
         }
 
         _context.Entry(existente).CurrentValues.SetValues(reserva);
-        await _context.SaveChangesAsync(ct);
+
+        if (guardarCambios)
+        {
+            await _context.SaveChangesAsync(ct);
+        }
     }
 }

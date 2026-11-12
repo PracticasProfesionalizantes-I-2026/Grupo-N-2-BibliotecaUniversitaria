@@ -26,10 +26,14 @@ public class PrestamoRepository : IPrestamoRepository
         return prestamo;
     }
 
-    public async Task UpdateAsync(Prestamo prestamo, CancellationToken ct = default)
+    public async Task UpdateAsync(Prestamo prestamo, CancellationToken ct = default, bool guardarCambios = true)
     {
         _context.Prestamos.Update(prestamo);
-        await _context.SaveChangesAsync(ct);
+
+        if (guardarCambios)
+        {
+            await _context.SaveChangesAsync(ct);
+        }
     }
 
     public Task<int> CountActivosPorLectorAsync(int lectorId, CancellationToken ct = default) =>

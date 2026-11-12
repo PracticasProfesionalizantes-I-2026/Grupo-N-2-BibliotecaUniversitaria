@@ -9,12 +9,6 @@ using Xunit;
 
 namespace BiblioGest.IntegrationTests;
 
-// Issue #30: la base tiene que rechazar el borrado de un libro/lector con
-// reservas activas igual que lo hace la validación del Service
-// (LibroConReservasActivasException/LectorConReservasActivasException), para
-// que la integridad referencial no dependa solo de la capa de negocio.
-// Acá se llama directo al repositorio (sin pasar por el Service) para probar
-// que el DeleteBehavior.Restrict de la base funciona por sí solo.
 public class DeleteBehaviorReservasTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private readonly CustomWebApplicationFactory _factory;

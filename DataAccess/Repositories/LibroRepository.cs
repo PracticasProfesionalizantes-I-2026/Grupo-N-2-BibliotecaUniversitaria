@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using BiblioGest.DataAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,10 +49,17 @@ public class LibroRepository : ILibroRepository
         return libro;
     }
 
-    public async Task UpdateAsync(Libro libro, CancellationToken ct = default)
+    public async Task UpdateAsync(Libro libro, CancellationToken ct = default, bool guardarCambios = true)
     {
-        _context.Libros.Update(libro);
-        await _context.SaveChangesAsync(ct);
+        var rowVersionLeido = libro.RowVersion;
+        var entry = _context.Libros.Update(libro);
+        entry.Property(l => l.RowVersion).OriginalValue = rowVersionLeido;
+        entry.Property(l => l.RowVersion).CurrentValue = RandomNumberGenerator.GetBytes(8);
+
+        if (guardarCambios)
+        {
+            await _context.SaveChangesAsync(ct);
+        }
     }
 
     public async Task DeleteAsync(Libro libro, CancellationToken ct = default)

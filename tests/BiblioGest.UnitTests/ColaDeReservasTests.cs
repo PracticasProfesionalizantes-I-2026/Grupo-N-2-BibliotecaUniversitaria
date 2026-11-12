@@ -1,4 +1,5 @@
 using BiblioGest.BusinessLogic.Services;
+using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using Moq;
@@ -10,8 +11,9 @@ public class ColaDeReservasTests
 {
     private readonly Mock<IReservaRepository> _reservaRepository = new();
     private readonly Mock<ILibroRepository> _libroRepository = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
-    private ColaDeReservas CrearCola() => new(_reservaRepository.Object, _libroRepository.Object);
+    private ColaDeReservas CrearCola() => new(_reservaRepository.Object, _libroRepository.Object, _unitOfWork.Object);
 
     private static Libro CrearLibro(int stock) =>
         new() { Id = IdsDePrueba.Nuevo(), Titulo = "Rayuela", Autor = "Cortázar", Isbn = "1", Ubicacion = "A1-1", Stock = stock };
@@ -78,7 +80,9 @@ public class ColaDeReservasTests
         Assert.Equal(limiteVencido, siguiente.FechaAsignacion);
         Assert.Equal(limiteVencido.AddHours(24), siguiente.FechaLimiteRetiro);
         Assert.Equal(0, libro.Stock);
-        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
+        _reservaRepository.Verify(r => r.UpdateAsync(It.IsAny<Reserva>(), It.IsAny<CancellationToken>(), false), Times.Exactly(2));
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -92,7 +96,8 @@ public class ColaDeReservasTests
 
         Assert.Equal(EstadoReserva.Vencida, vencida.Estado);
         Assert.Equal(1, libro.Stock);
-        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false), Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -108,6 +113,7 @@ public class ColaDeReservasTests
         Assert.Equal(EstadoReserva.Vencida, vencida.Estado);
         Assert.Equal(EstadoReserva.Vencida, siguiente.Estado);
         Assert.Equal(1, libro.Stock);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -121,6 +127,7 @@ public class ColaDeReservasTests
 
         Assert.Equal(EstadoReserva.Asignada, vigente.Estado);
         Assert.Equal(0, libro.Stock);
-        _reservaRepository.Verify(r => r.UpdateAsync(It.IsAny<Reserva>(), It.IsAny<CancellationToken>()), Times.Never);
+        _reservaRepository.Verify(r => r.UpdateAsync(It.IsAny<Reserva>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }

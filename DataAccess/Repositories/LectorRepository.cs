@@ -39,10 +39,14 @@ public class LectorRepository : ILectorRepository
         return lector;
     }
 
-    public async Task UpdateAsync(Lector lector, CancellationToken ct = default)
+    public async Task UpdateAsync(Lector lector, CancellationToken ct = default, bool guardarCambios = true)
     {
         _context.Lectores.Update(lector);
-        await _context.SaveChangesAsync(ct);
+
+        if (guardarCambios)
+        {
+            await _context.SaveChangesAsync(ct);
+        }
     }
 
     public async Task DeleteAsync(Lector lector, CancellationToken ct = default)

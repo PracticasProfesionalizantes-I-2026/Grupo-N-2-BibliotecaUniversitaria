@@ -71,6 +71,13 @@ namespace BiblioGest.DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("BLOB")
+                        .HasDefaultValueSql("randomblob(8)");
+
                     b.Property<int>("Stock")
                         .HasColumnType("INTEGER");
 

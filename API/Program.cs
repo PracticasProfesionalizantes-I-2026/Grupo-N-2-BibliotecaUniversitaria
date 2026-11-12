@@ -61,6 +61,7 @@ builder.Services.AddScoped<ILectorRepository, LectorRepository>();
 builder.Services.AddScoped<IPrestamoRepository, PrestamoRepository>();
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 builder.Services.AddScoped<ILibroService, LibroService>();
 builder.Services.AddScoped<ILectorService, LectorService>();
@@ -74,7 +75,7 @@ builder.Services.AddScoped<IReporteService, ReporteService>();
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"];
 
-const int LargoMinimoClaveJwtEnBytes = 32; // HMAC-SHA256 requiere al menos 256 bits de clave.
+const int LargoMinimoClaveJwtEnBytes = 32;
 if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < LargoMinimoClaveJwtEnBytes)
 {
     throw new InvalidOperationException(
