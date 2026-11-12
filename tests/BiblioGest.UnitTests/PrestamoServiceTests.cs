@@ -176,12 +176,13 @@ public class PrestamoServiceTests
         Assert.Equal("Devuelto", resultado.Estado);
         Assert.NotNull(resultado.FechaDevolucion);
         Assert.Equal(1, libro.Stock);
-        _prestamoRepository.Verify(r => r.UpdateAsync(prestamo, It.IsAny<CancellationToken>()), Times.Once);
-        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+        _prestamoRepository.Verify(r => r.UpdateAsync(prestamo, It.IsAny<CancellationToken>(), false), Times.Once);
+        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false), Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task RegisterDevolucionAsync_WhenUpdatingStockFails_RollsBackAndNeverCommits()
+    public async Task RegisterDevolucionAsync_WhenUpdatingStockFails_NeverReachesSaveChanges()
     {
         var id = IdsDePrueba.Nuevo();
         var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0);
@@ -199,15 +200,15 @@ public class PrestamoServiceTests
         // Simula que falla el paso intermedio (actualizar el stock del libro
         // al devolver) después de haber marcado el préstamo como Devuelto.
         _libroRepository
-            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()))
+            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false))
             .ThrowsAsync(new InvalidOperationException("Fallo simulado al actualizar el stock."));
 
         var service = CrearService();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RegistrarDevolucionAsync(id));
 
-        _unitOfWork.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _unitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+        // El fallo ocurre antes del SaveChanges final: nada quedó persistido.
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -339,7 +340,7 @@ public class PrestamoServiceTests
         var resultado = await service.RegistrarDevolucionAsync(prestamo.Id);
 
         Assert.Equal(resultado.FechaDevolucion!.Value.AddDays(3), lector.SuspendidoHasta);
-        _lectorRepository.Verify(r => r.UpdateAsync(lector, It.IsAny<CancellationToken>()), Times.Once);
+        _lectorRepository.Verify(r => r.UpdateAsync(lector, It.IsAny<CancellationToken>(), false), Times.Once);
     }
 
     [Fact]
@@ -437,25 +438,26 @@ public class PrestamoServiceTests
         Assert.NotNull(resultado.FechaDevolucion);
         Assert.Equal(1, libro.Stock);
         Assert.Null(lector.SuspendidoHasta);
-        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+        _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false), Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task RegistrarReposicionAsync_WhenUpdatingStockFails_RollsBackAndNeverCommits()
+    public async Task RegistrarReposicionAsync_WhenUpdatingStockFails_NeverReachesSaveChanges()
     {
         var prestamo = ConfigurarPrestamo(EstadoPrestamo.Extraviado, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
         // Simula que falla el paso intermedio (actualizar el stock del libro
         // al reponer) después de haber marcado el préstamo como Repuesto.
         _libroRepository
-            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()))
+            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false))
             .ThrowsAsync(new InvalidOperationException("Fallo simulado al actualizar el stock."));
 
         var service = CrearService();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RegistrarReposicionAsync(prestamo.Id));
 
-        _unitOfWork.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _unitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+        // El fallo ocurre antes del SaveChanges final: nada quedó persistido.
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -551,7 +553,7 @@ public class PrestamoServiceTests
     {
         var prestamo = ConfigurarPrestamo(EstadoPrestamo.Activo, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
         _colaDeReservas
-            .Setup(c => c.AsignarAlSiguienteAsync(libro, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Setup(c => c.AsignarAlSiguienteAsync(libro, It.IsAny<DateTime>(), It.IsAny<CancellationToken>(), false))
             .ReturnsAsync(true);
 
         var service = CrearService();
@@ -559,7 +561,7 @@ public class PrestamoServiceTests
 
         Assert.Equal("Devuelto", resultado.Estado);
         Assert.Equal(0, libro.Stock);
-        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Never);
+        _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
     }
 
     [Fact]

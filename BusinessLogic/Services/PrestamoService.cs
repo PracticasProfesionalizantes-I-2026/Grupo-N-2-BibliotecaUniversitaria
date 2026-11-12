@@ -221,37 +221,30 @@ public class PrestamoService : IPrestamoService
 
     private async Task CerrarPrestamoAsync(Prestamo prestamo, EstadoPrestamo estadoFinal, CancellationToken ct)
     {
-        // Transacción atómica: el préstamo, la reserva/stock del libro y la
-        // suspensión del lector se confirman juntos o no se confirma nada.
-        // Si un paso intermedio falla, el rollback deja el préstamo tal como
-        // estaba (no queda "Devuelto"/"Repuesto" sin su contraparte de stock).
-        await _unitOfWork.BeginTransactionAsync(ct);
+        // El préstamo, la reserva/stock del libro y la suspensión del lector
+        // se marcan en memoria sin guardar cada uno por separado, y se
+        // persisten juntos con un único SaveChanges (atómico por sí mismo:
+        // si falla, no queda nada guardado a mitad de camino).
+        prestamo.Estado = estadoFinal;
+        prestamo.FechaDevolucion = DateTime.UtcNow;
+        await _prestamoRepository.UpdateAsync(prestamo, ct, guardarCambios: false);
+
+        if (prestamo.Libro is not null &&
+            !await _colaDeReservas.AsignarAlSiguienteAsync(prestamo.Libro, prestamo.FechaDevolucion.Value, ct, guardarCambios: false))
+        {
+            prestamo.Libro.Stock += 1;
+            await _libroRepository.UpdateAsync(prestamo.Libro, ct, guardarCambios: false);
+        }
+
+        await AplicarSuspensionPorAtrasoAsync(prestamo, ct);
+
         try
         {
-            prestamo.Estado = estadoFinal;
-            prestamo.FechaDevolucion = DateTime.UtcNow;
-            await _prestamoRepository.UpdateAsync(prestamo, ct);
-
-            if (prestamo.Libro is not null &&
-                !await _colaDeReservas.AsignarAlSiguienteAsync(prestamo.Libro, prestamo.FechaDevolucion.Value, ct))
-            {
-                prestamo.Libro.Stock += 1;
-                await _libroRepository.UpdateAsync(prestamo.Libro, ct);
-            }
-
-            await AplicarSuspensionPorAtrasoAsync(prestamo, ct);
-
-            await _unitOfWork.CommitAsync(ct);
+            await _unitOfWork.SaveChangesAsync(ct);
         }
         catch (DbUpdateConcurrencyException)
         {
-            await _unitOfWork.RollbackAsync(ct);
             throw new LibroConcurrenciaException(prestamo.LibroId);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync(ct);
-            throw;
         }
     }
 
@@ -307,7 +300,7 @@ public class PrestamoService : IPrestamoService
             : prestamo.FechaDevolucion.Value;
 
         lector.SuspendidoHasta = desde.AddDays(diasDeAtraso * DiasDeSuspensionPorDiaDeAtraso);
-        await _lectorRepository.UpdateAsync(lector, ct);
+        await _lectorRepository.UpdateAsync(lector, ct, guardarCambios: false);
     }
 
     private static int CalcularDiasDeAtraso(DateTime fechaVencimiento, DateTime fechaDevolucion)

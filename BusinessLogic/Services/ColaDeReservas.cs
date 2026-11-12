@@ -48,10 +48,10 @@ public class ColaDeReservas : IColaDeReservas
         }
     }
 
-    public async Task<bool> AsignarAlSiguienteAsync(Libro libro, DateTime desde, CancellationToken ct = default)
+    public async Task<bool> AsignarAlSiguienteAsync(Libro libro, DateTime desde, CancellationToken ct = default, bool guardarCambios = true)
     {
         var activas = (await _reservaRepository.GetActivasPorLibroAsync(libro.Id, ct)).ToList();
-        return await AsignarAlSiguienteAsync(activas, desde, guardarCambios: true, ct);
+        return await AsignarAlSiguienteAsync(activas, desde, guardarCambios, ct);
     }
 
     public async Task LiberarEjemplarAsync(Libro libro, DateTime desde, CancellationToken ct = default)
