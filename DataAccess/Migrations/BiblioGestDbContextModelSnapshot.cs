@@ -67,6 +67,10 @@ namespace BiblioGest.DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("IsbnNormalizado")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Stock")
                         .HasColumnType("INTEGER");
 
@@ -79,6 +83,9 @@ namespace BiblioGest.DataAccess.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsbnNormalizado")
+                        .IsUnique();
 
                     b.ToTable("Libros");
                 });

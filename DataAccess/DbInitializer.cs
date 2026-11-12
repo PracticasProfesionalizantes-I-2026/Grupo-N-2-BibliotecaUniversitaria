@@ -45,6 +45,7 @@ public static class DbInitializer
                 Titulo = "Cien Años de Soledad",
                 Autor = "Gabriel García Márquez",
                 Isbn = "978-0307474728",
+                IsbnNormalizado = "9780307474728",
                 Ubicacion = "A1-1",
                 Stock = 3
             },
@@ -53,6 +54,7 @@ public static class DbInitializer
                 Titulo = "Ficciones",
                 Autor = "Jorge Luis Borges",
                 Isbn = "978-8433914091",
+                IsbnNormalizado = "9788433914091",
                 Ubicacion = "A1-2",
                 Stock = 2
             },
@@ -61,6 +63,7 @@ public static class DbInitializer
                 Titulo = "Rayuela",
                 Autor = "Julio Cortázar",
                 Isbn = "978-8437604572",
+                IsbnNormalizado = "9788437604572",
                 Ubicacion = "A2-1",
                 Stock = 0
             }

@@ -49,6 +49,7 @@ public class LibroService : ILibroService
             Titulo = dto.Titulo.Trim(),
             Autor = dto.Autor.Trim(),
             Isbn = dto.Isbn.Trim(),
+            IsbnNormalizado = NormalizarIsbn(dto.Isbn),
             Ubicacion = dto.Ubicacion.Trim().ToUpperInvariant(),
             Stock = dto.Stock
         };
@@ -73,6 +74,7 @@ public class LibroService : ILibroService
         libro.Titulo = titulo.Trim();
         libro.Autor = autor.Trim();
         libro.Isbn = isbn.Trim();
+        libro.IsbnNormalizado = NormalizarIsbn(isbn);
         libro.Ubicacion = ubicacion.Trim().ToUpperInvariant();
         libro.Stock = stock;
 

@@ -38,7 +38,7 @@ public class LibroRepository : ILibroRepository
 
     public Task<bool> ExisteIsbnAsync(string isbnSinGuiones, int? excluirLibroId, CancellationToken ct = default) =>
         _context.Libros.AsNoTracking().AnyAsync(l =>
-            l.Isbn.Replace("-", "").ToUpper() == isbnSinGuiones &&
+            l.IsbnNormalizado == isbnSinGuiones &&
             (excluirLibroId == null || l.Id != excluirLibroId), ct);
 
     public async Task<Libro> CreateAsync(Libro libro, CancellationToken ct = default)
