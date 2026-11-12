@@ -17,9 +17,6 @@ namespace BiblioGest.DataAccess.Migrations
                 nullable: false,
                 defaultValue: "");
 
-            // Completa IsbnNormalizado para los libros existentes antes de
-            // crear el índice único, igual que hace LibroService con los
-            // libros nuevos (sin guiones, en mayúsculas).
             migrationBuilder.Sql(
                 "UPDATE Libros SET IsbnNormalizado = UPPER(REPLACE(Isbn, '-', ''));");
 
