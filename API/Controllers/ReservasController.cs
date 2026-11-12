@@ -9,6 +9,7 @@ namespace BiblioGest.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/reservas")]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public class ReservasController : ControllerBase
 {
     private readonly IReservaService _reservaService;
@@ -19,6 +20,8 @@ public class ReservasController : ControllerBase
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<ReservaResponseDTO>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetColaPorLibro([FromQuery] int libroId, CancellationToken ct)
     {
         try
@@ -33,6 +36,8 @@ public class ReservasController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(ReservaResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         try
@@ -47,6 +52,10 @@ public class ReservasController : ControllerBase
     }
 
     [HttpPost]
+    [ProducesResponseType(typeof(ReservaResponseDTO), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] ReservaCreateDTO dto, CancellationToken ct)
     {
         try
@@ -65,6 +74,9 @@ public class ReservasController : ControllerBase
     }
 
     [HttpPut("{id:int}/cancelacion")]
+    [ProducesResponseType(typeof(ReservaResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Cancelar(int id, CancellationToken ct)
     {
         try

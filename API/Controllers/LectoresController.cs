@@ -9,6 +9,7 @@ namespace BiblioGest.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/lectores")]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public class LectoresController : ControllerBase
 {
     private readonly ILectorService _lectorService;
@@ -18,16 +19,19 @@ public class LectoresController : ControllerBase
         _lectorService = lectorService;
     }
 
-    // GET /api/lectores
+    // GET /api/lectores?pageNumber=&pageSize=
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    [ProducesResponseType(typeof(IReadOnlyList<LectorResponseDTO>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll([FromQuery] int? pageNumber, [FromQuery] int? pageSize, CancellationToken ct)
     {
-        var lectores = await _lectorService.GetAllAsync(ct);
+        var lectores = await _lectorService.GetAllAsync(pageNumber, pageSize, ct);
         return Ok(lectores);
     }
 
     // GET /api/lectores/{id}
     [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(LectorResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         try
@@ -43,6 +47,9 @@ public class LectoresController : ControllerBase
 
     // POST /api/lectores
     [HttpPost]
+    [ProducesResponseType(typeof(LectorResponseDTO), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] LectorCreateDTO dto, CancellationToken ct)
     {
         try
@@ -62,6 +69,10 @@ public class LectoresController : ControllerBase
 
     // PUT /api/lectores/{id}
     [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(LectorResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(int id, [FromBody] LectorUpdateDTO dto, CancellationToken ct)
     {
         try
@@ -85,6 +96,9 @@ public class LectoresController : ControllerBase
 
     // DELETE /api/lectores/{id}
     [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         try

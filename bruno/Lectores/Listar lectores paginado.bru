@@ -1,0 +1,16 @@
+meta {
+  name: Listar lectores paginado
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/lectores?pageNumber=1&pageSize=2
+  body: none
+  auth: inherit
+}
+
+params:query {
+  pageNumber: 1
+  pageSize: 2
+}

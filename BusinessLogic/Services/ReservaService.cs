@@ -61,9 +61,6 @@ public class ReservaService : IReservaService
         var libro = await _libroRepository.GetByIdAsync(dto.LibroId, ct)
             ?? throw new LibroNotFoundException(dto.LibroId);
 
-        // Transacción explícita: ProcesarAsignacionesVencidasAsync puede
-        // tocar el stock del libro (ver ColaDeReservas), así que el chequeo
-        // de Stock y el alta de la reserva tienen que ser atómicos entre sí.
         await _unitOfWork.BeginTransactionAsync(ct);
         try
         {

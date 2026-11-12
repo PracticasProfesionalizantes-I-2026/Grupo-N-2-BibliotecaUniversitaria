@@ -44,6 +44,20 @@ public class LectoresControllerTests : IClassFixture<CustomWebApplicationFactory
     }
 
     [Fact]
+    public async Task GetAllLectores_WithPagination_ReturnsNonOverlappingPages()
+    {
+        await _client.PostAsJsonAsync("/api/lectores", NuevoLectorDto());
+        await _client.PostAsJsonAsync("/api/lectores", NuevoLectorDto());
+
+        var pagina1 = await _client.GetFromJsonAsync<List<LectorResponseDTO>>("/api/lectores?pageNumber=1&pageSize=1");
+        var pagina2 = await _client.GetFromJsonAsync<List<LectorResponseDTO>>("/api/lectores?pageNumber=2&pageSize=1");
+
+        Assert.Single(pagina1!);
+        Assert.Single(pagina2!);
+        Assert.NotEqual(pagina1![0].Id, pagina2![0].Id);
+    }
+
+    [Fact]
     public async Task CreateLector_WhenDuplicateDni_Returns409Conflict()
     {
         var dto = NuevoLectorDto();

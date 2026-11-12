@@ -10,6 +10,8 @@ namespace BiblioGest.Api.Controllers;
 [ApiController]
 [Authorize(Roles = "Administrador")]
 [Route("api/usuarios")]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class UsuariosController : ControllerBase
 {
     private readonly IUsuarioService _usuarioService;
@@ -20,6 +22,7 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<UsuarioResponseDTO>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var usuarios = await _usuarioService.GetAllAsync(ct);
@@ -27,6 +30,8 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(UsuarioResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         try
@@ -41,6 +46,9 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpPost]
+    [ProducesResponseType(typeof(UsuarioResponseDTO), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] UsuarioCreateDTO dto, CancellationToken ct)
     {
         try
@@ -59,12 +67,20 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(UsuarioResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(int id, [FromBody] UsuarioUpdateDTO dto, CancellationToken ct)
     {
         try
         {
             var actualizado = await _usuarioService.UpdateAsync(id, dto, UsuarioActualId(), ct);
             return Ok(actualizado);
+        }
+        catch (UnauthorizedException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
         }
         catch (NotFoundException ex)
         {
@@ -81,12 +97,19 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         try
         {
             await _usuarioService.DeleteAsync(id, UsuarioActualId(), ct);
             return Ok(new { message = "Usuario dado de baja correctamente." });
+        }
+        catch (UnauthorizedException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
         }
         catch (NotFoundException ex)
         {
@@ -98,6 +121,14 @@ public class UsuariosController : ControllerBase
         }
     }
 
-    private int UsuarioActualId() =>
-        int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private int UsuarioActualId()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(claim, out var id))
+        {
+            throw new ClaimInvalidoException();
+        }
+
+        return id;
+    }
 }

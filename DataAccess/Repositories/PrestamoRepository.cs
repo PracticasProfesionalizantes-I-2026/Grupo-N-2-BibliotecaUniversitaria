@@ -79,14 +79,22 @@ public class PrestamoRepository : IPrestamoRepository
             .AsNoTracking()
             .AnyAsync(p => p.LectorId == lectorId && p.LibroId == libroId && p.Estado == EstadoPrestamo.Activo, ct);
 
-    public async Task<IReadOnlyList<Prestamo>> GetActivosAsync(CancellationToken ct = default) =>
-        await _context.Prestamos
+    public async Task<IReadOnlyList<Prestamo>> GetActivosAsync(int? pageNumber = null, int? pageSize = null, CancellationToken ct = default)
+    {
+        var ordenado = _context.Prestamos
             .AsNoTracking()
             .Include(p => p.Libro)
             .Include(p => p.Lector)
             .Where(p => p.Estado == EstadoPrestamo.Activo)
-            .OrderBy(p => p.FechaVencimiento)
-            .ToListAsync(ct);
+            .OrderBy(p => p.FechaVencimiento);
+
+        if (pageNumber is > 0 && pageSize is > 0)
+        {
+            return await ordenado.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value).ToListAsync(ct);
+        }
+
+        return await ordenado.ToListAsync(ct);
+    }
 
     public async Task<IReadOnlyList<Prestamo>> GetVencidosAsync(CancellationToken ct = default) =>
         await _context.Prestamos

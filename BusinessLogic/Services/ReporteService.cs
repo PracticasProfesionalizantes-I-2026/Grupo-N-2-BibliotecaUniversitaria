@@ -63,8 +63,8 @@ public class ReporteService : IReporteService
 
     private async Task<ReporteResponseDTO> GenerarResumenAsync(CancellationToken ct)
     {
-        var libros = await _libroRepository.GetAllAsync(null, ct);
-        var lectores = await _lectorRepository.GetAllAsync(ct);
+        var libros = await _libroRepository.GetAllAsync(null, ct: ct);
+        var lectores = await _lectorRepository.GetAllAsync(ct: ct);
         var prestamos = await _prestamoRepository.GetPorRangoAsync(null, null, ct);
         var vencidos = await _prestamoRepository.GetVencidosAsync(ct);
 

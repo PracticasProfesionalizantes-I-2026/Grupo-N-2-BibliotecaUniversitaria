@@ -99,9 +99,10 @@ con Moq en los tests unitarios.
 - **Usuario**: Id (int autoincremental), Email (único, 6 a 100 caracteres, formato válido), PasswordHash (PBKDF2), RolUsuario
   (Administrador/Bibliotecario), Activo (baja lógica).
 
-`Prestamo` es hijo de `Libro` y `Lector` con `DeleteBehavior.Restrict`: no
-se puede eliminar un libro o lector con préstamos activos a nivel de base
-de datos, además de la validación explícita en el service (409 Conflict).
+`Prestamo` y `Reserva` son hijos de `Libro` y `Lector` con
+`DeleteBehavior.Restrict`: no se puede eliminar un libro o lector con
+préstamos o reservas activas a nivel de base de datos, además de la
+validación explícita en el service (409 Conflict).
 
 ## Reglas de negocio y excepciones
 
@@ -137,6 +138,7 @@ de datos, además de la validación explícita en el service (409 Conflict).
 | El administrador se da de baja, se desactiva o se quita el rol a sí mismo | `UsuarioAutoBajaException` / `UsuarioAutoModificacionException` | 409 |
 | Dejar al sistema sin ningún administrador activo | `UltimoAdministradorException` | 409 |
 | Request sin token o con token inválido/vencido | `JwtBearerEvents.OnChallenge` | 401 (`Debe iniciar sesión.` / `Token inválido o vencido.`) |
+| Token válido pero sin un claim de identificador de usuario válido (en `/api/usuarios`) | `ClaimInvalidoException` | 401 |
 | Rol insuficiente | `JwtBearerEvents.OnForbidden` | 403 (`No tiene permisos para realizar esta acción.`) |
 | Cuerpo vacío o JSON mal formado | `InvalidModelStateResponseFactory` | 400 con `{ "message" }` en español |
 | Renovar un préstamo ya renovado 2 veces | `LimiteRenovacionesException` | 403 |
@@ -164,6 +166,29 @@ dotnet build BiblioGest.slnx      # compila toda la solución
 dotnet test BiblioGest.slnx       # corre unitarios (Moq) e integración (WebApplicationFactory)
 dotnet run --project API          # levanta la API (crea bibliogest.db con datos de prueba)
 ```
+
+### Configurar la clave JWT
+
+`API/appsettings.json` ya no trae la clave de firma de los tokens (antes
+estaba hardcodeada y comiteada, ver issue de seguridad #26). La API no
+arranca si `Jwt:Key` falta o es insegura (menos de 32 bytes).
+
+**En desarrollo**, configurarla una sola vez con `dotnet user-secrets`
+desde `API/` (no se versiona, queda fuera del repositorio):
+
+```bash
+cd API
+dotnet user-secrets set "Jwt:Key" "<una-clave-larga-y-aleatoria-de-al-menos-32-bytes>"
+```
+
+**En otros entornos** (CI, staging, producción), definir la variable de
+entorno `Jwt__Key` con el mismo valor. ASP.NET Core la mapea sola a
+`Jwt:Key` por la convención de doble guion bajo.
+
+La cadena de conexión (`ConnectionStrings:BiblioGest`, por defecto
+`Data Source=bibliogest.db`) se puede sobrescribir del mismo modo con la
+variable de entorno `ConnectionStrings__BiblioGest`, sin tocar
+`appsettings.json`.
 
 Con la API corriendo en desarrollo (`dotnet run --project API` la abre sola
 en el navegador), la documentación interactiva está en:
@@ -223,7 +248,7 @@ Usuarios de prueba: `admin@bibliogest.com` / `Admin123!` (Administrador) y
 
 | Método | Ruta | Descripción | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| GET | `/api/libros?busqueda=` | Listar/buscar por título, autor o ISBN | 200 | — |
+| GET | `/api/libros?busqueda=&pageNumber=&pageSize=` | Listar/buscar por título, autor o ISBN, paginado (`pageNumber` y `pageSize` opcionales, default 20, máximo 100) | 200 | — |
 | GET | `/api/libros/{id}` | Obtener un libro | 200 | 404 |
 | POST | `/api/libros` | Crear libro | 201 | 400, 409 |
 | PUT | `/api/libros/{id}` | Modificar libro (solo los campos enviados; los que faltan se mantienen) | 200 | 400, 404, 409 |
@@ -257,7 +282,7 @@ Ejemplo `POST /api/libros`:
 
 | Método | Ruta | Descripción | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| GET | `/api/lectores` | Listar lectores | 200 | — |
+| GET | `/api/lectores?pageNumber=&pageSize=` | Listar lectores, paginado (`pageNumber` y `pageSize` opcionales, default 20, máximo 100) | 200 | — |
 | GET | `/api/lectores/{id}` | Obtener un lector | 200 | 404 |
 | POST | `/api/lectores` | Crear lector | 201 | 400, 409 |
 | PUT | `/api/lectores/{id}` | Modificar lector (solo los campos enviados; los que faltan se mantienen) | 200 | 400, 404, 409 |
@@ -296,7 +321,7 @@ Ejemplo `POST /api/lectores`:
 | PUT | `/api/prestamos/{id}/reposicion` | Registrar la reposición del ejemplar extraviado | 200 | 404, 409 |
 | PUT | `/api/prestamos/{id}/renovacion` | Renovar 14 días más (máximo 2 veces) | 200 | 403, 404, 409 |
 | GET | `/api/prestamos/mora` | Listar préstamos vencidos | 200 | — |
-| GET | `/api/prestamos/activos` | Listar préstamos activos, por vencimiento | 200 | — |
+| GET | `/api/prestamos/activos?pageNumber=&pageSize=` | Listar préstamos activos, por vencimiento, paginado (`pageNumber` y `pageSize` opcionales, default 20, máximo 100) | 200 | — |
 | GET | `/api/prestamos/estado-lector/{lectorId}` | Si el lector puede pedir un préstamo y, si no, el motivo | 200 | 404 |
 
 Ejemplo `POST /api/prestamos`:

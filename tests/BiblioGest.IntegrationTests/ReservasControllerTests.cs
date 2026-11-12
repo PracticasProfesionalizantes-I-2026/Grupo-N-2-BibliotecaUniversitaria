@@ -155,9 +155,6 @@ public class ReservasControllerTests : IClassFixture<CustomWebApplicationFactory
             await context.SaveChangesAsync();
         }
 
-        // Una sola consulta tiene que procesar toda la cascada: la primera
-        // asignación venció, se la pasó a la segunda, y esa también venció
-        // (su ventana de 24h ya pasó), así que el ejemplar vuelve al stock.
         var response = await _client.GetAsync($"/api/reservas?libroId={libro.Id}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

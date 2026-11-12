@@ -78,8 +78,6 @@ public class PrestamoServiceTests
                 p.Id = IdsDePrueba.Nuevo();
                 return p;
             });
-        // Simula que, entre la lectura y el descuento, otra petición ya
-        // actualizó el libro: EF detecta el RowVersion desactualizado.
         _libroRepository
             .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateConcurrencyException());
@@ -197,8 +195,6 @@ public class PrestamoServiceTests
             Estado = EstadoPrestamo.Activo
         };
         _prestamoRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
-        // Simula que falla el paso intermedio (actualizar el stock del libro
-        // al devolver) después de haber marcado el préstamo como Devuelto.
         _libroRepository
             .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false))
             .ThrowsAsync(new InvalidOperationException("Fallo simulado al actualizar el stock."));
@@ -207,7 +203,6 @@ public class PrestamoServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RegistrarDevolucionAsync(id));
 
-        // El fallo ocurre antes del SaveChanges final: nada quedó persistido.
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -446,8 +441,6 @@ public class PrestamoServiceTests
     public async Task RegistrarReposicionAsync_WhenUpdatingStockFails_NeverReachesSaveChanges()
     {
         var prestamo = ConfigurarPrestamo(EstadoPrestamo.Extraviado, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
-        // Simula que falla el paso intermedio (actualizar el stock del libro
-        // al reponer) después de haber marcado el préstamo como Repuesto.
         _libroRepository
             .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>(), false))
             .ThrowsAsync(new InvalidOperationException("Fallo simulado al actualizar el stock."));
@@ -456,7 +449,6 @@ public class PrestamoServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RegistrarReposicionAsync(prestamo.Id));
 
-        // El fallo ocurre antes del SaveChanges final: nada quedó persistido.
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 

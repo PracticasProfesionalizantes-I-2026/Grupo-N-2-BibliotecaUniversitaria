@@ -21,6 +21,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         _connection.Open();
 
+        builder.UseSetting("Jwt:Key", "ClaveDePruebaDeIntegracionSoloParaTests2026!!");
+
         builder.ConfigureServices(services =>
         {
             var descriptor = services.SingleOrDefault(

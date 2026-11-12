@@ -7,9 +7,6 @@ using Xunit;
 
 namespace BiblioGest.IntegrationTests;
 
-// Prueba el token de concurrencia optimista de Libro (issue #27) contra la
-// base SQLite real de los tests de integración, simulando dos lecturas
-// "concurrentes" del mismo libro desde dos scopes (contextos) distintos.
 public class ConcurrenciaStockTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private readonly CustomWebApplicationFactory _factory;
@@ -45,14 +42,11 @@ public class ConcurrenciaStockTests : IClassFixture<CustomWebApplicationFactory>
         var repoA = scopeA.ServiceProvider.GetRequiredService<ILibroRepository>();
         var repoB = scopeB.ServiceProvider.GetRequiredService<ILibroRepository>();
 
-        // Dos "peticiones" leen el mismo libro con el mismo RowVersion,
-        // igual que harían dos préstamos concurrentes sobre el último
-        // ejemplar.
         var libroA = await repoA.GetByIdAsync(libro.Id);
         var libroB = await repoB.GetByIdAsync(libro.Id);
 
         libroA!.Stock -= 1;
-        await repoA.UpdateAsync(libroA); // gana la carrera: graba un RowVersion nuevo
+        await repoA.UpdateAsync(libroA);
 
         libroB!.Stock -= 1;
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => repoB.UpdateAsync(libroB));

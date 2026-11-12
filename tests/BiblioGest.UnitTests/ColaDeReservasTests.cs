@@ -81,9 +81,7 @@ public class ColaDeReservasTests
         Assert.Equal(limiteVencido.AddHours(24), siguiente.FechaLimiteRetiro);
         Assert.Equal(0, libro.Stock);
         _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
-        // Las dos reservas se marcan en memoria sin guardar cada una por separado...
         _reservaRepository.Verify(r => r.UpdateAsync(It.IsAny<Reserva>(), It.IsAny<CancellationToken>(), false), Times.Exactly(2));
-        // ...y se persiste todo junto con un único SaveChanges al final.
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -115,8 +113,6 @@ public class ColaDeReservasTests
         Assert.Equal(EstadoReserva.Vencida, vencida.Estado);
         Assert.Equal(EstadoReserva.Vencida, siguiente.Estado);
         Assert.Equal(1, libro.Stock);
-        // Toda la cascada (dos vencimientos + el incremento de stock) se
-        // persiste con un único SaveChanges, no uno por paso.
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

@@ -26,10 +26,6 @@ public class ColaDeReservas : IColaDeReservas
         var ahora = DateTime.UtcNow;
         var huboCambios = false;
 
-        // Procesa toda la cascada de vencimientos en memoria (sin volver a
-        // consultar la base en cada paso) y recién al final persiste todos
-        // los cambios acumulados con un único SaveChanges, dentro de la
-        // transacción ambiente si el caller ya abrió una (ver IUnitOfWork).
         var vencida = BuscarAsignacionVencida(activas, ahora);
         while (vencida is not null)
         {

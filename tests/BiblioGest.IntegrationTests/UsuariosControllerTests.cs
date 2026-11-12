@@ -1,6 +1,11 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text;
 using BiblioGest.Shared.DTOs.Usuarios;
+using Microsoft.IdentityModel.Tokens;
 using Xunit;
 
 namespace BiblioGest.IntegrationTests;
@@ -123,6 +128,57 @@ public class UsuariosControllerTests : IClassFixture<CustomWebApplicationFactory
         var response = await client.GetAsync("/api/usuarios");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateUsuario_WithTokenMissingNameIdentifierClaim_Returns401Unauthorized()
+    {
+        var usuario = await (await _client.PostAsJsonAsync("/api/usuarios", NuevoUsuarioDto()))
+            .Content.ReadFromJsonAsync<UsuarioResponseDTO>();
+
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CrearTokenSinClaimDeId());
+
+        var response = await client.PutAsJsonAsync($"/api/usuarios/{usuario!.Id}", new UsuarioUpdateDTO
+        {
+            Email = usuario.Email,
+            RolUsuario = "Bibliotecario"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteUsuario_WithTokenMissingNameIdentifierClaim_Returns401Unauthorized()
+    {
+        var usuario = await (await _client.PostAsJsonAsync("/api/usuarios", NuevoUsuarioDto()))
+            .Content.ReadFromJsonAsync<UsuarioResponseDTO>();
+
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CrearTokenSinClaimDeId());
+
+        var response = await client.DeleteAsync($"/api/usuarios/{usuario!.Id}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private static string CrearTokenSinClaimDeId()
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.Email, "sin-id@bibliogest.com"),
+            new(ClaimTypes.Role, "Administrador")
+        };
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("UnaClaveSecretaBienLargaYDificilDeAdivinar123!"));
+        var credenciales = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: "BiblioGestApi",
+            audience: "BiblioGestClient",
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(30),
+            signingCredentials: credenciales);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     [Theory]

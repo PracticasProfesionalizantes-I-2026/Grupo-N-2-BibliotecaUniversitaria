@@ -2,6 +2,7 @@ using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
+using BiblioGest.Shared;
 using BiblioGest.Shared.DTOs.Prestamos;
 using BiblioGest.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -51,10 +52,6 @@ public class PrestamoService : IPrestamoService
         var libro = await _libroRepository.GetByIdAsync(dto.LibroId, ct)
             ?? throw new LibroNotFoundException(dto.LibroId);
 
-        // Transacción explícita para que la lectura de Stock y su descuento
-        // sean atómicos: si otra petición concurrente ya modificó el libro,
-        // el RowVersion leído queda desactualizado y el UPDATE de abajo
-        // lanza DbUpdateConcurrencyException en vez de pisar el stock.
         await _unitOfWork.BeginTransactionAsync(ct);
         try
         {
@@ -118,9 +115,10 @@ public class PrestamoService : IPrestamoService
         }
     }
 
-    public async Task<IReadOnlyList<PrestamoResponseDTO>> GetActivosAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<PrestamoResponseDTO>> GetActivosAsync(int? pageNumber = null, int? pageSize = null, CancellationToken ct = default)
     {
-        var activos = await _prestamoRepository.GetActivosAsync(ct);
+        var activos = await _prestamoRepository.GetActivosAsync(
+            Paginacion.NormalizarPageNumber(pageNumber), Paginacion.NormalizarPageSize(pageSize), ct);
         return activos.Select(p => MapToResponseDTO(p)).ToList();
     }
 
@@ -221,10 +219,6 @@ public class PrestamoService : IPrestamoService
 
     private async Task CerrarPrestamoAsync(Prestamo prestamo, EstadoPrestamo estadoFinal, CancellationToken ct)
     {
-        // El préstamo, la reserva/stock del libro y la suspensión del lector
-        // se marcan en memoria sin guardar cada uno por separado, y se
-        // persisten juntos con un único SaveChanges (atómico por sí mismo:
-        // si falla, no queda nada guardado a mitad de camino).
         prestamo.Estado = estadoFinal;
         prestamo.FechaDevolucion = DateTime.UtcNow;
         await _prestamoRepository.UpdateAsync(prestamo, ct, guardarCambios: false);
