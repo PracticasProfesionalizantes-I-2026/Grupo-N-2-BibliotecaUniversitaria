@@ -164,6 +164,29 @@ dotnet test BiblioGest.slnx       # corre unitarios (Moq) e integración (WebApp
 dotnet run --project API          # levanta la API (crea bibliogest.db con datos de prueba)
 ```
 
+### Configurar la clave JWT
+
+`API/appsettings.json` ya no trae la clave de firma de los tokens (antes
+estaba hardcodeada y comiteada, ver issue de seguridad #26). La API no
+arranca si `Jwt:Key` falta o es insegura (menos de 32 bytes).
+
+**En desarrollo**, configurarla una sola vez con `dotnet user-secrets`
+desde `API/` (no se versiona, queda fuera del repositorio):
+
+```bash
+cd API
+dotnet user-secrets set "Jwt:Key" "<una-clave-larga-y-aleatoria-de-al-menos-32-bytes>"
+```
+
+**En otros entornos** (CI, staging, producción), definir la variable de
+entorno `Jwt__Key` con el mismo valor. ASP.NET Core la mapea sola a
+`Jwt:Key` por la convención de doble guion bajo.
+
+La cadena de conexión (`ConnectionStrings:BiblioGest`, por defecto
+`Data Source=bibliogest.db`) se puede sobrescribir del mismo modo con la
+variable de entorno `ConnectionStrings__BiblioGest`, sin tocar
+`appsettings.json`.
+
 Con la API corriendo en desarrollo (`dotnet run --project API` la abre sola
 en el navegador), la documentación interactiva está en:
 
