@@ -1,4 +1,5 @@
 using BiblioGest.BusinessLogic.Interfaces;
+using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 
@@ -10,27 +11,40 @@ public class ColaDeReservas : IColaDeReservas
 
     private readonly IReservaRepository _reservaRepository;
     private readonly ILibroRepository _libroRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public ColaDeReservas(IReservaRepository reservaRepository, ILibroRepository libroRepository)
+    public ColaDeReservas(IReservaRepository reservaRepository, ILibroRepository libroRepository, IUnitOfWork unitOfWork)
     {
         _reservaRepository = reservaRepository;
         _libroRepository = libroRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task ProcesarAsignacionesVencidasAsync(Libro libro, CancellationToken ct = default)
     {
         var activas = (await _reservaRepository.GetActivasPorLibroAsync(libro.Id, ct)).ToList();
         var ahora = DateTime.UtcNow;
+        var huboCambios = false;
 
+        // Procesa toda la cascada de vencimientos en memoria (sin volver a
+        // consultar la base en cada paso) y recién al final persiste todos
+        // los cambios acumulados con un único SaveChanges, dentro de la
+        // transacción ambiente si el caller ya abrió una (ver IUnitOfWork).
         var vencida = BuscarAsignacionVencida(activas, ahora);
         while (vencida is not null)
         {
             vencida.Estado = EstadoReserva.Vencida;
-            await _reservaRepository.UpdateAsync(vencida, ct);
+            await _reservaRepository.UpdateAsync(vencida, ct, guardarCambios: false);
             activas.Remove(vencida);
+            huboCambios = true;
 
-            await LiberarEjemplarAsync(libro, activas, vencida.FechaLimiteRetiro!.Value, guardarCambios: true, ct);
+            await LiberarEjemplarAsync(libro, activas, vencida.FechaLimiteRetiro!.Value, guardarCambios: false, ct);
             vencida = BuscarAsignacionVencida(activas, ahora);
+        }
+
+        if (huboCambios)
+        {
+            await _unitOfWork.SaveChangesAsync(ct);
         }
     }
 

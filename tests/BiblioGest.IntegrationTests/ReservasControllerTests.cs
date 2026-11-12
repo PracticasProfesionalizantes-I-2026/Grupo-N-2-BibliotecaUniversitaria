@@ -127,6 +127,49 @@ public class ReservasControllerTests : IClassFixture<CustomWebApplicationFactory
     }
 
     [Fact]
+    public async Task Reserva_WhenTwoConsecutiveAssignmentsExpired_ChainsBothInOneRequest()
+    {
+        var libro = await CrearLibroAsync(stock: 0);
+        var primerVencida = await CrearLectorAsync();
+        var segundaVencida = await CrearLectorAsync();
+        var primera = new Reserva
+        {
+            LectorId = primerVencida.Id,
+            LibroId = libro.Id,
+            FechaReserva = DateTime.UtcNow.AddDays(-5),
+            FechaAsignacion = DateTime.UtcNow.AddHours(-50),
+            FechaLimiteRetiro = DateTime.UtcNow.AddHours(-26),
+            Estado = EstadoReserva.Asignada
+        };
+        var segunda = new Reserva
+        {
+            LectorId = segundaVencida.Id,
+            LibroId = libro.Id,
+            FechaReserva = DateTime.UtcNow.AddDays(-4),
+            Estado = EstadoReserva.EnCola
+        };
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<BiblioGestDbContext>();
+            context.Reservas.AddRange(primera, segunda);
+            await context.SaveChangesAsync();
+        }
+
+        // Una sola consulta tiene que procesar toda la cascada: la primera
+        // asignación venció, se la pasó a la segunda, y esa también venció
+        // (su ventana de 24h ya pasó), así que el ejemplar vuelve al stock.
+        var response = await _client.GetAsync($"/api/reservas?libroId={libro.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var primeraActual = await _client.GetFromJsonAsync<ReservaResponseDTO>($"/api/reservas/{primera.Id}");
+        var segundaActual = await _client.GetFromJsonAsync<ReservaResponseDTO>($"/api/reservas/{segunda.Id}");
+        Assert.Equal("Vencida", primeraActual!.Estado);
+        Assert.Equal("Vencida", segundaActual!.Estado);
+        var libroActual = await _client.GetFromJsonAsync<LibroResponseDTO>($"/api/libros/{libro.Id}");
+        Assert.Equal(1, libroActual!.Stock);
+    }
+
+    [Fact]
     public async Task CreateReserva_WhenLibroHasStock_Returns409Conflict()
     {
         var libro = await CrearLibroAsync(stock: 2);
