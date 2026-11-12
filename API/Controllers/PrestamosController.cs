@@ -9,6 +9,7 @@ namespace BiblioGest.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/prestamos")]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public class PrestamosController : ControllerBase
 {
     private readonly IPrestamoService _prestamoService;
@@ -21,6 +22,7 @@ public class PrestamosController : ControllerBase
     // GET /api/prestamos/mora
     // Nota: se declara antes de "{id}" para que la ruta literal tenga prioridad.
     [HttpGet("mora")]
+    [ProducesResponseType(typeof(IReadOnlyList<PrestamoResponseDTO>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetVencidos(CancellationToken ct)
     {
         var vencidos = await _prestamoService.GetVencidosAsync(ct);
@@ -29,6 +31,7 @@ public class PrestamosController : ControllerBase
 
     // GET /api/prestamos/activos?pageNumber=&pageSize=
     [HttpGet("activos")]
+    [ProducesResponseType(typeof(IReadOnlyList<PrestamoResponseDTO>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActivos([FromQuery] int? pageNumber, [FromQuery] int? pageSize, CancellationToken ct)
     {
         var activos = await _prestamoService.GetActivosAsync(pageNumber, pageSize, ct);
@@ -36,6 +39,8 @@ public class PrestamosController : ControllerBase
     }
 
     [HttpGet("estado-lector/{lectorId:int}")]
+    [ProducesResponseType(typeof(EstadoLectorPrestamoDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetEstadoLector(int lectorId, CancellationToken ct)
     {
         try
@@ -51,6 +56,8 @@ public class PrestamosController : ControllerBase
 
     // GET /api/prestamos/{id}
     [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(PrestamoResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         try
@@ -66,6 +73,11 @@ public class PrestamosController : ControllerBase
 
     // POST /api/prestamos
     [HttpPost]
+    [ProducesResponseType(typeof(PrestamoResponseDTO), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] PrestamoCreateDTO dto, CancellationToken ct)
     {
         try
@@ -89,6 +101,9 @@ public class PrestamosController : ControllerBase
 
     // PUT /api/prestamos/{id}/devolucion
     [HttpPut("{id:int}/devolucion")]
+    [ProducesResponseType(typeof(PrestamoResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RegistrarDevolucion(int id, CancellationToken ct)
     {
         try
@@ -107,6 +122,9 @@ public class PrestamosController : ControllerBase
     }
 
     [HttpPut("{id:int}/extravio")]
+    [ProducesResponseType(typeof(PrestamoResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RegistrarExtravio(int id, CancellationToken ct)
     {
         try
@@ -125,6 +143,9 @@ public class PrestamosController : ControllerBase
     }
 
     [HttpPut("{id:int}/reposicion")]
+    [ProducesResponseType(typeof(PrestamoResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RegistrarReposicion(int id, CancellationToken ct)
     {
         try
@@ -143,6 +164,10 @@ public class PrestamosController : ControllerBase
     }
 
     [HttpPut("{id:int}/renovacion")]
+    [ProducesResponseType(typeof(PrestamoResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Renovar(int id, CancellationToken ct)
     {
         try
