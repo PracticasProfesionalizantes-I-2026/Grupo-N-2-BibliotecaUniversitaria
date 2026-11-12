@@ -1,8 +1,10 @@
 using BiblioGest.BusinessLogic.Interfaces;
+using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Prestamos;
 using BiblioGest.Shared.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace BiblioGest.BusinessLogic.Services;
 
@@ -18,19 +20,22 @@ public class PrestamoService : IPrestamoService
     private readonly ILectorRepository _lectorRepository;
     private readonly IReservaRepository _reservaRepository;
     private readonly IColaDeReservas _colaDeReservas;
+    private readonly IUnitOfWork _unitOfWork;
 
     public PrestamoService(
         IPrestamoRepository prestamoRepository,
         ILibroRepository libroRepository,
         ILectorRepository lectorRepository,
         IReservaRepository reservaRepository,
-        IColaDeReservas colaDeReservas)
+        IColaDeReservas colaDeReservas,
+        IUnitOfWork unitOfWork)
     {
         _prestamoRepository = prestamoRepository;
         _libroRepository = libroRepository;
         _lectorRepository = lectorRepository;
         _reservaRepository = reservaRepository;
         _colaDeReservas = colaDeReservas;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PrestamoResponseDTO> GetByIdAsync(int id, CancellationToken ct = default)
@@ -46,51 +51,71 @@ public class PrestamoService : IPrestamoService
         var libro = await _libroRepository.GetByIdAsync(dto.LibroId, ct)
             ?? throw new LibroNotFoundException(dto.LibroId);
 
-        await _colaDeReservas.ProcesarAsignacionesVencidasAsync(libro, ct);
-
-        var bloqueo = await BuscarBloqueoDelLectorAsync(lector, ct);
-        if (bloqueo is not null)
+        // Transacción explícita para que la lectura de Stock y su descuento
+        // sean atómicos: si otra petición concurrente ya modificó el libro,
+        // el RowVersion leído queda desactualizado y el UPDATE de abajo
+        // lanza DbUpdateConcurrencyException en vez de pisar el stock.
+        await _unitOfWork.BeginTransactionAsync(ct);
+        try
         {
-            throw bloqueo;
+            await _colaDeReservas.ProcesarAsignacionesVencidasAsync(libro, ct);
+
+            var bloqueo = await BuscarBloqueoDelLectorAsync(lector, ct);
+            if (bloqueo is not null)
+            {
+                throw bloqueo;
+            }
+
+            if (await _prestamoRepository.ExistePrestamoActivoAsync(lector.Id, libro.Id, ct))
+            {
+                throw new PrestamoActivoDuplicadoException(lector.Id, libro.Id);
+            }
+
+            var reservaAsignada = await _reservaRepository.GetAsignadaAsync(lector.Id, libro.Id, ct);
+            if (reservaAsignada is null && libro.Stock <= 0)
+            {
+                throw new StockInsuficienteException(dto.LibroId);
+            }
+
+            var fechaPrestamo = DateTime.UtcNow;
+            var prestamo = new Prestamo
+            {
+                LectorId = lector.Id,
+                LibroId = libro.Id,
+                FechaPrestamo = fechaPrestamo,
+                FechaVencimiento = fechaPrestamo.AddDays(DiasDePrestamo),
+                Estado = EstadoPrestamo.Activo
+            };
+
+            var creado = await _prestamoRepository.CreateAsync(prestamo, ct);
+
+            if (reservaAsignada is not null)
+            {
+                reservaAsignada.Estado = EstadoReserva.Concretada;
+                await _reservaRepository.UpdateAsync(reservaAsignada, ct);
+            }
+            else
+            {
+                libro.Stock -= 1;
+                await _libroRepository.UpdateAsync(libro, ct);
+            }
+
+            await _unitOfWork.CommitAsync(ct);
+
+            creado.Lector = lector;
+            creado.Libro = libro;
+            return MapToResponseDTO(creado);
         }
-
-        if (await _prestamoRepository.ExistePrestamoActivoAsync(lector.Id, libro.Id, ct))
+        catch (DbUpdateConcurrencyException)
         {
-            throw new PrestamoActivoDuplicadoException(lector.Id, libro.Id);
+            await _unitOfWork.RollbackAsync(ct);
+            throw new LibroConcurrenciaException(libro.Id);
         }
-
-        var reservaAsignada = await _reservaRepository.GetAsignadaAsync(lector.Id, libro.Id, ct);
-        if (reservaAsignada is null && libro.Stock <= 0)
+        catch
         {
-            throw new StockInsuficienteException(dto.LibroId);
+            await _unitOfWork.RollbackAsync(ct);
+            throw;
         }
-
-        var fechaPrestamo = DateTime.UtcNow;
-        var prestamo = new Prestamo
-        {
-            LectorId = lector.Id,
-            LibroId = libro.Id,
-            FechaPrestamo = fechaPrestamo,
-            FechaVencimiento = fechaPrestamo.AddDays(DiasDePrestamo),
-            Estado = EstadoPrestamo.Activo
-        };
-
-        var creado = await _prestamoRepository.CreateAsync(prestamo, ct);
-
-        if (reservaAsignada is not null)
-        {
-            reservaAsignada.Estado = EstadoReserva.Concretada;
-            await _reservaRepository.UpdateAsync(reservaAsignada, ct);
-        }
-        else
-        {
-            libro.Stock -= 1;
-            await _libroRepository.UpdateAsync(libro, ct);
-        }
-
-        creado.Lector = lector;
-        creado.Libro = libro;
-        return MapToResponseDTO(creado);
     }
 
     public async Task<IReadOnlyList<PrestamoResponseDTO>> GetActivosAsync(CancellationToken ct = default)

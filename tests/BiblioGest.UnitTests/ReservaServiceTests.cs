@@ -1,5 +1,6 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.BusinessLogic.Services;
+using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Reservas;
@@ -15,9 +16,10 @@ public class ReservaServiceTests
     private readonly Mock<ILibroRepository> _libroRepository = new();
     private readonly Mock<ILectorRepository> _lectorRepository = new();
     private readonly Mock<IColaDeReservas> _colaDeReservas = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
     private ReservaService CrearService() =>
-        new(_reservaRepository.Object, _libroRepository.Object, _lectorRepository.Object, _colaDeReservas.Object);
+        new(_reservaRepository.Object, _libroRepository.Object, _lectorRepository.Object, _colaDeReservas.Object, _unitOfWork.Object);
 
     private (Lector Lector, Libro Libro) ConfigurarLectorYLibro(int stock)
     {

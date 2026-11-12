@@ -1,9 +1,11 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.BusinessLogic.Services;
+using BiblioGest.DataAccess;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
 using BiblioGest.Shared.DTOs.Prestamos;
 using BiblioGest.Shared.Exceptions;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 
@@ -16,9 +18,10 @@ public class PrestamoServiceTests
     private readonly Mock<ILectorRepository> _lectorRepository = new();
     private readonly Mock<IReservaRepository> _reservaRepository = new();
     private readonly Mock<IColaDeReservas> _colaDeReservas = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
     private PrestamoService CrearService() =>
-        new(_prestamoRepository.Object, _libroRepository.Object, _lectorRepository.Object, _reservaRepository.Object, _colaDeReservas.Object);
+        new(_prestamoRepository.Object, _libroRepository.Object, _lectorRepository.Object, _reservaRepository.Object, _colaDeReservas.Object, _unitOfWork.Object);
 
     private static Lector CrearLector(int id) =>
         new() { Id = id, Nombre = "Ana", Apellido = "Gómez", Email = "a@a.com", Dni = "1" };
@@ -54,6 +57,40 @@ public class PrestamoServiceTests
         Assert.Equal(resultado.FechaPrestamo.AddDays(14), resultado.FechaVencimiento);
         Assert.Equal(1, libro.Stock);
         _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreatePrestamoAsync_WhenLibroStockWasChangedConcurrently_ThrowsLibroConcurrenciaExceptionAndRollsBack()
+    {
+        var lectorId = IdsDePrueba.Nuevo();
+        var libroId = IdsDePrueba.Nuevo();
+        var lector = CrearLector(lectorId);
+        var libro = CrearLibro(libroId, stock: 1);
+
+        _lectorRepository.Setup(r => r.GetByIdAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(lector);
+        _libroRepository.Setup(r => r.GetByIdAsync(libroId, It.IsAny<CancellationToken>())).ReturnsAsync(libro);
+        _prestamoRepository.Setup(r => r.CountActivosPorLectorAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _prestamoRepository.Setup(r => r.LectorTieneMoraAsync(lectorId, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _prestamoRepository
+            .Setup(r => r.CreateAsync(It.IsAny<Prestamo>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Prestamo p, CancellationToken _) =>
+            {
+                p.Id = IdsDePrueba.Nuevo();
+                return p;
+            });
+        // Simula que, entre la lectura y el descuento, otra petición ya
+        // actualizó el libro: EF detecta el RowVersion desactualizado.
+        _libroRepository
+            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<LibroConcurrenciaException>(
+            () => service.CreateAsync(new PrestamoCreateDTO { LectorId = lectorId, LibroId = libroId }));
+
+        _unitOfWork.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

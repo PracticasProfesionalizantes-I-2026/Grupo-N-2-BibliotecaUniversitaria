@@ -119,6 +119,7 @@ de datos, además de la validación explícita en el service (409 Conflict).
 | DNI de lector duplicado | `DniDuplicadoException` | 409 |
 | Lector con 3 préstamos activos | `LimitePrestamosActivosException` | 403 |
 | Libro sin stock disponible | `StockInsuficienteException` | 409 |
+| El libro fue modificado por otra operación simultánea (préstamo o reserva concurrentes sobre el último ejemplar) | `LibroConcurrenciaException` | 409 |
 | Lector con préstamos vencidos (mora) | `LectorEnMoraException` | 403 |
 | Lector suspendido por devolver con atraso (1 día por día de atraso) | `LectorSuspendidoException` | 403 |
 | Devolver un préstamo ya devuelto | `PrestamoYaDevueltoException` | 409 |
