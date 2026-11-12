@@ -15,7 +15,9 @@ public interface IPrestamoRepository
     Task<bool> LectorTieneMoraAsync(int lectorId, CancellationToken ct = default);
     Task<bool> LectorTieneExtraviadosAsync(int lectorId, CancellationToken ct = default);
     Task<bool> ExistePrestamoActivoAsync(int lectorId, int libroId, CancellationToken ct = default);
-    Task<IReadOnlyList<Prestamo>> GetActivosAsync(CancellationToken ct = default);
+    // pageNumber/pageSize nulos = sin paginar; el listado paginado de la API
+    // siempre los manda con valores concretos (ver PrestamoService.GetActivosAsync).
+    Task<IReadOnlyList<Prestamo>> GetActivosAsync(int? pageNumber = null, int? pageSize = null, CancellationToken ct = default);
     Task<IReadOnlyList<Prestamo>> GetVencidosAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Prestamo>> GetPorRangoAsync(DateTime? desde, DateTime? hastaExclusivo, CancellationToken ct = default);
 }

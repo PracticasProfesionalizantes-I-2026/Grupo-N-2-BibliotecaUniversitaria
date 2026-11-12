@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
+using BiblioGest.Shared;
 using BiblioGest.Shared.DTOs.Libros;
 using BiblioGest.Shared.Exceptions;
 
@@ -25,9 +26,10 @@ public class LibroService : ILibroService
         _reservaRepository = reservaRepository;
     }
 
-    public async Task<IReadOnlyList<LibroResponseDTO>> GetAllAsync(string? busqueda, CancellationToken ct = default)
+    public async Task<IReadOnlyList<LibroResponseDTO>> GetAllAsync(string? busqueda, int? pageNumber = null, int? pageSize = null, CancellationToken ct = default)
     {
-        var libros = await _libroRepository.GetAllAsync(busqueda, ct);
+        var libros = await _libroRepository.GetAllAsync(
+            busqueda, Paginacion.NormalizarPageNumber(pageNumber), Paginacion.NormalizarPageSize(pageSize), ct);
         return libros.Select(MapToResponseDTO).ToList();
     }
 

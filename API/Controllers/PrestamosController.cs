@@ -27,10 +27,11 @@ public class PrestamosController : ControllerBase
         return Ok(vencidos);
     }
 
+    // GET /api/prestamos/activos?pageNumber=&pageSize=
     [HttpGet("activos")]
-    public async Task<IActionResult> GetActivos(CancellationToken ct)
+    public async Task<IActionResult> GetActivos([FromQuery] int? pageNumber, [FromQuery] int? pageSize, CancellationToken ct)
     {
-        var activos = await _prestamoService.GetActivosAsync(ct);
+        var activos = await _prestamoService.GetActivosAsync(pageNumber, pageSize, ct);
         return Ok(activos);
     }
 

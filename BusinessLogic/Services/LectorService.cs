@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
+using BiblioGest.Shared;
 using BiblioGest.Shared.DTOs.Lectores;
 using BiblioGest.Shared.Exceptions;
 
@@ -28,9 +29,10 @@ public class LectorService : ILectorService
         _reservaRepository = reservaRepository;
     }
 
-    public async Task<IReadOnlyList<LectorResponseDTO>> GetAllAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<LectorResponseDTO>> GetAllAsync(int? pageNumber = null, int? pageSize = null, CancellationToken ct = default)
     {
-        var lectores = await _lectorRepository.GetAllAsync(ct);
+        var lectores = await _lectorRepository.GetAllAsync(
+            Paginacion.NormalizarPageNumber(pageNumber), Paginacion.NormalizarPageSize(pageSize), ct);
         return lectores.Select(MapToResponseDTO).ToList();
     }
 

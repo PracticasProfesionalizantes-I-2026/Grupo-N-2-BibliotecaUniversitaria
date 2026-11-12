@@ -140,7 +140,7 @@ public class LibroServiceTests
     public async Task SearchLibrosAsync_WithText_ReturnsMatchingLibrosWithDisponibilidad()
     {
         _libroRepository
-            .Setup(r => r.GetAllAsync("borges", It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAllAsync("borges", It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Libro>
             {
                 new() { Id = IdsDePrueba.Nuevo(), Titulo = "Ficciones", Autor = "Borges", Isbn = "1", Ubicacion = "A1", Stock = 2 },
@@ -159,7 +159,7 @@ public class LibroServiceTests
     public async Task SearchLibrosAsync_WithNoMatches_ReturnsEmptyList()
     {
         _libroRepository
-            .Setup(r => r.GetAllAsync("inexistente", It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAllAsync("inexistente", It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Libro>());
 
         var service = CrearService();

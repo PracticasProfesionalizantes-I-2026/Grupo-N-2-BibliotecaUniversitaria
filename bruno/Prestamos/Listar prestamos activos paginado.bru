@@ -1,0 +1,16 @@
+meta {
+  name: Listar prestamos activos paginado
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/api/prestamos/activos?pageNumber=1&pageSize=2
+  body: none
+  auth: inherit
+}
+
+params:query {
+  pageNumber: 1
+  pageSize: 2
+}

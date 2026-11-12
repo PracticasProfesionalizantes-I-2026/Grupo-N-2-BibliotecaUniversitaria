@@ -71,6 +71,23 @@ public class PrestamosControllerTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
+    public async Task GetPrestamosActivos_WithPagination_ReturnsNonOverlappingPages()
+    {
+        var libro = await CrearLibroAsync(stock: 2);
+        var lector1 = await CrearLectorAsync();
+        var lector2 = await CrearLectorAsync();
+        await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO { LectorId = lector1.Id, LibroId = libro.Id });
+        await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO { LectorId = lector2.Id, LibroId = libro.Id });
+
+        var pagina1 = await _client.GetFromJsonAsync<List<PrestamoResponseDTO>>("/api/prestamos/activos?pageNumber=1&pageSize=1");
+        var pagina2 = await _client.GetFromJsonAsync<List<PrestamoResponseDTO>>("/api/prestamos/activos?pageNumber=2&pageSize=1");
+
+        Assert.Single(pagina1!);
+        Assert.Single(pagina2!);
+        Assert.NotEqual(pagina1![0].Id, pagina2![0].Id);
+    }
+
+    [Fact]
     public async Task CreatePrestamo_WithUnknownLectorOrLibro_Returns404NotFound()
     {
         var response = await _client.PostAsJsonAsync("/api/prestamos", new PrestamoCreateDTO

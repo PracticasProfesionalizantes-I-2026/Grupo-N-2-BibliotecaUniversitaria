@@ -222,7 +222,7 @@ Usuarios de prueba: `admin@bibliogest.com` / `Admin123!` (Administrador) y
 
 | Método | Ruta | Descripción | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| GET | `/api/libros?busqueda=` | Listar/buscar por título, autor o ISBN | 200 | — |
+| GET | `/api/libros?busqueda=&pageNumber=&pageSize=` | Listar/buscar por título, autor o ISBN, paginado (`pageNumber` y `pageSize` opcionales, default 20, máximo 100) | 200 | — |
 | GET | `/api/libros/{id}` | Obtener un libro | 200 | 404 |
 | POST | `/api/libros` | Crear libro | 201 | 400, 409 |
 | PUT | `/api/libros/{id}` | Modificar libro (solo los campos enviados; los que faltan se mantienen) | 200 | 400, 404, 409 |
@@ -256,7 +256,7 @@ Ejemplo `POST /api/libros`:
 
 | Método | Ruta | Descripción | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| GET | `/api/lectores` | Listar lectores | 200 | — |
+| GET | `/api/lectores?pageNumber=&pageSize=` | Listar lectores, paginado (`pageNumber` y `pageSize` opcionales, default 20, máximo 100) | 200 | — |
 | GET | `/api/lectores/{id}` | Obtener un lector | 200 | 404 |
 | POST | `/api/lectores` | Crear lector | 201 | 400, 409 |
 | PUT | `/api/lectores/{id}` | Modificar lector (solo los campos enviados; los que faltan se mantienen) | 200 | 400, 404, 409 |
@@ -295,7 +295,7 @@ Ejemplo `POST /api/lectores`:
 | PUT | `/api/prestamos/{id}/reposicion` | Registrar la reposición del ejemplar extraviado | 200 | 404, 409 |
 | PUT | `/api/prestamos/{id}/renovacion` | Renovar 14 días más (máximo 2 veces) | 200 | 403, 404, 409 |
 | GET | `/api/prestamos/mora` | Listar préstamos vencidos | 200 | — |
-| GET | `/api/prestamos/activos` | Listar préstamos activos, por vencimiento | 200 | — |
+| GET | `/api/prestamos/activos?pageNumber=&pageSize=` | Listar préstamos activos, por vencimiento, paginado (`pageNumber` y `pageSize` opcionales, default 20, máximo 100) | 200 | — |
 | GET | `/api/prestamos/estado-lector/{lectorId}` | Si el lector puede pedir un préstamo y, si no, el motivo | 200 | 404 |
 
 Ejemplo `POST /api/prestamos`:
