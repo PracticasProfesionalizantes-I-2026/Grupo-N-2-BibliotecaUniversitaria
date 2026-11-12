@@ -8,15 +8,24 @@
 > (`Stock > 0`) en `LibroService`, RN-07 en `PrestamoService.CreateAsync` (ver CU-05,
 > alternativa 5a). La matriz de trazabilidad lista los tests reales.
 
+> **Nota sobre el actor Lector (aclaración de diseño vs. código):** el Lector/Alumno
+> **no es un actor del sistema**. No tiene credenciales ni token JWT, y
+> `GET /api/libros` requiere `[Authorize]`. El único actor que opera la API en este CU
+> es el Bibliotecario (o el Administrador). Cuando un lector quiere saber si un libro
+> está disponible, se lo pide al bibliotecario de forma presencial o telefónica, y el
+> bibliotecario hace la consulta en el sistema **en su nombre** (proxy humano): el
+> lector es un interesado (stakeholder) en el resultado, no alguien que inicia la
+> petición HTTP.
+
 | Campo | Valor |
 | --- | --- |
 | **ID del Caso de Uso** | CU-03 |
 | **Nombre** | Consultar Disponibilidad de Libros |
 | **Actor Principal** | Bibliotecario / Administrador |
-| **Actores Secundarios** | Lector / Alumno |
+| **Actores Secundarios** | Ninguno (el Lector no interactúa directamente con el sistema; ver nota arriba) |
 | **Alcance / Nivel** | Sistema; meta de usuario |
-| **Stakeholders e intereses** | Bibliotecario/Administrador → informar con precisión la disponibilidad de un libro; Lector → conocer si un libro puede solicitarse en préstamo |
-| **Disparador (Trigger)** | Un lector solicita información sobre un libro o el usuario del sistema necesita consultar su disponibilidad |
+| **Stakeholders e intereses** | Bibliotecario/Administrador → informar con precisión la disponibilidad de un libro; Lector → conocer si un libro puede solicitarse en préstamo (interesado en el resultado, sin acceso directo al sistema) |
+| **Disparador (Trigger)** | El bibliotecario necesita consultar la disponibilidad de un libro, ya sea porque un lector se lo pidió de forma presencial/telefónica, o por su propia gestión |
 | **Prioridad / Frecuencia** | Alta; uso muy frecuente (consulta habitual previa a un préstamo) |
 | **Reglas de negocio relacionadas** | RN-06 (disponibilidad según stock actual); RN-07 (libro sin stock no puede ser prestado) |
 
@@ -32,15 +41,16 @@ información y stock actual.
 - El libro debe estar registrado para poder consultar su disponibilidad.
 
 ### 3. FLUJO PRINCIPAL (Camino Feliz - HTTP 200)
-1. El lector solicita información sobre un libro al bibliotecario, o el usuario del
-   sistema inicia la consulta: el Actor envía una petición
-   `GET /api/libros?busqueda={texto}` a la **Capa de Presentación**.
+1. El bibliotecario (único actor del sistema en este CU) envía una petición
+   `GET /api/libros?busqueda={texto}` a la **Capa de Presentación**, ya sea porque un
+   lector le pidió la consulta o por su propia gestión.
 2. El Sistema busca el libro por título, autor o ISBN en la **Capa de Persistencia**.
 3. El Sistema muestra los resultados encontrados con código **HTTP 200 OK**.
-4. El usuario selecciona el libro correspondiente (`GET /api/libros/{id}`).
+4. El bibliotecario selecciona el libro correspondiente (`GET /api/libros/{id}`).
 5. El Sistema muestra los datos del libro y su stock disponible con código
    **HTTP 200 OK**, conforme a **RN-06**.
-6. El usuario informa la disponibilidad al lector, si corresponde.
+6. El bibliotecario informa la disponibilidad al lector fuera del sistema (de forma
+   presencial, telefónica, etc.), si corresponde.
 
 ### 4. FLUJOS ALTERNATIVOS (Caminos Tristes / Excepciones)
 
