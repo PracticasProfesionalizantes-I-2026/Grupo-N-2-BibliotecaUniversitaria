@@ -207,13 +207,13 @@ namespace BiblioGest.DataAccess.Migrations
                     b.HasOne("BiblioGest.DataAccess.Entities.Lector", "Lector")
                         .WithMany()
                         .HasForeignKey("LectorId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("BiblioGest.DataAccess.Entities.Libro", "Libro")
                         .WithMany()
                         .HasForeignKey("LibroId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Lector");
