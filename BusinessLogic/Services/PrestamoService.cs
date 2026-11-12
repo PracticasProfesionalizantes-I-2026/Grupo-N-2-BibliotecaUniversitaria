@@ -221,18 +221,38 @@ public class PrestamoService : IPrestamoService
 
     private async Task CerrarPrestamoAsync(Prestamo prestamo, EstadoPrestamo estadoFinal, CancellationToken ct)
     {
-        prestamo.Estado = estadoFinal;
-        prestamo.FechaDevolucion = DateTime.UtcNow;
-        await _prestamoRepository.UpdateAsync(prestamo, ct);
-
-        if (prestamo.Libro is not null &&
-            !await _colaDeReservas.AsignarAlSiguienteAsync(prestamo.Libro, prestamo.FechaDevolucion.Value, ct))
+        // Transacción atómica: el préstamo, la reserva/stock del libro y la
+        // suspensión del lector se confirman juntos o no se confirma nada.
+        // Si un paso intermedio falla, el rollback deja el préstamo tal como
+        // estaba (no queda "Devuelto"/"Repuesto" sin su contraparte de stock).
+        await _unitOfWork.BeginTransactionAsync(ct);
+        try
         {
-            prestamo.Libro.Stock += 1;
-            await _libroRepository.UpdateAsync(prestamo.Libro, ct);
-        }
+            prestamo.Estado = estadoFinal;
+            prestamo.FechaDevolucion = DateTime.UtcNow;
+            await _prestamoRepository.UpdateAsync(prestamo, ct);
 
-        await AplicarSuspensionPorAtrasoAsync(prestamo, ct);
+            if (prestamo.Libro is not null &&
+                !await _colaDeReservas.AsignarAlSiguienteAsync(prestamo.Libro, prestamo.FechaDevolucion.Value, ct))
+            {
+                prestamo.Libro.Stock += 1;
+                await _libroRepository.UpdateAsync(prestamo.Libro, ct);
+            }
+
+            await AplicarSuspensionPorAtrasoAsync(prestamo, ct);
+
+            await _unitOfWork.CommitAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await _unitOfWork.RollbackAsync(ct);
+            throw new LibroConcurrenciaException(prestamo.LibroId);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync(ct);
+            throw;
+        }
     }
 
     public async Task<PrestamoResponseDTO> RenovarAsync(int id, CancellationToken ct = default)

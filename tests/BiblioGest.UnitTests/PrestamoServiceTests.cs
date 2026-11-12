@@ -181,6 +181,36 @@ public class PrestamoServiceTests
     }
 
     [Fact]
+    public async Task RegisterDevolucionAsync_WhenUpdatingStockFails_RollsBackAndNeverCommits()
+    {
+        var id = IdsDePrueba.Nuevo();
+        var libro = CrearLibro(IdsDePrueba.Nuevo(), stock: 0);
+        var prestamo = new Prestamo
+        {
+            Id = id,
+            LectorId = IdsDePrueba.Nuevo(),
+            LibroId = libro.Id,
+            Libro = libro,
+            FechaPrestamo = DateTime.UtcNow.AddDays(-5),
+            FechaVencimiento = DateTime.UtcNow.AddDays(9),
+            Estado = EstadoPrestamo.Activo
+        };
+        _prestamoRepository.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(prestamo);
+        // Simula que falla el paso intermedio (actualizar el stock del libro
+        // al devolver) después de haber marcado el préstamo como Devuelto.
+        _libroRepository
+            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Fallo simulado al actualizar el stock."));
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RegistrarDevolucionAsync(id));
+
+        _unitOfWork.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task RegisterDevolucionAsync_WhenAlreadyReturned_ThrowsConflictException()
     {
         var id = IdsDePrueba.Nuevo();
@@ -408,6 +438,24 @@ public class PrestamoServiceTests
         Assert.Equal(1, libro.Stock);
         Assert.Null(lector.SuspendidoHasta);
         _libroRepository.Verify(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegistrarReposicionAsync_WhenUpdatingStockFails_RollsBackAndNeverCommits()
+    {
+        var prestamo = ConfigurarPrestamo(EstadoPrestamo.Extraviado, stockLibro: 0, DateTime.UtcNow.AddDays(5), out _, out var libro);
+        // Simula que falla el paso intermedio (actualizar el stock del libro
+        // al reponer) después de haber marcado el préstamo como Repuesto.
+        _libroRepository
+            .Setup(r => r.UpdateAsync(libro, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Fallo simulado al actualizar el stock."));
+
+        var service = CrearService();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RegistrarReposicionAsync(prestamo.Id));
+
+        _unitOfWork.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
