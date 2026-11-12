@@ -136,6 +136,7 @@ de datos, además de la validación explícita en el service (409 Conflict).
 | El administrador se da de baja, se desactiva o se quita el rol a sí mismo | `UsuarioAutoBajaException` / `UsuarioAutoModificacionException` | 409 |
 | Dejar al sistema sin ningún administrador activo | `UltimoAdministradorException` | 409 |
 | Request sin token o con token inválido/vencido | `JwtBearerEvents.OnChallenge` | 401 (`Debe iniciar sesión.` / `Token inválido o vencido.`) |
+| Token válido pero sin un claim de identificador de usuario válido (en `/api/usuarios`) | `ClaimInvalidoException` | 401 |
 | Rol insuficiente | `JwtBearerEvents.OnForbidden` | 403 (`No tiene permisos para realizar esta acción.`) |
 | Cuerpo vacío o JSON mal formado | `InvalidModelStateResponseFactory` | 400 con `{ "message" }` en español |
 | Renovar un préstamo ya renovado 2 veces | `LimiteRenovacionesException` | 403 |
