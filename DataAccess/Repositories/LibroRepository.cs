@@ -12,7 +12,7 @@ public class LibroRepository : ILibroRepository
         _context = context;
     }
 
-    public async Task<IReadOnlyList<Libro>> GetAllAsync(string? busqueda, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Libro>> GetAllAsync(string? busqueda, int? pageNumber = null, int? pageSize = null, CancellationToken ct = default)
     {
         var query = _context.Libros.AsNoTracking();
 
@@ -24,7 +24,13 @@ public class LibroRepository : ILibroRepository
                 EF.Functions.Like(l.Isbn, $"%{busqueda}%"));
         }
 
-        return await query.OrderBy(l => l.Titulo).ToListAsync(ct);
+        var ordenado = query.OrderBy(l => l.Titulo);
+        if (pageNumber is > 0 && pageSize is > 0)
+        {
+            return await ordenado.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value).ToListAsync(ct);
+        }
+
+        return await ordenado.ToListAsync(ct);
     }
 
     public Task<Libro?> GetByIdAsync(int id, CancellationToken ct = default) =>
@@ -32,7 +38,7 @@ public class LibroRepository : ILibroRepository
 
     public Task<bool> ExisteIsbnAsync(string isbnSinGuiones, int? excluirLibroId, CancellationToken ct = default) =>
         _context.Libros.AsNoTracking().AnyAsync(l =>
-            l.Isbn.Replace("-", "").ToUpper() == isbnSinGuiones &&
+            l.IsbnNormalizado == isbnSinGuiones &&
             (excluirLibroId == null || l.Id != excluirLibroId), ct);
 
     public async Task<Libro> CreateAsync(Libro libro, CancellationToken ct = default)

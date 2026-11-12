@@ -42,7 +42,7 @@ public class ExceptionMiddlewareTests : IClassFixture<CustomWebApplicationFactor
 
     private class LibroServiceQueFalla : ILibroService
     {
-        public Task<IReadOnlyList<LibroResponseDTO>> GetAllAsync(string? busqueda, CancellationToken ct = default) =>
+        public Task<IReadOnlyList<LibroResponseDTO>> GetAllAsync(string? busqueda, int? pageNumber = null, int? pageSize = null, CancellationToken ct = default) =>
             throw new InvalidOperationException("Falla simulada");
 
         public Task<LibroResponseDTO> GetByIdAsync(int id, CancellationToken ct = default) =>

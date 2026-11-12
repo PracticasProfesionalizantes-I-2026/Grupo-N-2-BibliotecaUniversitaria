@@ -23,6 +23,8 @@ public class BiblioGestDbContext : DbContext
             entity.Property(l => l.Titulo).IsRequired();
             entity.Property(l => l.Autor).IsRequired();
             entity.Property(l => l.Isbn).IsRequired();
+            entity.Property(l => l.IsbnNormalizado).IsRequired();
+            entity.HasIndex(l => l.IsbnNormalizado).IsUnique();
             entity.Property(l => l.Ubicacion).IsRequired();
         });
 
@@ -73,12 +75,12 @@ public class BiblioGestDbContext : DbContext
             entity.HasOne(r => r.Lector)
                 .WithMany()
                 .HasForeignKey(r => r.LectorId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(r => r.Libro)
                 .WithMany()
                 .HasForeignKey(r => r.LibroId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.Property(r => r.Estado)
                 .HasConversion<string>();

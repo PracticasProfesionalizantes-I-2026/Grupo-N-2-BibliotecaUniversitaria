@@ -67,6 +67,10 @@ namespace BiblioGest.DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("IsbnNormalizado")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Stock")
                         .HasColumnType("INTEGER");
 
@@ -79,6 +83,9 @@ namespace BiblioGest.DataAccess.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsbnNormalizado")
+                        .IsUnique();
 
                     b.ToTable("Libros");
                 });
@@ -207,13 +214,13 @@ namespace BiblioGest.DataAccess.Migrations
                     b.HasOne("BiblioGest.DataAccess.Entities.Lector", "Lector")
                         .WithMany()
                         .HasForeignKey("LectorId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("BiblioGest.DataAccess.Entities.Libro", "Libro")
                         .WithMany()
                         .HasForeignKey("LibroId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Lector");

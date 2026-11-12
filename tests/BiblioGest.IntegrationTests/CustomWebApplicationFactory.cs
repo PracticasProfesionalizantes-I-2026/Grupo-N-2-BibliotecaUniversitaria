@@ -21,6 +21,11 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         _connection.Open();
 
+        // Clave propia de los tests de integración: appsettings.json ya no trae
+        // ninguna (ver issue #26), así que la fijamos acá sin depender de
+        // variables de entorno ni de user-secrets.
+        builder.UseSetting("Jwt:Key", "ClaveDePruebaDeIntegracionSoloParaTests2026!!");
+
         builder.ConfigureServices(services =>
         {
             var descriptor = services.SingleOrDefault(

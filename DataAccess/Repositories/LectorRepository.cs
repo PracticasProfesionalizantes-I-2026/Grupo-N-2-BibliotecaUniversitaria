@@ -12,8 +12,16 @@ public class LectorRepository : ILectorRepository
         _context = context;
     }
 
-    public async Task<IReadOnlyList<Lector>> GetAllAsync(CancellationToken ct = default) =>
-        await _context.Lectores.AsNoTracking().OrderBy(l => l.Apellido).ToListAsync(ct);
+    public async Task<IReadOnlyList<Lector>> GetAllAsync(int? pageNumber = null, int? pageSize = null, CancellationToken ct = default)
+    {
+        var ordenado = _context.Lectores.AsNoTracking().OrderBy(l => l.Apellido);
+        if (pageNumber is > 0 && pageSize is > 0)
+        {
+            return await ordenado.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value).ToListAsync(ct);
+        }
+
+        return await ordenado.ToListAsync(ct);
+    }
 
     public Task<Lector?> GetByIdAsync(int id, CancellationToken ct = default) =>
         _context.Lectores.AsNoTracking().FirstOrDefaultAsync(l => l.Id == id, ct);

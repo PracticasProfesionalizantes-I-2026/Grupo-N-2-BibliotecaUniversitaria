@@ -43,6 +43,9 @@ public class LibroServiceTests
         Assert.Equal(dto.Titulo, resultado.Titulo);
         Assert.Equal(dto.Stock, resultado.Stock);
         _libroRepository.Verify(r => r.CreateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Once);
+        _libroRepository.Verify(
+            r => r.CreateAsync(It.Is<Libro>(l => l.IsbnNormalizado == "9789500000000"), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -105,6 +108,7 @@ public class LibroServiceTests
 
         Assert.Equal("Nuevo", resultado.Titulo);
         Assert.Equal(4, resultado.Stock);
+        Assert.Equal("9788420633109", libroExistente.IsbnNormalizado);
         _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -140,7 +144,7 @@ public class LibroServiceTests
     public async Task SearchLibrosAsync_WithText_ReturnsMatchingLibrosWithDisponibilidad()
     {
         _libroRepository
-            .Setup(r => r.GetAllAsync("borges", It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAllAsync("borges", It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Libro>
             {
                 new() { Id = IdsDePrueba.Nuevo(), Titulo = "Ficciones", Autor = "Borges", Isbn = "1", Ubicacion = "A1", Stock = 2 },
@@ -159,7 +163,7 @@ public class LibroServiceTests
     public async Task SearchLibrosAsync_WithNoMatches_ReturnsEmptyList()
     {
         _libroRepository
-            .Setup(r => r.GetAllAsync("inexistente", It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAllAsync("inexistente", It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Libro>());
 
         var service = CrearService();

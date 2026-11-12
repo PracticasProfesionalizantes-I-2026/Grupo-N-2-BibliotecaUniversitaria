@@ -1,6 +1,7 @@
 using BiblioGest.BusinessLogic.Interfaces;
 using BiblioGest.DataAccess.Entities;
 using BiblioGest.DataAccess.Repositories;
+using BiblioGest.Shared;
 using BiblioGest.Shared.DTOs.Prestamos;
 using BiblioGest.Shared.Exceptions;
 
@@ -93,9 +94,10 @@ public class PrestamoService : IPrestamoService
         return MapToResponseDTO(creado);
     }
 
-    public async Task<IReadOnlyList<PrestamoResponseDTO>> GetActivosAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<PrestamoResponseDTO>> GetActivosAsync(int? pageNumber = null, int? pageSize = null, CancellationToken ct = default)
     {
-        var activos = await _prestamoRepository.GetActivosAsync(ct);
+        var activos = await _prestamoRepository.GetActivosAsync(
+            Paginacion.NormalizarPageNumber(pageNumber), Paginacion.NormalizarPageSize(pageSize), ct);
         return activos.Select(p => MapToResponseDTO(p)).ToList();
     }
 

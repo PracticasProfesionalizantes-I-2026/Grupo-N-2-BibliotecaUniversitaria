@@ -29,11 +29,12 @@ public class PrestamosController : ControllerBase
         return Ok(vencidos);
     }
 
+    // GET /api/prestamos/activos?pageNumber=&pageSize=
     [HttpGet("activos")]
     [ProducesResponseType(typeof(IReadOnlyList<PrestamoResponseDTO>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetActivos(CancellationToken ct)
+    public async Task<IActionResult> GetActivos([FromQuery] int? pageNumber, [FromQuery] int? pageSize, CancellationToken ct)
     {
-        var activos = await _prestamoService.GetActivosAsync(ct);
+        var activos = await _prestamoService.GetActivosAsync(pageNumber, pageSize, ct);
         return Ok(activos);
     }
 
