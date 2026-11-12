@@ -1,0 +1,16 @@
+meta {
+  name: Listar libros paginado
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/api/libros?pageNumber=1&pageSize=2
+  body: none
+  auth: inherit
+}
+
+params:query {
+  pageNumber: 1
+  pageSize: 2
+}

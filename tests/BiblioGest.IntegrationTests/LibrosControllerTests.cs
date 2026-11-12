@@ -198,6 +198,27 @@ public class LibrosControllerTests : IClassFixture<CustomWebApplicationFactory>,
     }
 
     [Fact]
+    public async Task GetAllLibros_WithPagination_ReturnsNonOverlappingPages()
+    {
+        var prefijo = $"PagTest{Guid.NewGuid():N}";
+        for (var i = 0; i < 3; i++)
+        {
+            var dto = NuevoLibroDto();
+            dto.Titulo = $"{prefijo} {i}";
+            await _client.PostAsJsonAsync("/api/libros", dto);
+        }
+
+        var pagina1 = await _client.GetFromJsonAsync<List<LibroResponseDTO>>(
+            $"/api/libros?busqueda={prefijo}&pageNumber=1&pageSize=2");
+        var pagina2 = await _client.GetFromJsonAsync<List<LibroResponseDTO>>(
+            $"/api/libros?busqueda={prefijo}&pageNumber=2&pageSize=2");
+
+        Assert.Equal(2, pagina1!.Count);
+        Assert.Single(pagina2!);
+        Assert.DoesNotContain(pagina2![0].Id, pagina1.Select(l => l.Id));
+    }
+
+    [Fact]
     public async Task GetLibroDisponibilidad_WithZeroStock_Returns200OKUnavailable()
     {
         var crearResponse = await _client.PostAsJsonAsync("/api/libros", NuevoLibroDto(stock: 0));

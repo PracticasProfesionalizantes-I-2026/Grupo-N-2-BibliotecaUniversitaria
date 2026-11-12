@@ -18,11 +18,12 @@ public class LibrosController : ControllerBase
         _libroService = libroService;
     }
 
-    // GET /api/libros?busqueda=
+    // GET /api/libros?busqueda=&pageNumber=&pageSize=
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? busqueda, CancellationToken ct)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? busqueda, [FromQuery] int? pageNumber, [FromQuery] int? pageSize, CancellationToken ct)
     {
-        var libros = await _libroService.GetAllAsync(busqueda, ct);
+        var libros = await _libroService.GetAllAsync(busqueda, pageNumber, pageSize, ct);
         return Ok(libros);
     }
 

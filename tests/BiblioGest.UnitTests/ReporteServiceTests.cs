@@ -43,10 +43,10 @@ public class ReporteServiceTests
     {
         var hoy = DateTime.UtcNow;
         _libroRepository
-            .Setup(r => r.GetAllAsync(null, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAllAsync(null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new Libro { Stock = 2 }, new Libro { Stock = 0 }]);
         _lectorRepository
-            .Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAllAsync(null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new Lector()]);
         _prestamoRepository
             .Setup(r => r.GetPorRangoAsync(null, null, It.IsAny<CancellationToken>()))

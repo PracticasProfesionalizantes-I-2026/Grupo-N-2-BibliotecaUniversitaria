@@ -18,11 +18,11 @@ public class LectoresController : ControllerBase
         _lectorService = lectorService;
     }
 
-    // GET /api/lectores
+    // GET /api/lectores?pageNumber=&pageSize=
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll([FromQuery] int? pageNumber, [FromQuery] int? pageSize, CancellationToken ct)
     {
-        var lectores = await _lectorService.GetAllAsync(ct);
+        var lectores = await _lectorService.GetAllAsync(pageNumber, pageSize, ct);
         return Ok(lectores);
     }
 
