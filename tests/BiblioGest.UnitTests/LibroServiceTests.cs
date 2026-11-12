@@ -43,6 +43,9 @@ public class LibroServiceTests
         Assert.Equal(dto.Titulo, resultado.Titulo);
         Assert.Equal(dto.Stock, resultado.Stock);
         _libroRepository.Verify(r => r.CreateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Once);
+        _libroRepository.Verify(
+            r => r.CreateAsync(It.Is<Libro>(l => l.IsbnNormalizado == "9789500000000"), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -105,6 +108,7 @@ public class LibroServiceTests
 
         Assert.Equal("Nuevo", resultado.Titulo);
         Assert.Equal(4, resultado.Stock);
+        Assert.Equal("9788420633109", libroExistente.IsbnNormalizado);
         _libroRepository.Verify(r => r.UpdateAsync(It.IsAny<Libro>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 

@@ -23,6 +23,8 @@ public class BiblioGestDbContext : DbContext
             entity.Property(l => l.Titulo).IsRequired();
             entity.Property(l => l.Autor).IsRequired();
             entity.Property(l => l.Isbn).IsRequired();
+            entity.Property(l => l.IsbnNormalizado).IsRequired();
+            entity.HasIndex(l => l.IsbnNormalizado).IsUnique();
             entity.Property(l => l.Ubicacion).IsRequired();
         });
 
