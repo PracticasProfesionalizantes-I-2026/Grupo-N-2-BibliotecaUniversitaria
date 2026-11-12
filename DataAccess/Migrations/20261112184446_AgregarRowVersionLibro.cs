@@ -15,7 +15,9 @@ namespace BiblioGest.DataAccess.Migrations
                 table: "Libros",
                 type: "BLOB",
                 nullable: false,
-                defaultValueSql: "randomblob(8)");
+                defaultValue: new byte[0]);
+
+            migrationBuilder.Sql("UPDATE Libros SET RowVersion = randomblob(8);");
         }
 
         /// <inheritdoc />
