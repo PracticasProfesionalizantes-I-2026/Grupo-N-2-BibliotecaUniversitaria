@@ -11,5 +11,7 @@ public interface IReservaRepository
     Task<bool> TieneActivasPorLibroAsync(int libroId, CancellationToken ct = default);
     Task<bool> TieneActivasPorLectorAsync(int lectorId, CancellationToken ct = default);
     Task<Reserva> CreateAsync(Reserva reserva, CancellationToken ct = default);
-    Task UpdateAsync(Reserva reserva, CancellationToken ct = default);
+    // guardarCambios = false difiere el SaveChanges (lo usa ColaDeReservas
+    // para procesar toda la cascada de vencimientos y persistir una sola vez).
+    Task UpdateAsync(Reserva reserva, CancellationToken ct = default, bool guardarCambios = true);
 }
