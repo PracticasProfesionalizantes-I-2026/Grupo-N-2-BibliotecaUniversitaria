@@ -9,6 +9,7 @@ namespace BiblioGest.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/libros")]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public class LibrosController : ControllerBase
 {
     private readonly ILibroService _libroService;
@@ -20,6 +21,7 @@ public class LibrosController : ControllerBase
 
     // GET /api/libros?busqueda=
     [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<LibroResponseDTO>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll([FromQuery] string? busqueda, CancellationToken ct)
     {
         var libros = await _libroService.GetAllAsync(busqueda, ct);
@@ -28,6 +30,8 @@ public class LibrosController : ControllerBase
 
     // GET /api/libros/{id}
     [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(LibroResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         try
@@ -43,6 +47,9 @@ public class LibrosController : ControllerBase
 
     // POST /api/libros
     [HttpPost]
+    [ProducesResponseType(typeof(LibroResponseDTO), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] LibroCreateDTO dto, CancellationToken ct)
     {
         try
@@ -62,6 +69,10 @@ public class LibrosController : ControllerBase
 
     // PUT /api/libros/{id}
     [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(LibroResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(int id, [FromBody] LibroUpdateDTO dto, CancellationToken ct)
     {
         try
@@ -85,6 +96,9 @@ public class LibrosController : ControllerBase
 
     // DELETE /api/libros/{id}
     [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         try
