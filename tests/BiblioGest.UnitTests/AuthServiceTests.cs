@@ -22,7 +22,7 @@ public class AuthServiceTests
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Jwt:Key"] = "UnaClaveSecretaBienLargaYDificilDeAdivinar123!",
+                ["Jwt:Key"] = "ClaveDePruebaUnitariaDistintaDeLaDeProduccion2026",
                 ["Jwt:Issuer"] = "BiblioGestApi",
                 ["Jwt:Audience"] = "BiblioGestClient",
                 ["Jwt:ExpirationMinutes"] = "60"

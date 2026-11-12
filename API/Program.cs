@@ -72,7 +72,17 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IReporteService, ReporteService>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtKey = jwtSection["Key"]!;
+var jwtKey = jwtSection["Key"];
+
+const int LargoMinimoClaveJwtEnBytes = 32; // HMAC-SHA256 requiere al menos 256 bits de clave.
+if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < LargoMinimoClaveJwtEnBytes)
+{
+    throw new InvalidOperationException(
+        "La clave JWT (Jwt:Key) no está configurada o es insegura (debe tener al menos " +
+        $"{LargoMinimoClaveJwtEnBytes} bytes). En desarrollo, configurarla con " +
+        "'dotnet user-secrets set \"Jwt:Key\" \"<clave-larga-y-aleatoria>\"' desde API/. " +
+        "En otros entornos, definir la variable de entorno Jwt__Key.");
+}
 
 builder.Services.AddAuthentication(options =>
 {
